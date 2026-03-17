@@ -1,0 +1,93 @@
+Subject: [PATCH] mac cmake
+---
+Index: composeApp/build.gradle.kts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/composeApp/build.gradle.kts b/composeApp/build.gradle.kts
+--- a/composeApp/build.gradle.kts	(revision dd6004d75563bc12b389f706ce3dad6275e41ce3)
++++ b/composeApp/build.gradle.kts	(date 1771140321233)
+@@ -22,7 +22,7 @@
+             jvmTarget.set(JvmTarget.JVM_21)
+         }
+     }
+-    
++
+     listOf(
+         iosX64(),
+         iosArm64(),
+@@ -33,12 +33,12 @@
+             isStatic = true
+         }
+     }
+-    
++
+     jvm("desktop")
+-    
++
+     sourceSets {
+         val desktopMain by getting
+-        
++
+         androidMain.dependencies {
+             implementation(compose.preview)
+             implementation(libs.androidx.activity.compose)
+@@ -272,10 +272,17 @@
+         val generator = cmakeGenerator.get()
+         val options = cmakeOptions.get()
+ 
++        val cmakePath = findCMake()
++        println("Using CMake: $cmakePath")
++
++        // Get the current JVM path used by Gradle
++        val javaHome = System.getProperty("java.home")
++
+         // 1. Configure CMake
+         execOps.exec {
+             workingDir = workDir
+-            commandLine("cmake", "-S", ".", "-B", "build-$platform", "-G", generator)
++            environment("JAVA_HOME", javaHome)
++            commandLine(cmakePath, "-S", ".", "-B", "build-$platform", "-G", generator)
+             args(options)
+             isIgnoreExitValue = false
+         }
+@@ -283,10 +290,23 @@
+         // 2. Build CMake
+         execOps.exec {
+             workingDir = workDir
+-            commandLine("cmake", "--build", "build-$platform", "--config", "Release")
++            environment("JAVA_HOME", javaHome)
++            commandLine(cmakePath, "--build", "build-$platform", "--config", "Release")
+             isIgnoreExitValue = false
+         }
+     }
++
++    private fun findCMake(): String {
++        val candidates = listOf(
++            "/opt/homebrew/bin/cmake", // macOS Apple Silicon
++            "/usr/local/bin/cmake",    // macOS Intel
++            "/usr/bin/cmake"           // Linux / macOS default
++        )
++        for (path in candidates) {
++            if (File(path).exists()) return path
++        }
++        return "cmake" // Fallback to command from PATH
++    }
+ }
+ // 捕获 Configuration Phase 的变量，供 Execution Phase 使用，避免 configuration cache 问题
+ val rootDirVal = rootDir
+@@ -405,10 +425,10 @@
+ 
+     // 如果库不存在，则添加构建任务依赖
+     if (!libFile.exists() && currentPlatform.isNotEmpty()) {
+-         println("原生库不存在，配置构建任务依赖...")
+-         dependsOn("buildNativeLibFor$currentPlatform")
++        println("原生库不存在，配置构建任务依赖...")
++        dependsOn("buildNativeLibFor$currentPlatform")
+     } else {
+-         println("原生库已存在 (配置阶段检查)")
++        println("原生库已存在 (配置阶段检查)")
+     }
+     // 捕获需要的路径字符串，供 doLast 使用
+     val cppLibsDirStr = cppLibsDirVal

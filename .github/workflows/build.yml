@@ -1,0 +1,421 @@
+name: Build
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 每天凌晨3点运行一次测试构建
+  # 1. 当代码推送到 main 分支时
+  push:
+    branches:
+      - 'master'
+    # 且修改了应用或文档相关文件
+    paths:
+      - 'composeApp/**'         # Kotlin Multiplatform 核心代码
+      - 'gradle/**'             # Gradle wrapper
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/**' # 工作流自身变更
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Run tests
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Run tests
+        run: ./gradlew jvmTest
+
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-aarch64
+            runner: macos-latest
+            task: ./gradlew packageReleaseDmg
+
+          - name: macos-x86_64
+            runner: macos-15-intel
+            task: ./gradlew packageReleaseDmg
+
+          - name: linux-x86_64
+            runner: ubuntu-22.04
+            task: ./gradlew createReleaseDistributable packageReleaseDeb packageReleaseRpm
+
+          #          - name: linux-aarch64
+          #            runner: ubuntu-24.04-arm
+          #            task: ./gradlew createReleaseDistributable packageReleaseDeb packageReleaseRpm
+
+          - name: windows-x86_64
+            runner: windows-latest
+            task: ./gradlew.bat createReleaseDistributable packageReleaseMsi packageReleaseExe
+
+    #          - name: windows-arm64
+    #            runner: windows-11-arm
+    #            task: ./gradlew.bat createReleaseDistributable packageReleaseMsi packageReleaseExe
+
+    runs-on: ${{ matrix.runner }}
+    name: Build ${{ matrix.name }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # [新增] 针对 Windows 平台开启长路径支持
+      - name: Enable Windows Long Paths
+        if: startsWith(matrix.name, 'windows')
+        run: |
+          git config --system core.longpaths true
+          New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+        shell: powershell
+
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ startsWith(matrix.name, 'windows') && 'jetbrains' || 'zulu' }}
+          java-version: 21
+
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: 1.4.309.0
+          cache: true
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Setup MSBuild (Windows)
+        if: startsWith(matrix.name, 'windows')
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        if: "!startsWith(matrix.name, 'windows')"
+        run: ${{ matrix.task }}
+
+      - name: Build (Windows)
+        if: startsWith(matrix.name, 'windows')
+        run: |
+          subst V: (Get-Location).Path
+          Set-Location V:
+          ${{ matrix.task }}
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.name }}
+          path: composeApp/build/compose/binaries/main-release
+
+  build-mobile:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ios
+            task: ./gradlew buildReleaseIpa
+            path: composeApp/build/archives/release/*.ipa
+          - name: android
+            task: ./gradlew assembleRelease
+            path: composeApp/build/outputs/apk/release/*.apk
+
+    runs-on: macos-latest
+    name: Build ${{ matrix.name }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+
+      # [修改] 使用 setup-vulkan Action 来安装 Vulkan SDK
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: 1.4.309.0
+          cache: true
+
+
+      - name: Setup Signing
+        id: sign
+        if: ${{ matrix.name == 'android' }}
+        run: |
+          base64 --decode <<< "${{ secrets.RELEASE_KEY }}" > composeApp/release.jks
+          grep -q '[^[:space:]]' composeApp/release.jks && echo release_key_exists=true >> $GITHUB_OUTPUT || echo release_key_exists=false >> $GITHUB_OUTPUT
+
+      - name: Build
+        env:
+          RELEASE_KEY_EXISTS: ${{ steps.sign.outputs.release_key_exists }}
+          RELEASE_KEY_STORE_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ${{ matrix.task }}
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.path }}
+
+  package:
+    needs: build-desktop
+    runs-on: ubuntu-latest
+    name: Package artifacts
+    steps:
+      # 下载所有需要的 artifacts
+      - name: Download macOS aarch64 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: macos-aarch64
+          path: macos-aarch64
+
+      - name: Download macOS x86_64 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: macos-x86_64
+          path: macos-x86_64
+
+      - name: Download Linux x86_64 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: linux-x86_64
+          path: linux-x86_64
+
+
+
+      - name: Download Windows x86_64 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: windows-x86_64
+          path: windows-x86_64
+
+      #      - name: Download Windows arm64 artifact
+      #        uses: actions/download-artifact@v5
+      #        with:
+      #          name: windows-arm64
+      #          path: windows-arm64
+
+      # 重命名文件
+      - name: Rename artifacts
+        run: |
+          # Get base filename from macOS DMG
+          DMG_FILE=$(find macos-aarch64/dmg -name "*.dmg" -type f | head -n 1)
+          BASE_NAME=$(basename "$DMG_FILE" .dmg)
+          echo "Base filename: $BASE_NAME"
+          
+          # macOS
+          for arch in aarch64 x86_64; do
+            if [ -d "macos-${arch}/dmg" ]; then
+              for file in macos-${arch}/dmg/*.dmg; do
+                if [ -f "$file" ]; then
+                  filename=$(basename "$file" .dmg)
+                  mv "$file" "macos-${arch}/dmg/${filename}-macos-${arch}.dmg"
+                fi
+              done
+            fi
+          done
+
+          # Windows
+          for arch in x86_64 arm64; do
+            if [ -d "windows-${arch}/msi" ]; then
+              for file in windows-${arch}/msi/*.msi; do
+                if [ -f "$file" ]; then
+                  filename=$(basename "$file" .msi)
+                  mv "$file" "windows-${arch}/msi/${filename}-windows-${arch}.msi"
+                fi
+              done
+            fi
+            if [ -d "windows-${arch}/exe" ]; then
+              for file in windows-${arch}/exe/*.exe; do
+                if [ -f "$file" ]; then
+                  filename=$(basename "$file" .exe)
+                  mv "$file" "windows-${arch}/exe/${filename}-windows-${arch}.exe"
+                fi
+              done
+            fi
+            # Package portable as zip
+            if [ -d "windows-${arch}/app/MineStableDiffusion" ]; then
+              cd windows-${arch}/app
+              zip -r "../../${BASE_NAME}-windows-${arch}.zip" MineStableDiffusion
+              cd ../..
+            fi
+          done
+
+      # 上传新的 artifacts
+      - name: Upload macOS aarch64 DMG
+        uses: actions/upload-artifact@v5
+        with:
+          name: macos-aarch64-dmg
+          path: macos-aarch64/dmg/*.dmg
+
+      - name: Upload macOS x86_64 DMG
+        uses: actions/upload-artifact@v5
+        with:
+          name: macos-x86_64-dmg
+          path: macos-x86_64/dmg/*.dmg
+
+      - name: Upload Linux x86_64 DEB
+        uses: actions/upload-artifact@v5
+        with:
+          name: linux-x86_64-deb
+          path: linux-x86_64/deb/*.deb
+
+      - name: Upload Linux x86_64 RPM
+        uses: actions/upload-artifact@v5
+        with:
+          name: linux-x86_64-rpm
+          path: linux-x86_64/rpm/*.rpm
+
+      - name: Upload Windows x86_64 MSI
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-x86_64-msi
+          path: windows-x86_64/msi/*.msi
+
+      - name: Upload Windows x86_64 EXE
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-x86_64-exe
+          path: windows-x86_64/exe/*.exe
+
+      - name: Upload Windows x86_64 Portable
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows-x86_64-portable
+          path: '*-windows-x86_64.zip'
+
+  package-appimage:
+    needs: build-desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            appimagetool: appimagetool-x86_64.AppImage
+
+    runs-on: ${{ matrix.runner }}
+    name: Build Linux ${{ matrix.arch }} AppImage
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Download macOS aarch64 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: macos-aarch64
+          path: macos-aarch64
+
+      - name: Download Linux ${{ matrix.arch }} artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: linux-${{ matrix.arch }}
+          path: linux-${{ matrix.arch }}
+
+      - name: Build AppImage
+        run: |
+          # Get base filename from macOS DMG
+          DMG_FILE=$(find macos-aarch64/dmg -name "*.dmg" -type f | head -n 1)
+          BASE_NAME=$(basename "$DMG_FILE" .dmg)
+          echo "Base filename: $BASE_NAME"
+          
+          # Download appimagetool
+          wget https://github.com/AppImage/appimagetool/releases/download/continuous/${{ matrix.appimagetool }}
+          chmod +x ${{ matrix.appimagetool }}
+
+          # Prepare AppDir
+          mkdir -p AppDir/usr
+          cp -r linux-${{ matrix.arch }}/app/MineStableDiffusion/* AppDir/usr
+
+          # Create desktop file
+          cat > AppDir/MineStableDiffusion.desktop << 'EOF'
+          [Desktop Entry]
+          Name=MineStableDiffusion
+          Exec=MineStableDiffusion
+          Icon=MineStableDiffusion
+          Terminal=false
+          Type=Application
+          Categories=Utility;
+          EOF
+
+          # Create AppRun script
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export PATH="${HERE}/usr/bin/:${PATH}"
+          export LD_LIBRARY_PATH="${HERE}/usr/lib/:${LD_LIBRARY_PATH}"
+          exec "${HERE}/usr/bin/MineStableDiffusion" "$@"
+          EOF
+
+          # Copy icon if exists
+          if [ -f "docs/AppIcon.png" ]; then
+            cp docs/AppIcon.png AppDir/MineStableDiffusion.png
+          fi
+
+          # Fix permissions
+          chmod a+x AppDir/AppRun
+          chmod a+x AppDir/usr/bin/MineStableDiffusion
+
+          # Build AppImage
+          ARCH=${{ matrix.arch }} ./${{ matrix.appimagetool }} AppDir
+          
+          # Rename AppImage with base name from DMG
+          mv MineStableDiffusion-${{ matrix.arch }}.AppImage ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
+          chmod a+x ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: linux-${{ matrix.arch }}-appimage
+          path: '*-linux-${{ matrix.arch }}.AppImage'
+
+  cleanup:
+    needs: [ package-appimage, package ]
+    runs-on: ubuntu-latest
+    name: Cleanup original artifacts
+    steps:
+      - name: Delete original artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: |
+            macos-aarch64
+            macos-x86_64
+            linux-x86_64
+            linux-aarch64
+            windows-x86_64
+            windows-arm64

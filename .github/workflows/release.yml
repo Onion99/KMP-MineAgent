@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Create release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          submodules: 'recursive'
+
+      - name: Get tags
+        id: tags
+        run: |
+          # Get the latest tag (current tag being released)
+          NEW_TAG=$(git describe --tags --abbrev=0)
+          NEW_TAG_CLEAN=${NEW_TAG#v}
+          echo "new_tag=$NEW_TAG_CLEAN" >> $GITHUB_OUTPUT
+          echo "New tag: $NEW_TAG_CLEAN"
+          
+          # Get the latest release tag (previous release)
+          LATEST_RELEASE_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 2 | tail -n 1)
+          if [ -z "$LATEST_RELEASE_TAG" ]; then
+            # If no previous release, use the first commit
+            LATEST_RELEASE_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          LATEST_TAG_CLEAN=${LATEST_RELEASE_TAG#v}
+          echo "latest_tag=$LATEST_TAG_CLEAN" >> $GITHUB_OUTPUT
+          echo "Latest release tag: $LATEST_TAG_CLEAN"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+
+      - name: Prepare release notes
+        env:
+          NEW_TAG: ${{ steps.tags.outputs.new_tag }}
+          LATEST_TAG: ${{ steps.tags.outputs.latest_tag }}
+        run: |
+          # Extract changelog section for new tag
+          CHANGELOG_SECTION=""
+          IN_SECTION=0
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^##[[:space:]]+v?${NEW_TAG}[[:space:]]*$ ]] || [[ "$line" =~ ^##[[:space:]]+\[v?${NEW_TAG}\] ]]; then
+              IN_SECTION=1
+              continue
+            elif [[ "$line" =~ ^##[[:space:]] ]] && [[ $IN_SECTION -eq 1 ]]; then
+              break
+            elif [[ $IN_SECTION -eq 1 ]]; then
+              CHANGELOG_SECTION="${CHANGELOG_SECTION}${line}"$'\n'
+            fi
+          done < CHANGELOG.md
+          
+          # If no changelog section found, use a default message
+          if [ -z "$CHANGELOG_SECTION" ]; then
+            CHANGELOG_SECTION="## What's Changed"$'\n\n'"See the full changelog for details."$'\n'
+          fi
+          
+          # Add full changelog link
+          FULL_CHANGELOG="Full Changelog: [v${LATEST_TAG}...v${NEW_TAG}](https://github.com/Onion99/KMP-MineStableDiffusion/compare/v${LATEST_TAG}...v${NEW_TAG})"
+          
+          # Process RELEASE_NOTES.md and replace __VERSION__
+          RELEASE_NOTES=$(sed "s/__VERSION__/${NEW_TAG}/g" RELEASE_NOTES.md)
+          
+          # Combine everything
+          {
+            echo "$CHANGELOG_SECTION"
+            echo ""
+            echo "$FULL_CHANGELOG"
+            echo ""
+            echo "$RELEASE_NOTES"
+          } > release_notes.md
+          
+          echo "=== Generated Release Notes ==="
+          cat release_notes.md
+
+      - name: Flatten artifacts
+        run: |
+          # Move all files from artifact subdirectories to a flat structure
+          mkdir -p release_files
+          find artifacts -type f -exec mv {} release_files/ \;
+          ls -lah release_files/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.tags.outputs.new_tag }}
+          tag_name: v${{ steps.tags.outputs.new_tag }}
+          body_path: release_notes.md
+          files: release_files/*
+          draft: false
+          prerelease: false

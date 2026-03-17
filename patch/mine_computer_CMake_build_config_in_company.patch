@@ -1,0 +1,55 @@
+Subject: [PATCH] mine computer CMake build config in company
+---
+Index: composeApp/build.gradle.kts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/composeApp/build.gradle.kts b/composeApp/build.gradle.kts
+--- a/composeApp/build.gradle.kts	(revision a5b31b9dccc4d30d4428a6c0d60df6b75f826141)
++++ b/composeApp/build.gradle.kts	(date 1767690994677)
+@@ -382,6 +382,7 @@
+     println("Java Version: ${System.getProperty("java.version")}")
+     println("Java VM Name: ${System.getProperty("java.vm.name")}")
+     println("Sun Arch Data Model: ${System.getProperty("sun.arch.data.model")}")
++    println("System Env Variable USE_MINGW: ${System.getenv("USE_MINGW")}")
+ 
+     // Configuration time logic
+     val currentOs = System.getProperty("os.name").lowercase(Locale.getDefault())
+Index: cpp/diffusion-loader.cpp/CMakeLists.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/diffusion-loader.cpp/CMakeLists.txt b/cpp/diffusion-loader.cpp/CMakeLists.txt
+--- a/cpp/diffusion-loader.cpp/CMakeLists.txt	(revision a5b31b9dccc4d30d4428a6c0d60df6b75f826141)
++++ b/cpp/diffusion-loader.cpp/CMakeLists.txt	(date 1767691423155)
+@@ -155,27 +155,7 @@
+ # 强制开启 PIC，解决 Linux 下链接静态库到共享库时的重定位错误,有错误可以if(UNIX OR ANDROID)
+ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+ 
+-# 解决 Windows 下路径过长问题
+-if(WIN32)
+-    # 使用哈希来缩短 CMakeScratch 路径
+-    set(CMAKE_OBJECT_PATH_MAX 260)
+-    
+-    # 强制使用 x64 架构 (解决 GitHub Actions 构建兼容性问题)
+-    if(NOT CMAKE_GENERATOR_PLATFORM)
+-        set(CMAKE_GENERATOR_PLATFORM x64 CACHE STRING "Platform" FORCE)
+-    endif()
+-    
+-    # 静态链接 MSVC 运行时库,消除 msvcp140.dll 依赖,避免运行时崩溃
+-    # /MT (Release) 或 /MTd (Debug) - 将运行时库嵌入 DLL
+-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+-    
+-    # 验证架构配置
+-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+-        message(STATUS "Windows: 配置为 64-bit 构建")
+-    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+-        message(WARNING "Windows: 当前配置为 32-bit 构建，这可能导致兼容性问题！")
+-    endif()
+-endif()
++
+ 
+ # 添加预编译的库
+ # A-add_subdirectory:将另一个目录下的 CMake 项目包含到当前的构建流程中。这个子目录必须有自己的 CMakeLists.txt 文件

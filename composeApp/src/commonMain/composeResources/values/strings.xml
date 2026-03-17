@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<resources>
+    <string name="home">Home</string>
+    <string name="setting">Setting</string>
+    <string name="unknown">unknown</string>
+    <string name="light_theme">Light Theme</string>
+    <string name="dark_theme">Dark Theme</string>
+    <string name="error_select_correct_llm_model">Please select a valid LLM model file</string>
+    <string name="feature_not_available">Feature not available</string>
+    <string name="error_no_interrupt_api">Interruption not supported due to missing API in StableDiffusion-CPP</string>
+    <string name="scroll_to_bottom">Scroll to bottom</string>
+    <string name="ask_anything_placeholder">Please enter your prompt word, format: prompt word | negative prompt word</string>
+    <string name="attachment">Attachment</string>
+    <string name="clear">Clear</string>
+    <string name="copy">Copy</string>
+    <string name="text_copied">Text copied to clipboard</string>
+    <string name="stop_generation">Stop generation</string>
+    <string name="send_message">Send message</string>
+    <string name="user_avatar">User Avatar</string>
+    <string name="ai_avatar">AI Avatar</string>
+    <string name="user_image">User Image</string>
+    <string name="ai_image">AI Image</string>
+    <string name="select_llm_model_title">Select Your Diffusion Model</string>
+    <string name="loading">Loading...</string>
+    <string name="select">Select</string>
+    <string name="creating">Creating</string>
+    <string name="save_image">Save Image</string>
+    <string name="regenerate">Regenerate</string>
+    <string name="image_saved">Image saved successfully</string>
+    <string name="image_save_failed">Failed to save image</string>
+    <string name="image_generation_finished">Image generation completed: %s</string>
+    <string name="video_generation_finished">Video generation completed: %s, %s frames</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_subtitle">Customize your generation</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_image_dimensions">Image Dimensions</string>
+    <string name="settings_image_dimensions_subtitle">Configure output image size</string>
+    <string name="settings_width">Width</string>
+    <string name="settings_height">Height</string>
+    <string name="settings_quick_presets">Quick Presets</string>
+    <string name="settings_preset_portrait">Portrait</string>
+    <string name="settings_preset_landscape">Landscape</string>
+    <string name="settings_preset_square">Square</string>
+    <string name="settings_generation_quality">Generation Quality</string>
+    <string name="settings_generation_quality_subtitle">Fine-tune image generation</string>
+    <string name="settings_steps">Steps</string>
+    <string name="settings_steps_description">Higher = more detail, slower</string>
+    <string name="settings_cfg_scale">CFG Scale</string>
+    <string name="settings_cfg_scale_description">Low = Creative | High = Precise</string>
+    <string name="settings_sampler">Sampling Method</string>
+    <string name="settings_sampler_desc">Select the algorithm used to denoise the image</string>
+    <string name="settings_batch_count">Batch Size</string>
+    <string name="settings_batch_count_description">Number of images to generate</string>
+    <string name="settings_current_configuration">Current Configuration</string>
+    <string name="settings_advanced_title">Advanced Settings</string>
+    <string name="settings_advanced_subtitle">Experimental features and optimizations</string>
+    <string name="settings_flash_attn">Flash Attention</string>
+    <string name="settings_flash_attn_desc">Memory-optimized attention algorithm. Recommended for devices with limited RAM (&lt;8GB).</string>
+    <string name="settings_flash_attn_info">**Benefits:**\n• Reduces VRAM/RAM usage by ~30-50%\n• May speed up generation on modern GPUs\n• Mathematically equivalent to standard attention\n\n**Compatibility:**\n• Works best on NVIDIA GPUs (compute capability ≥7.5)\n• May not work on some CPU-only setups\n• Disable if experiencing crashes or artifacts\n\n**Recommendation:**\nEnable if you have &lt;8GB RAM or want faster inference.</string>
+    <string name="settings_quantization">Model Weight Type (wtype)</string>
+    <string name="settings_quantization_desc">Controls how model weights are stored in memory. Higher precision = better quality but more RAM.</string>
+    <string name="settings_quantization_warning">⚠️ Advanced users only. Changing this requires re-loading the model (long initialization) and may cause quality degradation. Most users should keep "Auto".</string>
+    <string name="settings_quant_default">Default (F32)</string>
+    <string name="settings_quant_auto">Auto</string>
+    <string name="settings_quant_info">• Auto: Library selects optimal type\n• F32: Full precision, ~8GB RAM, best quality\n• F16: Half precision, ~4GB RAM, minimal loss\n• BF16: Brain Float 16, ~4GB, modern hardware optimized\n• Q8_0: 8-bit quantized, ~2GB RAM, slight loss\n• Q6_K: 6-bit K-variant, ~1.5GB, good balance\n• Q5_K: 5-bit K-variant, ~1.3GB, better than Q5_0\n• Q5_0: 5-bit legacy, ~1.2GB, noticeable loss\n• Q4_K: 4-bit K-variant, ~1GB, better than Q4_0\n• Q4_0: 4-bit legacy, ~1GB, quality compromise\n• Q3_K: 3-bit K-variant, ~0.7GB, low memory\n• Q2_K: 2-bit K-variant, ~0.5GB, extreme compression\n\nNote: K-variants offer better quality at same bit-depth.</string>
+    <string name="settings_offload_to_cpu">Offload to CPU</string>
+    <string name="settings_offload_to_cpu_desc">Offload model computations to CPU to save GPU/memory</string>
+    <string name="settings_keep_clip_on_cpu">Keep CLIP on CPU</string>
+    <string name="settings_keep_clip_on_cpu_desc">Keep CLIP model on CPU to reduce GPU memory usage</string>
+    <string name="settings_keep_vae_on_cpu">Keep VAE on CPU</string>
+    <string name="settings_keep_vae_on_cpu_desc">Keep VAE decoder on CPU to reduce GPU memory usage</string>
+    <string name="settings_enable_mmap">Enable MMAP</string>
+    <string name="settings_enable_mmap_desc">Memory-map the model weights instead of loading them into RAM. Reduces initial RAM usage but may increase disk I/O.</string>
+    <string name="settings_conv_direct">Direct Convolution</string>
+    <string name="settings_conv_direct_desc">Enable direct convolution optimization in the diffusion model. Experimental performance boost on some hardware.</string>
+    <string name="settings_lora_title">LoRA Models</string>
+    <string name="settings_lora_subtitle">Add and configure LoRA models</string>
+    <string name="settings_lora_add">Add LoRA</string>
+    <string name="settings_lora_strength">Strength: %s</string>
+    <string name="settings_lora_remove">Remove</string>
+    <string name="settings_lora_files">LoRA Files (*.safetensors)</string>
+</resources>
