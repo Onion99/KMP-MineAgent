@@ -173,6 +173,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = libs.versions.app.version.get()
+        resValue("string", "app_name", project.property("app.name").toString())
         ndk {
             abiFilters.clear()
             abiFilters += "arm64-v8a"
@@ -583,9 +584,9 @@ abstract class BuildIpaTask : DefaultTask() {
     @TaskAction
     fun buildIpa() {
         // 1. Locate the .app inside the .xcarchive
-        val appDir = archiveDir.get().asFile.resolve("Products/Applications/MineStableDiffusion.app")
+        val appDir = archiveDir.get().asFile.resolve("Products/Applications/${project.property("app.name")}.app")
         if (!appDir.exists())
-            throw GradleException("Could not find MineStableDiffusion.app in archive at: ${appDir.absolutePath}")
+            throw GradleException("Could not find ${project.property("app.name")}.app in archive at: ${appDir.absolutePath}")
 
         // 2. Create temporary Payload directory and copy .app into it
         val payloadDir = File(temporaryDir, "Payload").apply { mkdirs() }
@@ -608,7 +609,7 @@ abstract class BuildIpaTask : DefaultTask() {
         //
         // The working directory is the temporary folder so the archive
         // has a top‑level "Payload/" directory (required for .ipa files).
-        val zipFile = File(temporaryDir, "MineStableDiffusion.zip")
+        val zipFile = File(temporaryDir, "${project.property("app.name")}.zip")
         execOperations.exec {
             workingDir(temporaryDir)
             commandLine("zip", "-r", "-y", zipFile.absolutePath, "Payload")
@@ -644,7 +645,7 @@ val buildReleaseArchive = tasks.register("buildReleaseArchive", Exec::class) {
     description = "Builds the iOS framework for Release"
     workingDir(projectDir)
 
-    val output = layout.buildDirectory.dir("archives/release/MineStableDiffusion.xcarchive")
+    val output = layout.buildDirectory.dir("archives/release/${project.property("app.name")}.xcarchive")
     outputs.dir(output)
     commandLine(
         *ipaArguments(),
@@ -658,8 +659,8 @@ tasks.register("buildReleaseIpa", BuildIpaTask::class) {
     group = "build"
 
     // Adjust these paths as needed
-    archiveDir = layout.buildDirectory.dir("archives/release/MineStableDiffusion.xcarchive")
-    outputIpa = layout.buildDirectory.file("archives/release/MineStableDiffusion-${libs.versions.app.version.get()}.ipa")
+    archiveDir = layout.buildDirectory.dir("archives/release/${project.property("app.name")}.xcarchive")
+    outputIpa = layout.buildDirectory.file("archives/release/${project.property("app.name")}-${libs.versions.app.version.get()}.ipa")
     dependsOn(buildReleaseArchive)
 }
 
