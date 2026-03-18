@@ -1,0 +1,3 @@
+[submodule "cpp/lite-rt-lm"]
+	path = cpp/lite-rt-lm
+	url = https://github.com/google-ai-edge/LiteRT-LM
