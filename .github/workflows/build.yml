@@ -267,9 +267,9 @@ jobs:
               done
             fi
             # Package portable as zip
-            if [ -d "windows-${arch}/app/MineStableDiffusion" ]; then
+            if [ -d "windows-${arch}/app/MineAgent" ]; then
               cd windows-${arch}/app
-              zip -r "../../${BASE_NAME}-windows-${arch}.zip" MineStableDiffusion
+              zip -r "../../${BASE_NAME}-windows-${arch}.zip" MineAgent
               cd ../..
             fi
           done
@@ -359,14 +359,14 @@ jobs:
 
           # Prepare AppDir
           mkdir -p AppDir/usr
-          cp -r linux-${{ matrix.arch }}/app/MineStableDiffusion/* AppDir/usr
+          cp -r linux-${{ matrix.arch }}/app/MineAgent/* AppDir/usr
 
           # Create desktop file
-          cat > AppDir/MineStableDiffusion.desktop << 'EOF'
+          cat > AppDir/MineAgent.desktop << 'EOF'
           [Desktop Entry]
-          Name=MineStableDiffusion
-          Exec=MineStableDiffusion
-          Icon=MineStableDiffusion
+          Name=MineAgent
+          Exec=MineAgent
+          Icon=MineAgent
           Terminal=false
           Type=Application
           Categories=Utility;
@@ -379,23 +379,23 @@ jobs:
           HERE=${SELF%/*}
           export PATH="${HERE}/usr/bin/:${PATH}"
           export LD_LIBRARY_PATH="${HERE}/usr/lib/:${LD_LIBRARY_PATH}"
-          exec "${HERE}/usr/bin/MineStableDiffusion" "$@"
+          exec "${HERE}/usr/bin/MineAgent" "$@"
           EOF
 
           # Copy icon if exists
           if [ -f "docs/AppIcon.png" ]; then
-            cp docs/AppIcon.png AppDir/MineStableDiffusion.png
+            cp docs/AppIcon.png AppDir/MineAgent.png
           fi
 
           # Fix permissions
           chmod a+x AppDir/AppRun
-          chmod a+x AppDir/usr/bin/MineStableDiffusion
+          chmod a+x AppDir/usr/bin/MineAgent
 
           # Build AppImage
           ARCH=${{ matrix.arch }} ./${{ matrix.appimagetool }} AppDir
           
           # Rename AppImage with base name from DMG
-          mv MineStableDiffusion-${{ matrix.arch }}.AppImage ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
+          mv MineAgent-${{ matrix.arch }}.AppImage ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
           chmod a+x ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
 
       - name: Upload AppImage artifact

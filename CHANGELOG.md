@@ -182,7 +182,7 @@
 ## v1.0.0
 
 
-- MineStableDiffusion First Release
+- MineAgent First Release
 - Core:
     - Multiplatform (Android,DeskTop)
     - txt2Img

@@ -1,7 +1,7 @@
 TEAM_ID=
 
-PRODUCT_NAME=MineStableDiffusion
-PRODUCT_BUNDLE_IDENTIFIER=org.onion.diffusion.MineStableDiffusion
+PRODUCT_NAME=MineAgent
+PRODUCT_BUNDLE_IDENTIFIER=org.onion.diffusion.MineAgent
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0

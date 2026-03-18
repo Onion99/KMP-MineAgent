@@ -73,7 +73,7 @@ jobs:
           fi
           
           # Add full changelog link
-          FULL_CHANGELOG="Full Changelog: [v${LATEST_TAG}...v${NEW_TAG}](https://github.com/Onion99/KMP-MineStableDiffusion/compare/v${LATEST_TAG}...v${NEW_TAG})"
+          FULL_CHANGELOG="Full Changelog: [v${LATEST_TAG}...v${NEW_TAG}](https://github.com/Onion99/KMP-MineAgent/compare/v${LATEST_TAG}...v${NEW_TAG})"
           
           # Process RELEASE_NOTES.md and replace __VERSION__
           RELEASE_NOTES=$(sed "s/__VERSION__/${NEW_TAG}/g" RELEASE_NOTES.md)
