@@ -19,7 +19,7 @@ captures
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
-/cpp/diffusion-loader.cpp/build-windows/
+/cpp/llm-loader.cpp/build-windows/
 /cpp/libs/
 /composeApp/libsdloader.dll
 

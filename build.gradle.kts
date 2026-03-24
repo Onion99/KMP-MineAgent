@@ -15,7 +15,7 @@ plugins {
 val dirProject: Directory = layout.projectDirectory
 // Cpp-目录,CMake路径,库输出目录
 val dirCpp by extra(dirProject.dir("cpp"))
-val dirCppMakeFile by extra("${dirCpp}/diffusion-loader.cpp/CMakeLists.txt")
+val dirCppMakeFile by extra("${dirCpp}/llm-loader.cpp/CMakeLists.txt")
 val cppLibsDir by extra(dirCpp.dir("libs"))
 // composeApp Dir
 val dirApp by extra(dirProject.dir(projects.composeApp.name))
