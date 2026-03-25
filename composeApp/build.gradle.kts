@@ -219,12 +219,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    externalNativeBuild {
+//    externalNativeBuild {
 //        cmake {
 //            path = file("${rootProject.extra["dirCppMakeFile"]}")
-//            version = "3.22.1"
+//            version = "3.30.3"
 //        }
-    }
+//    }
     lint {
         disable += "NullSafeMutableLiveData"
     }
@@ -472,9 +472,9 @@ tasks.register("buildNativeLibsIfNeeded") {
     }
 
     val libName = when {
-        currentOs.contains("windows") -> "libsdloader.dll"
-        currentOs.contains("mac") -> "libsdloader.dylib"
-        else -> "libsdloader.so"
+        currentOs.contains("windows") -> "litertlm_jni.dll"
+        currentOs.contains("mac") -> "liblitertlm_jni.dylib"
+        else -> "liblitertlm_jni.so"
     }
 
     val libFile = file("$cppLibsDirVal/$libName")
