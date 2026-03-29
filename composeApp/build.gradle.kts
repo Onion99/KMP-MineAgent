@@ -219,12 +219,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-//    externalNativeBuild {
-//        cmake {
-//            path = file("${rootProject.extra["dirCppMakeFile"]}")
-//            version = "3.30.3"
-//        }
-//    }
+    externalNativeBuild {
+        cmake {
+            path = file("${rootProject.extra["dirCppMakeFile"]}")
+            version = "4.1.0"
+        }
+    }
     lint {
         disable += "NullSafeMutableLiveData"
     }
