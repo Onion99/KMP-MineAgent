@@ -374,7 +374,7 @@ desktopPlatforms.forEach { platform ->
         // --- 配置阶段 (Configuration Phase) ---
         // 在这里赋值给 Task 的 Property，此时可以使用 project 上下文
         // 注意：cmake -S . 通常需要指向包含 CMakeLists.txt 的目录，而不是具体cpp文件。假设是上一级目录：
-        this.targetWorkingDir.set(file("$rootDirVal/cpp/llm-loader.cpp"))
+        this.targetWorkingDir.set(file("$rootDirVal/cpp/${rootProject.extra["dirCppName"]}"))
         this.platformName.set(platform)
 
         val currentPlatformName = platform // 捕获循环变量
