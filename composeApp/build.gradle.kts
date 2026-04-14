@@ -61,7 +61,7 @@ kotlin {
             isStatic = false
         }
         iosTarget.compilations["main"].cinterops {
-            val sdloader by creating {
+            creating {
                 defFile(nativeDefFile)
                 //compilerOpts("-I${headersDir.absolutePath}")
                 includeDirs(headersDir)
@@ -219,12 +219,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("${rootProject.extra["dirCppMakeFile"]}")
-            version = "4.1.0"
-        }
-    }
+    // 原生构建已迁移至 Bazel，见 buildAndroidNativeLib 任务
     lint {
         disable += "NullSafeMutableLiveData"
     }
@@ -331,10 +326,13 @@ abstract class BuildNativeLibTask : DefaultTask() {
     abstract val platformName: Property<String>
 
     @get:Input
-    abstract val cmakeGenerator: Property<String>
+    abstract val bazelTarget: Property<String>
 
     @get:Input
-    abstract val cmakeOptions: ListProperty<String>
+    abstract val bazelConfig: Property<String>
+
+    @get:Input
+    abstract val bazelExtraArgs: ListProperty<String>
 
     @get:Internal // 标记为 Internal 因为这不是构建的输入/输出文件，而是工作目录
     abstract val targetWorkingDir: Property<File>
@@ -342,25 +340,37 @@ abstract class BuildNativeLibTask : DefaultTask() {
     @TaskAction
     fun execute() {
         val platform = platformName.get()
-        println("正在为当前平台 $platform 构建原生库 (TaskAction)")
+        val target = bazelTarget.get()
+        val config = bazelConfig.get()
+        val extraArgs = bazelExtraArgs.get()
+        println("正在为当前平台 $platform 使用 Bazel 构建原生库 (target=$target, config=$config)")
 
         val workDir = targetWorkingDir.get()
-        val generator = cmakeGenerator.get()
-        val options = cmakeOptions.get()
 
-        // 1. Configure CMake
+        // 使用 bazelisk 构建（bazelisk 自动管理 Bazel 版本，见 .bazelversion）
         execOps.exec {
             workingDir = workDir
-            commandLine("cmake", "-S", ".", "-B", "build-$platform", "-G", generator)
-            args(options)
+            val cmd = mutableListOf("bazelisk", "build", target, "--config=$config")
+            cmd.addAll(extraArgs)
+            commandLine(cmd)
             isIgnoreExitValue = false
         }
 
-        // 2. Build CMake
-        execOps.exec {
-            workingDir = workDir
-            commandLine("cmake", "--build", "build-$platform", "--config", "Release")
-            isIgnoreExitValue = false
+        // 从 bazel-bin 拷贝产物到 cpp/libs 目录
+        val bazelBinDir = File(workDir, "bazel-bin/kotlin/java/com/google/ai/edge/litertlm/jni")
+        val cppLibsDir = File(workDir.parentFile, "libs")
+        if (!cppLibsDir.exists()) cppLibsDir.mkdirs()
+
+        if (bazelBinDir.exists() && bazelBinDir.isDirectory) {
+            bazelBinDir.listFiles { _, name ->
+                name.endsWith(".dll") || name.endsWith(".so") || name.endsWith(".dylib")
+            }?.forEach { f ->
+                val destName = if (f.name.startsWith("lib")) f.name else "lib${f.name}"
+                f.copyTo(File(cppLibsDir, destName), overwrite = true)
+                println("Bazel 产物拷贝: ${f.name} -> ${cppLibsDir}/$destName")
+            }
+        } else {
+            println("警告: Bazel 产物目录不存在: $bazelBinDir")
         }
     }
 }
@@ -372,52 +382,27 @@ desktopPlatforms.forEach { platform ->
         println("配置 buildNativeLibFor${platform.capitalize()} 任务")
 
         // --- 配置阶段 (Configuration Phase) ---
-        // 在这里赋值给 Task 的 Property，此时可以使用 project 上下文
-        // 注意：cmake -S . 通常需要指向包含 CMakeLists.txt 的目录，而不是具体cpp文件。假设是上一级目录：
         this.targetWorkingDir.set(file("$rootDirVal/cpp/${rootProject.extra["dirCppName"]}"))
         this.platformName.set(platform)
+        this.bazelTarget.set(rootProject.extra["bazelTarget"].toString())
 
-        val currentPlatformName = platform // 捕获循环变量
-        val generator = when(currentPlatformName) {
-            "windows" -> {
-                // GitHub Actions 和 CI 环境使用 Visual Studio
-                // 本地开发可以通过环境变量 USE_MINGW=true 切换到 MinGW
-                if (System.getenv("USE_MINGW") == "true") {
-                    "MinGW Makefiles"
-                } else {
-                    "Visual Studio 17 2022"
-                }
-            }
-            "macos" -> "Xcode"
-            "linux" -> "Unix Makefiles"
-            else -> "Unix Makefiles"
+        // 平台 → Bazel config 映射（对应 .bazelrc 中定义的 config）
+        val config = when(platform) {
+            "windows" -> "windows"
+            "macos" -> "macos"
+            "linux" -> "linux"
+            else -> "linux"
         }
-        this.cmakeGenerator.set(generator)
+        this.bazelConfig.set(config)
 
-
-        val options = when(platform) {
-            "windows" -> {
-                // 为 Visual Studio generator 明确指定 x64 架构
-                if (System.getenv("USE_MINGW") != "true") {
-                    listOf("-A", "x64")
-                } else {
-                    listOf()
-                }
-            }
-            "macos" -> listOf("-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64")
+        // 平台特定的额外 Bazel 参数
+        val extraArgs = when(platform) {
+            "macos" -> listOf("--config=macos_arm64")  // macOS 默认构建 arm64
             else -> listOf()
         }
-        // 注意: 使用 Visual Studio generator 时，不需要手动指定编译器路径
-        // MinGW 本地开发备注:
-        // 如需使用 MinGW，设置环境变量 USE_MINGW=true 并确保以下路径正确:
-        // cmakeOptions.add("-DCMAKE_C_COMPILER=D:/MyApp/Code/mingw64/bin/x86_64-w64-mingw32-gcc.exe")
-        // cmakeOptions.add("-DCMAKE_CXX_COMPILER=D:/MyApp/Code/mingw64/bin/x86_64-w64-mingw32-g++.exe")
-        // cmakeOptions.add("-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/mingw32-make.exe")
-
-        this.cmakeOptions.set(options)
+        this.bazelExtraArgs.set(extraArgs)
 
         // 检查是否为当前平台，只有当前平台才执行 TaskAction
-        // 注意：TaskAction 无法被动态跳过（除了 onlyIf），但我们可以用 onlyIf
         val osName = System.getProperty("os.name").lowercase(Locale.getDefault())
         val isCurrentPlatform = when(platform) {
             "windows" -> osName.contains("windows")
@@ -445,7 +430,7 @@ desktopPlatforms.forEach { platform ->
                 }?.forEach { f ->
                     f.copyTo(File(destDir, f.name), overwrite = true)
                 }
-                println("第一次SO迁移到JVM资源目录")
+                println("SO迁移到JVM资源目录")
                 println("cppLibsDirVal:$cppLibsDirStr")
                 println("jvmResourceLibDirStr:$jvmResourceLibDirStr")
                 println("${destDir.listFiles().map { it.name }}")
@@ -455,6 +440,40 @@ desktopPlatforms.forEach { platform ->
 }
 val cppLibsDirVal = rootProject.extra["cppLibsDir"].toString()
 val jvmResourceLibDirVal = rootProject.extra["jvmResourceLibDir"].toString()
+
+// ------------------------------------------------------------------------
+// Android Bazel 构建任务 - 替代 externalNativeBuild.cmake
+// ------------------------------------------------------------------------
+tasks.register<BuildNativeLibTask>("buildAndroidNativeLib") {
+    println("配置 buildAndroidNativeLib 任务")
+    this.targetWorkingDir.set(file("$rootDirVal/cpp/${rootProject.extra["dirCppName"]}"))
+    this.platformName.set("android")
+    this.bazelTarget.set(rootProject.extra["bazelTarget"].toString())
+    this.bazelConfig.set("android_arm64")
+    this.bazelExtraArgs.set(listOf())
+
+    // 将 Bazel 产物拷贝到 jniLibs 目录
+    val jniLibsDir = "$rootDirVal/composeApp/src/androidMain/jniLibs/arm64-v8a"
+    doLast {
+        val srcDir = File(cppLibsDirVal)
+        val destDir = File(jniLibsDir)
+        if (!destDir.exists()) destDir.mkdirs()
+        if (srcDir.exists() && srcDir.isDirectory) {
+            srcDir.listFiles { _, name ->
+                name.endsWith(".so")
+            }?.forEach { f ->
+                f.copyTo(File(destDir, f.name), overwrite = true)
+                println("Android JNI 库拷贝: ${f.name} -> $jniLibsDir")
+            }
+        }
+    }
+}
+
+// 让 Android 构建依赖 Bazel 原生库构建
+tasks.matching { it.name.contains("mergeDebugNativeLibs") || it.name.contains("mergeReleaseNativeLibs") }.configureEach {
+    dependsOn("buildAndroidNativeLib")
+}
+
 tasks.register("buildNativeLibsIfNeeded") {
     println("JVM Architecture: ${System.getProperty("os.arch")}")
     println("Java Vendor: ${System.getProperty("java.vendor")}")
@@ -493,7 +512,7 @@ tasks.register("buildNativeLibsIfNeeded") {
         // 这里只能使用局部变量 cppLibsDirStr, jvmResourceLibDirStr
         // 绝对不能用 project.file 或 rootDirVal,也就是全局变量,也不能使用全局方法
         if(libFile.exists()) return@doLast
-        val srcDir = File(cppLibsDirStr+File.separator+"Release")
+        val srcDir = File(cppLibsDirStr)
         val destDir = File(jvmResourceLibDirStr)
         // 迁移到JVM资源目录
         if (!destDir.exists()) destDir.mkdirs()
@@ -504,7 +523,7 @@ tasks.register("buildNativeLibsIfNeeded") {
             }?.forEach { f ->
                 f.copyTo(File(destDir, if(f.name.startsWith("lib")) f.name else "lib${f.name}"), overwrite = true)
             }
-            println("兜底第二次SO迁移到JVM资源目录")
+            println("兜底SO迁移到JVM资源目录")
             println("cppLibsDirVal:$cppLibsDirStr")
             println("jvmResourceLibDirStr:$jvmResourceLibDirStr")
             println("${destDir.listFiles().map { it.name }}")

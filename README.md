@@ -9,11 +9,15 @@ cd KMP-MineAgent
 # add path to system environment D:\MyApp\Code\protoc-25.9-win64\bin
 protoc --version
 
-# https://rustup.rs  downAndRun rustup-init.exe
+# rust https://rustup.rs  downAndRun rustup-init.exe
 rustc -V
 
-# https://github.com/google/flatbuffers
+# flatbuffers https://github.com/google/flatbuffers
 flatc
+
+# Bazel winget install Bazel.Bazelisk / brew install bazelisk https://github.com/bazelbuild/bazel/releases
+# Bazelisk  https://github.com/bazelbuild/bazelisk
+bazel
 
 # Build for Desktop
 ./gradlew :composeApp:run

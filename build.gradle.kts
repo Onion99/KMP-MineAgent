@@ -13,10 +13,10 @@ plugins {
 
 // Project Dir
 val dirProject: Directory = layout.projectDirectory
-// Cpp-目录,CMake路径,库输出目录
-val dirCppName by extra("bridge")
+// Cpp-目录,Bazel构建目标,库输出目录
+val dirCppName by extra("lite-rt-lm")
 val dirCpp by extra(dirProject.dir("cpp"))
-val dirCppMakeFile by extra("${dirCpp}/${dirCppName}/CMakeLists.txt")
+val bazelTarget by extra("//kotlin/java/com/google/ai/edge/litertlm/jni:litertlm_jni")
 val cppLibsDir by extra(dirCpp.dir("libs"))
 // composeApp Dir
 val dirApp by extra(dirProject.dir(projects.composeApp.name))
