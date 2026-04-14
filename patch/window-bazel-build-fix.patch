@@ -1,0 +1,55 @@
+Subject: [PATCH] feat: window平台bazel构建兼容
+---
+Index: .bazelrc.user
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.bazelrc.user b/.bazelrc.user
+new file mode 100644
+--- /dev/null	(date 1776158596726)
++++ b/.bazelrc.user	(date 1776158596726)
+@@ -0,0 +1,1 @@
++startup --output_user_root=C:/_b
+Index: .bazelrc
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.bazelrc b/.bazelrc
+--- a/.bazelrc	(revision a712d345477fe3128231974f0e3644c593b550d1)
++++ b/.bazelrc	(date 1776157913532)
+@@ -326,9 +326,9 @@
+ 
+ # By default, build TF in C++ 20 mode.
+ build:android --cxxopt=-std=c++20
+-build:android --host_cxxopt=-std=c++20
++# build:android --host_cxxopt=-std=c++20
+ build:ios --cxxopt=-std=c++20
+-build:ios --host_cxxopt=-std=c++20
++# build:ios --host_cxxopt=-std=c++20
+ build:linux --cxxopt=-std=c++20
+ build:linux --host_cxxopt=-std=c++20
+ build:macos --cxxopt=-std=c++20
+@@ -380,6 +380,21 @@
+ # Use Git Bash for genrules
+ build:windows --shell_executable="C:/Program Files/Git/bin/bash.exe"
+ 
++# Host settings for Windows when cross-compiling
++build:win_host --host_cxxopt=/std:c++20
++build:win_host --host_copt=/Iexternal/com_google_protobuf/src
++build:win_host --host_copt=/Zc:preprocessor
++build:win_host --host_linkopt=/DEBUG
++build:win_host --host_linkopt=/OPT:REF
++build:win_host --host_linkopt=/OPT:ICF
++build:win_host --strategy=Genrule=local
++build:win_host --genrule_strategy=local
++build:win_host --spawn_strategy=local
++build:win_host --shell_executable="C:/Program Files/Git/bin/bash.exe"
++build:win_host --define=protobuf_allow_msvc=true
++build:win_host --features=compiler_param_file
++build:win_host --features=archive_param_file
++
+ # Verbose failure logs when something goes wrong
+ build:windows --verbose_failures
+ 
