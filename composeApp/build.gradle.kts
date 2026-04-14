@@ -334,6 +334,22 @@ abstract class BuildNativeLibTask : DefaultTask() {
     @get:Input
     abstract val bazelExtraArgs: ListProperty<String>
 
+    @get:Input
+    @get:Optional
+    abstract val androidNdkHome: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val androidSdkHome: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val secondaryOutputDir: Property<File>
+
+    @get:Input
+    @get:Optional
+    abstract val secondaryOutputSuffix: Property<String>
+
     @get:Internal // 标记为 Internal 因为这不是构建的输入/输出文件，而是工作目录
     abstract val targetWorkingDir: Property<File>
 
@@ -350,6 +366,15 @@ abstract class BuildNativeLibTask : DefaultTask() {
         // 使用 bazelisk 构建（bazelisk 自动管理 Bazel 版本，见 .bazelversion）
         execOps.exec {
             workingDir = workDir
+            
+            // 确保 Android 环境变量已设置，以便 Bazel 查找工具链
+            if (androidNdkHome.isPresent) {
+                environment("ANDROID_NDK_HOME", androidNdkHome.get())
+            }
+            if (androidSdkHome.isPresent) {
+                environment("ANDROID_HOME", androidSdkHome.get())
+            }
+
             val cmd = mutableListOf("bazelisk", "build", target, "--config=$config")
             cmd.addAll(extraArgs)
             commandLine(cmd)
@@ -371,6 +396,21 @@ abstract class BuildNativeLibTask : DefaultTask() {
             }
         } else {
             println("警告: Bazel 产物目录不存在: $bazelBinDir")
+        }
+
+        // 如果设置了次要输出目录，则将产物拷贝到那里
+        if (secondaryOutputDir.isPresent) {
+            val destDir = secondaryOutputDir.get()
+            val suffix = secondaryOutputSuffix.getOrElse(".so")
+            if (!destDir.exists()) destDir.mkdirs()
+            if (cppLibsDir.exists() && cppLibsDir.isDirectory) {
+                cppLibsDir.listFiles { _, name ->
+                    name.endsWith(suffix)
+                }?.forEach { f ->
+                    f.copyTo(File(destDir, f.name), overwrite = true)
+                    println("次要产物拷贝: ${f.name} -> ${destDir.absolutePath}")
+                }
+            }
         }
     }
 }
@@ -402,6 +442,9 @@ desktopPlatforms.forEach { platform ->
         }
         this.bazelExtraArgs.set(extraArgs)
 
+        // 捕获需要的路径字符串，供 doLast 使用
+        val jvmResourceLibDirStr = jvmResourceLibDirVal
+        
         // 检查是否为当前平台，只有当前平台才执行 TaskAction
         val osName = System.getProperty("os.name").lowercase(Locale.getDefault())
         val isCurrentPlatform = when(platform) {
@@ -410,32 +453,14 @@ desktopPlatforms.forEach { platform ->
             "linux" -> osName.contains("linux")
             else -> false
         }
+        
+        // 只有当前平台才设置次要输出目录以供迁移
+        if (isCurrentPlatform) {
+            this.secondaryOutputDir.set(file(jvmResourceLibDirStr))
+            this.secondaryOutputSuffix.set(".so") // 或者根据平台设置
+        }
 
         onlyIf { isCurrentPlatform }
-
-        // 捕获需要的路径字符串，供 doLast 使用
-        val cppLibsDirStr = cppLibsDirVal
-        val jvmResourceLibDirStr = jvmResourceLibDirVal
-        doLast {
-            // 这里只能使用局部变量 cppLibsDirStr, jvmResourceLibDirStr
-            // 绝对不能用 project.file 或 rootDirVal,也就是全局变量,也不能使用全局方法
-            val srcDir = File(cppLibsDirStr)
-            val destDir = File(jvmResourceLibDirStr)
-            // 迁移到JVM资源目录
-            if (!destDir.exists()) destDir.mkdirs()
-            if (srcDir.exists() && srcDir.isDirectory) {
-                srcDir.listFiles { _, name ->
-                    name.endsWith(".dll") || name.endsWith(".dll.a") ||
-                            name.endsWith(".so") || name.endsWith(".dylib")
-                }?.forEach { f ->
-                    f.copyTo(File(destDir, f.name), overwrite = true)
-                }
-                println("SO迁移到JVM资源目录")
-                println("cppLibsDirVal:$cppLibsDirStr")
-                println("jvmResourceLibDirStr:$jvmResourceLibDirStr")
-                println("${destDir.listFiles().map { it.name }}")
-            }
-        }
     }
 }
 val cppLibsDirVal = rootProject.extra["cppLibsDir"].toString()
@@ -450,23 +475,20 @@ tasks.register<BuildNativeLibTask>("buildAndroidNativeLib") {
     this.platformName.set("android")
     this.bazelTarget.set(rootProject.extra["bazelTarget"].toString())
     this.bazelConfig.set("android_arm64")
-    this.bazelExtraArgs.set(listOf())
+    
+    val osName = System.getProperty("os.name").lowercase(Locale.getDefault())
+    if (osName.contains("windows")) {
+        this.bazelExtraArgs.add("--config=win_host")
+    }
+
+    // 自动获取 Android SDK 和 NDK 路径
+    val androidExt = project.extensions.getByType(com.android.build.gradle.BaseExtension::class.java)
+    this.androidSdkHome.set(androidExt.sdkDirectory.absolutePath.replace("\\", "/"))
+    this.androidNdkHome.set(androidExt.ndkDirectory.absolutePath.replace("\\", "/"))
 
     // 将 Bazel 产物拷贝到 jniLibs 目录
-    val jniLibsDir = "$rootDirVal/composeApp/src/androidMain/jniLibs/arm64-v8a"
-    doLast {
-        val srcDir = File(cppLibsDirVal)
-        val destDir = File(jniLibsDir)
-        if (!destDir.exists()) destDir.mkdirs()
-        if (srcDir.exists() && srcDir.isDirectory) {
-            srcDir.listFiles { _, name ->
-                name.endsWith(".so")
-            }?.forEach { f ->
-                f.copyTo(File(destDir, f.name), overwrite = true)
-                println("Android JNI 库拷贝: ${f.name} -> $jniLibsDir")
-            }
-        }
-    }
+    this.secondaryOutputDir.set(file("$rootDirVal/composeApp/src/androidMain/jniLibs/arm64-v8a"))
+    this.secondaryOutputSuffix.set(".so")
 }
 
 // 让 Android 构建依赖 Bazel 原生库构建
