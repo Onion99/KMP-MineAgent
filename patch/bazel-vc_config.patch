@@ -1,0 +1,16 @@
+Subject: [PATCH] bazel-vc_config
+---
+Index: .bazelrc.user
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.bazelrc.user b/.bazelrc.user
+new file mode 100644
+--- /dev/null	(date 1776412587848)
++++ b/.bazelrc.user	(date 1776412587848)
+@@ -0,0 +1,4 @@
++startup --output_user_root=G:/_b
++build --action_env=BAZEL_VC="C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/VC"
++build --repo_env=BAZEL_VC="C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/VC"
++

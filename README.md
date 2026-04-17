@@ -18,6 +18,7 @@ flatc
 # Bazel winget install Bazel.Bazelisk / brew install bazelisk https://github.com/bazelbuild/bazel/releases
 # Bazelisk  https://github.com/bazelbuild/bazelisk
 bazel
+# Install Visual Studio 2022 https://visualstudio.microsoft.com/zh-hans/visual-cpp-build-tools/ → select C++ developer
 
 # Build for Desktop
 ./gradlew :composeApp:run
