@@ -1,0 +1,20 @@
+Subject: [PATCH] fix: add windows path - 在 Windows 系统下，如果没有特别指定编译参数，MSVC (cl.exe) 会默认使用操作系统的编码（通常中文 Windows 下是 GBK 代码页 936）去读取并解析所有的 C++ 源码文件,然而当当 MSVC 试图用 GBK 的视角去解读 UTF-8 的注释图案时，意想不到的事情发生了。部分图形字符（例如图案右下角的 ┘，UTF-8 字节码为 E2 94 98）在试图转换为双字节的 GBK 字符时，其部分尾部游离字节（如 0x98）会被当作某个多字节宽字符的前导字节。 当遇到行尾时，编译器的词法分析器会将该行末尾的“换行符(CRLF)”强行吃掉，合并成一个乱码的宽字符！,stablehlo_reduce_window.cc(361): error
+---
+Index: .bazelrc.user
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.bazelrc.user b/.bazelrc.user
+new file mode 100644
+--- /dev/null	(date 1777270951519)
++++ b/.bazelrc.user	(date 1777270951519)
+@@ -0,0 +1,8 @@
++startup --output_user_root=G:/_b
++build --action_env=BAZEL_VC="C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC"
++build --repo_env=BAZEL_VC="C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC"
++build --copt=/utf-8
++build --host_copt=/utf-8
++build --cxxopt=/utf-8
++build --host_cxxopt=/utf-8
++
