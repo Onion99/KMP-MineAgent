@@ -116,6 +116,20 @@ class ChatViewModel  : ViewModel() {
     var flowShift = mutableStateOf(3.0f)
 
     // ========================================================================================
+    //                              LLM Settings (Gemma 4 LiteRT)
+    // ========================================================================================
+    var lmBackend = mutableStateOf("cpu")
+    var lmVisionBackend = mutableStateOf("")
+    var lmAudioBackend = mutableStateOf("")
+    var lmMaxNumTokens = mutableStateOf(1024)
+    var lmMaxNumImages = mutableStateOf(0)
+    var lmMainBackendNumThreads = mutableStateOf(4)
+    var lmAudioBackendNumThreads = mutableStateOf(4)
+
+    private var lmEngine: org.onion.agent.native.llm.LmEngine? = null
+    private var lmConversation: org.onion.agent.native.llm.LmConversation? = null
+
+    // ========================================================================================
     //                              LoRA Settings
     // ========================================================================================
     val loraList = mutableStateListOf<LoraConfig>()
@@ -191,6 +205,37 @@ class ChatViewModel  : ViewModel() {
         initModel = true
         viewModelScope.launch(Dispatchers.Default) {
             loadingModelState.emit(1)
+            
+            // Check if we are initializing LiteRT LM instead of stable diffusion
+            if (diffusionModelPath.value.isBlank() && llmPath.value.isNotBlank()) {
+                isLlmModelLoading.value = true
+                lmEngine = org.onion.agent.native.llm.LmEngine(
+                    diffusionLoader = diffusionLoader,
+                    modelPath = llmPath.value,
+                    backend = lmBackend.value,
+                    visionBackend = lmVisionBackend.value,
+                    audioBackend = lmAudioBackend.value,
+                    maxNumTokens = lmMaxNumTokens.value,
+                    maxNumImages = lmMaxNumImages.value,
+                    cacheDir = "",
+                    enableBenchmark = false,
+                    enableSpeculativeDecoding = null,
+                    mainNpuNativeLibraryDir = "",
+                    visionNpuNativeLibraryDir = "",
+                    audioNpuNativeLibraryDir = "",
+                    mainBackendNumThreads = lmMainBackendNumThreads.value,
+                    audioBackendNumThreads = lmAudioBackendNumThreads.value
+                )
+                lmEngine?.initialize()
+                
+                lmConversation = lmEngine?.createConversation()
+                
+                isLlmModelLoading.value = false
+                loadingModelState.emit(2)
+                return@launch
+            }
+
+            // Otherwise load diffusion model
             diffusionLoader.loadModel(
                 modelPath = diffusionModelPath.value,
                 vaePath = vaePath.value,
@@ -431,7 +476,14 @@ class ChatViewModel  : ViewModel() {
             _currentChatMessages.add(ChatMessage(message, isUser))
             _currentChatMessages.add(ChatMessage("", false))
             isGenerating.value = true
-            getImageTalkerResponse(message,{},{})
+            
+            if (diffusionModelPath.value.isBlank() && llmPath.value.isNotBlank() && lmConversation != null) {
+                // Text LM Mode
+                getTextTalkerResponse(message, {}, {})
+            } else {
+                // Image/Video Mode
+                getImageTalkerResponse(message,{},{})
+            }
         }
 
     }
@@ -453,7 +505,9 @@ class ChatViewModel  : ViewModel() {
             _currentChatMessages.add(ChatMessage(fullPrompt, true))
             _currentChatMessages.add(ChatMessage("", false))
             isGenerating.value = true
-            if (isVideo) {
+            if (diffusionModelPath.value.isBlank() && llmPath.value.isNotBlank() && lmConversation != null) {
+                getTextTalkerResponse(fullPrompt, {}, {})
+            } else if (isVideo) {
                 getVideoTalkerResponse(fullPrompt,{},{})
             } else {
                 getImageTalkerResponse(fullPrompt,{},{})
@@ -463,8 +517,66 @@ class ChatViewModel  : ViewModel() {
 
     fun stopGeneration() {
         isGenerating.value = false
+        if (lmConversation != null && diffusionModelPath.value.isBlank() && llmPath.value.isNotBlank()) {
+            lmConversation?.cancelProcess()
+        }
         responseGenerationJob?.cancel()
         val lastIndex = _currentChatMessages.lastIndex
-        _currentChatMessages.removeAt(lastIndex)
+        if (lastIndex >= 0) {
+            _currentChatMessages.removeAt(lastIndex)
+        }
+    }
+    
+    @OptIn(ExperimentalTime::class)
+    fun getTextTalkerResponse(query: String, onCancelled: () -> Unit, onError: (Throwable) -> Unit) {
+        if (lmConversation == null) {
+            onError(IllegalStateException("LM Engine not initialized"))
+            return
+        }
+        
+        runCatching {
+            responseGenerationJob = viewModelScope.launch(Dispatchers.Default) {
+                isInferenceOn = true
+                val promptContent = query
+                val startTime = Clock.System.now().toEpochMilliseconds()
+                
+                var generatedResult = ""
+                
+                try {
+                    lmConversation?.sendMessageAsync(org.onion.agent.native.llm.Message.user(promptContent))?.collect { responseMsg ->
+                        val chunk = responseMsg.contents.toString()
+                        generatedResult += chunk
+                        if (_currentChatMessages.isNotEmpty()) {
+                            val lastIdx = _currentChatMessages.lastIndex
+                            val msgToUpdate = _currentChatMessages[lastIdx]
+                            _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim())
+                        }
+                    }
+                    
+                    val generationDuration = Clock.System.now().toEpochMilliseconds() - startTime
+                    if (_currentChatMessages.isNotEmpty()) {
+                        val lastIdx = _currentChatMessages.lastIndex
+                        val meta = mapOf(
+                            "prompt" to promptContent,
+                            "time_taken" to formatDuration(generationDuration)
+                        )
+                        _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(metadata = meta)
+                    }
+                } catch (e: Exception) {
+                    isGenerating.value = false
+                    isInferenceOn = false
+                    onError(e)
+                    return@launch
+                }
+                
+                isGenerating.value = false
+                isInferenceOn = false
+            }
+        }.getOrElse { exception ->
+            isInferenceOn = false
+            if(exception is CancellationException){
+                onCancelled()
+            } else onError(exception)
+        }
     }
 }

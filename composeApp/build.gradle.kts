@@ -231,7 +231,7 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "org.onion.diffusion.MainKt"
+        mainClass = "${project.property("app.id")}.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
