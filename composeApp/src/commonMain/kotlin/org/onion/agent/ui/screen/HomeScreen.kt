@@ -355,9 +355,9 @@ private fun ChatMessagesList(chatMessages: List<ChatMessage>,snackbarHostState: 
                         onSaveImage = { imageData ->
                             coroutineScope.launch(Dispatchers.Default) {
                                 val fileName = "diffusion_${Clock.System.now().toEpochMilliseconds()}.png"
-                                val success = chatViewModel.diffusionLoader.saveImage(imageData, fileName, message.metadata)
-                                val msg = if (success) getString(Res.string.image_saved) else getString(Res.string.image_save_failed)
-                                snackbarHostState.showSnackbar(msg)
+                                //val success = chatViewModel.diffusionLoader.saveImage(imageData, fileName, message.metadata)
+                                //val msg = if (success) getString(Res.string.image_saved) else getString(Res.string.image_save_failed)
+                                //snackbarHostState.showSnackbar(msg)
                             }
                         },
                         onRegenerate = if (message.metadata?.containsKey("prompt") == true) {

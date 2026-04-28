@@ -8,7 +8,8 @@ import org.onion.agent.utils.NativeLibraryLoader
 actual class DiffusionLoader actual constructor() {
 
     init {
-        NativeLibraryLoader.loadFromResources("sdloader")
+        NativeLibraryLoader.loadFromResources("GemmaModelConstraintProvider")
+        NativeLibraryLoader.loadFromResources("litertlm_jni")
     }
     private var nativePtr = 0L
 
@@ -16,132 +17,84 @@ actual class DiffusionLoader actual constructor() {
         return FileKit.openFilePicker()?.file?.absolutePath ?: ""
     }
 
+    // ========================================================================================
+    //                              LiteRT LM API Implementations
+    // ========================================================================================
+    
+    actual fun loadLmEngine(
+        modelPath: String, backend: String, visionBackend: String, audioBackend: String,
+        maxNumTokens: Int, maxNumImages: Int, cacheDir: String, enableBenchmark: Boolean,
+        enableSpeculativeDecoding: Boolean?, mainNpuNativeLibraryDir: String,
+        visionNpuNativeLibraryDir: String, audioNpuNativeLibraryDir: String,
+        mainBackendNumThreads: Int, audioBackendNumThreads: Int
+    ): Long {
+        return nativeLoadLmEngine(modelPath, backend, visionBackend, audioBackend, maxNumTokens, maxNumImages, cacheDir, enableBenchmark, enableSpeculativeDecoding, mainNpuNativeLibraryDir, visionNpuNativeLibraryDir, audioNpuNativeLibraryDir, mainBackendNumThreads, audioBackendNumThreads)
+    }
 
-    actual fun loadModel(
-        modelPath: String,
-        vaePath: String,
-        llmPath: String,
-        clipLPath: String,
-        clipGPath: String,
-        t5xxlPath: String,
-        offloadToCpu: Boolean,
-        keepClipOnCpu: Boolean,
-        keepVaeOnCpu: Boolean,
-        diffusionFlashAttn: Boolean,
-        enableMmap: Boolean,
-        diffusionConvDirect: Boolean,
-        wtype: Int,
-        flowShift: Float
+    actual fun createLmConversation(
+        enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
+        channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
+    ): Long {
+        return nativeCreateLmConversation(enginePointer, messageJsonString, toolsDescriptionJsonString, channelsJsonString, extraContextJsonString, enableConversationConstrainedDecoding)
+    }
+
+    actual fun sendLmMessage(
+        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String
+    ): String {
+        return nativeSendLmMessage(conversationPointer, messageJsonString, extraContextJsonString)
+    }
+
+    interface LmMessageCallback {
+        fun onMessage(messageJsonString: String)
+        fun onDone()
+        fun onError(statusCode: Int, message: String)
+    }
+
+    actual fun sendLmMessageAsync(
+        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String,
+        onMessage: (String) -> Unit, onDone: () -> Unit, onError: (Int, String) -> Unit
     ) {
-        nativePtr = nativeLoadModel(
-            modelPath,
-            vaePath,
-            llmPath,
-            clipLPath,
-            clipGPath,
-            t5xxlPath,
-            offloadToCpu,
-            keepClipOnCpu,
-            keepVaeOnCpu,
-            diffusionFlashAttn,
-            enableMmap,
-            diffusionConvDirect,
-            wtype,
-            flowShift
-        )
+        nativeSendLmMessageAsync(conversationPointer, messageJsonString, extraContextJsonString, object : LmMessageCallback {
+            override fun onMessage(messageJsonString: String) = onMessage(messageJsonString)
+            override fun onDone() = onDone()
+            override fun onError(statusCode: Int, message: String) = onError(statusCode, message)
+        })
     }
 
-    actual fun release() {
-        nativeRelease(nativePtr)
+    actual fun cancelLmConversation(conversationPointer: Long) {
+        nativeCancelLmConversation(conversationPointer)
     }
 
-    actual fun txt2Img(
-        prompt: String,
-        negative: String,
-        width: Int,
-        height: Int,
-        steps: Int,
-        cfg: Float,
-        seed: Long,
-        sampleMethod: Int,
-        loraPaths: Array<String>?,
-        loraStrengths: FloatArray?
-    ): ByteArray? = nativeTxt2Img(nativePtr,prompt,negative,width,height,steps,cfg,seed,sampleMethod,loraPaths,loraStrengths)
-
-    actual fun videoGen(
-        prompt: String,
-        negative: String,
-        width: Int,
-        height: Int,
-        videoFrames: Int,
-        steps: Int,
-        cfg: Float,
-        seed: Long,
-        sampleMethod: Int,
-        loraPaths: Array<String>?,
-        loraStrengths: FloatArray?
-    ): List<ByteArray>? {
-        val result = nativeVideoGen(nativePtr, prompt, negative, width, height, videoFrames, steps, cfg, seed, sampleMethod, loraPaths, loraStrengths)
-        return result?.toList()
+    actual fun deleteLmConversation(conversationPointer: Long) {
+        nativeDeleteLmConversation(conversationPointer)
     }
 
-    actual suspend fun saveImage(imageData: ByteArray, fileName: String, metadata: Map<String, String>?): Boolean {
-        return try {
-            val finalBytes = if (metadata != null) {
-                org.onion.agent.utils.PngMetadata.inject(imageData, metadata)
-            } else {
-                imageData
-            }
-            FileKit.saveImageToGallery(finalBytes,fileName)
-            true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
+    actual fun deleteLmEngine(enginePointer: Long) {
+        nativeDeleteLmEngine(enginePointer)
     }
 
-    private external fun nativeLoadModel(
-        modelPath: String,
-        vaePath: String,
-        llmPath: String,
-        clipLPath: String,
-        clipGPath: String,
-        t5xxlPath: String,
-        offloadToCpu: Boolean,
-        keepClipOnCpu: Boolean,
-        keepVaeOnCpu: Boolean,
-        diffusionFlashAttn: Boolean,
-        enableMmap: Boolean,
-        diffusionConvDirect: Boolean,
-        wtype: Int,
-        flowShift: Float
+    private external fun nativeLoadLmEngine(
+        modelPath: String, backend: String, visionBackend: String, audioBackend: String,
+        maxNumTokens: Int, maxNumImages: Int, cacheDir: String, enableBenchmark: Boolean,
+        enableSpeculativeDecoding: Boolean?, mainNpuNativeLibraryDir: String,
+        visionNpuNativeLibraryDir: String, audioNpuNativeLibraryDir: String,
+        mainBackendNumThreads: Int, audioBackendNumThreads: Int
     ): Long
-    private external fun nativeTxt2Img(
-        handle: Long,
-        prompt: String,
-        negative: String,
-        width: Int,
-        height: Int,
-        steps: Int,
-        cfg: Float,
-        seed: Long,
-        sampleMethod: Int,
-        loraPaths: Array<String>? = null,
-        loraStrengths: FloatArray? = null
-    ): ByteArray?
-    private external fun nativeVideoGen(
-        handle: Long,
-        prompt: String,
-        negative: String,
-        width: Int,
-        height: Int,
-        videoFrames: Int,
-        steps: Int,
-        cfg: Float,
-        seed: Long,
-        sampleMethod: Int,
-        loraPaths: Array<String>? = null,
-        loraStrengths: FloatArray? = null
-    ): Array<ByteArray>?
-    private external fun nativeRelease(handle: Long)
+
+    private external fun nativeCreateLmConversation(
+        enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
+        channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
+    ): Long
+
+    private external fun nativeSendLmMessage(
+        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String
+    ): String
+
+    private external fun nativeSendLmMessageAsync(
+        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String, callback: LmMessageCallback
+    )
+
+    private external fun nativeCancelLmConversation(conversationPointer: Long)
+    private external fun nativeDeleteLmConversation(conversationPointer: Long)
+    private external fun nativeDeleteLmEngine(enginePointer: Long)
 }

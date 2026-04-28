@@ -7,6 +7,12 @@ import java.io.InputStream
 object NativeLibraryLoader {
 
     private val loadedLibraries = mutableSetOf<String>()
+    
+    private val tempDir: File by lazy {
+        val dir = java.nio.file.Files.createTempDirectory("native_libs_").toFile()
+        dir.deleteOnExit()
+        dir
+    }
 
     @Synchronized // Ensure thread safety
     fun loadFromResources(baseName: String) {
@@ -51,10 +57,6 @@ object NativeLibraryLoader {
         val tempLibFile: File
         val tempLibLibraryFile: File
         try {
-            // Create a temporary directory to hold the library files
-            val tempDir = java.nio.file.Files.createTempDirectory("native_libs_${baseName}_").toFile()
-            tempDir.deleteOnExit() // Clean up directory on exit
-
             tempLibFile = File(tempDir, libFileName)
             tempLibFile.deleteOnExit() // Important for cleanup
             println("tempFile Name  ${tempLibFile.absolutePath}")
