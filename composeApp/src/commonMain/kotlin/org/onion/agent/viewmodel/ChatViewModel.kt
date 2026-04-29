@@ -200,7 +200,13 @@ class ChatViewModel  : ViewModel() {
         initModel = true
         viewModelScope.launch(Dispatchers.Default) {
             loadingModelState.emit(1)
-
+            println("=== Model Path ===")
+            println("Model Path: ${diffusionModelPath.value}")
+            println("VAE Path: ${vaePath.value}")
+            println("LLM Path: ${llmPath.value}")
+            println("CLIP-L Path: ${clipLPath.value}")
+            println("CLIP-G Path: ${clipGPath.value}")
+            println("T5XXL Path: ${t5xxlPath.value}")
             isLlmModelLoading.value = true
             lmEngine = org.onion.agent.native.llm.LmEngine(
                 liteRtLmJni = liteRtLmJni,
@@ -224,16 +230,6 @@ class ChatViewModel  : ViewModel() {
             lmConversation = lmEngine?.createConversation()
 
             isLlmModelLoading.value = false
-            loadingModelState.emit(2)
-
-
-            println("=== Model Path ===")
-            println("Model Path: ${diffusionModelPath.value}")
-            println("VAE Path: ${vaePath.value}")
-            println("LLM Path: ${llmPath.value}")
-            println("CLIP-L Path: ${clipLPath.value}")
-            println("CLIP-G Path: ${clipGPath.value}")
-            println("T5XXL Path: ${t5xxlPath.value}")
             loadingModelState.emit(2)
         }
     }
@@ -277,7 +273,7 @@ class ChatViewModel  : ViewModel() {
 
     fun stopGeneration() {
         isGenerating.value = false
-        if (lmConversation != null && diffusionModelPath.value.isBlank() && llmPath.value.isNotBlank()) {
+        if (lmConversation != null && llmPath.value.isNotBlank()) {
             lmConversation?.cancelProcess()
         }
         responseGenerationJob?.cancel()

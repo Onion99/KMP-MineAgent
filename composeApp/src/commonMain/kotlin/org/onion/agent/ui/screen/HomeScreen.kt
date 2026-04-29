@@ -162,7 +162,7 @@ fun HomeScreen(
         val keyboardController = LocalSoftwareKeyboardController.current
         val focusManager = LocalFocusManager.current
         val snackbarHostState = remember { SnackbarHostState() }
-        var showFileDialog by remember { mutableStateOf(chatViewModel.diffusionModelPath.value.isEmpty() || chatViewModel.loadingModelState.value == 0) }
+        var showFileDialog by remember { mutableStateOf(chatViewModel.llmPath.value.isEmpty() || chatViewModel.loadingModelState.value == 0) }
         val coroutineScope = rememberCoroutineScope()
         coroutineScope.launch {
             chatViewModel.loadingModelState.collect { state ->
@@ -174,7 +174,7 @@ fun HomeScreen(
             selectAction = {
                 coroutineScope.launch(Dispatchers.Default) {
                     if(chatViewModel.loadingModelState.value == 1) return@launch
-                    if(chatViewModel.diffusionModelPath.value.isBlank()){
+                    if(chatViewModel.llmPath.value.isBlank()){
                         snackbarHostState.showSnackbar(getString(Res.string.error_select_correct_llm_model))
                     }else {
                         chatViewModel.loadingModelState.emit(1)
@@ -948,7 +948,7 @@ fun LLMFileSelectTipDialog(
                                 onSelectClick = {
                                     coroutineScope.launch(Dispatchers.Default) {
                                         if(loadingState == 1) return@launch
-                                        chatViewModel.selectDiffusionModelFile()
+                                        chatViewModel.selectLlmFile()
                                     }
                                 }
                             )
@@ -963,13 +963,13 @@ fun LLMFileSelectTipDialog(
                     ) {
                         Button(
                             onClick = selectAction,
-                            enabled = diffusionPath.isNotEmpty() && loadingState != 1,
+                            enabled = llmPath.isNotEmpty() && loadingState != 1,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
                                 .clip(RoundedCornerShape(26.dp))
                                 .background(
-                                    brush = if (diffusionPath.isNotEmpty() && loadingState != 1) {
+                                    brush = if (llmPath.isNotEmpty() && loadingState != 1) {
                                         Brush.horizontalGradient(
                                             colors = listOf(
                                                 Color(0xFFFFA726),
