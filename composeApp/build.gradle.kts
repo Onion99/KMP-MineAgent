@@ -513,7 +513,7 @@ tasks.register("buildNativeLibsIfNeeded") {
     }
 
     val libName = when {
-        currentOs.contains("windows") -> "litertlm_jni.dll"
+        currentOs.contains("windows") -> "liblitertlm_jni.dll"
         currentOs.contains("mac") -> "liblitertlm_jni.dylib"
         else -> "liblitertlm_jni.so"
     }

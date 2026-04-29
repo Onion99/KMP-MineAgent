@@ -1,6 +1,6 @@
-package org.onion.agent.native
+package com.google.ai.edge.litertlm
 
-expect class LLMLoader(){
+expect class LiteRtLmJni(){
     suspend fun getModelFilePath():String
 
     // ========================================================================================

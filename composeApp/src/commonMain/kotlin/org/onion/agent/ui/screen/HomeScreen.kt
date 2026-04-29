@@ -719,97 +719,92 @@ private fun AiMessage(
     metadata: Map<String, String>? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // 当消息为空且无图片时，显示创意加载动画
-        if (message.isEmpty() && image == null) {
-            MagicLoadingAnimation()
-        } else {
-            // 正常显示逻辑
-            if (image != null) {
-                Box(modifier = Modifier.wrapContentSize()) {
-                    // Try to pre-calculate aspect ratio to prevent layout shifts
-                    val widthStr = metadata?.get("width")
-                    val heightStr = metadata?.get("height")
-                    val imgModifier = Modifier
-                        .padding(bottom = 4.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .let { m ->
-                            if (widthStr != null && heightStr != null && widthStr.toFloatOrNull() != null && heightStr.toFloatOrNull() != null) {
-                                val w = widthStr.toFloat()
-                                val h = heightStr.toFloat()
-                                m.aspectRatio(w / h)
-                            } else {
-                                m.wrapContentSize()
-                            }
+        // 正常显示逻辑
+        if (image != null) {
+            Box(modifier = Modifier.wrapContentSize()) {
+                // Try to pre-calculate aspect ratio to prevent layout shifts
+                val widthStr = metadata?.get("width")
+                val heightStr = metadata?.get("height")
+                val imgModifier = Modifier
+                    .padding(bottom = 4.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .let { m ->
+                        if (widthStr != null && heightStr != null && widthStr.toFloatOrNull() != null && heightStr.toFloatOrNull() != null) {
+                            val w = widthStr.toFloat()
+                            val h = heightStr.toFloat()
+                            m.aspectRatio(w / h)
+                        } else {
+                            m.wrapContentSize()
                         }
+                    }
 
-                    AsyncImage(
-                        model = image,
-                        contentDescription = stringResource(Res.string.ai_image),
-                        alignment = Alignment.Center,
-                        contentScale = ContentScale.Fit,
-                        modifier = imgModifier
-                    )
-                    // Premium Action Bar Overlay
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        if (onRegenerate != null) {
-                            IconButton(
-                                onClick = onRegenerate,
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Refresh,
-                                    contentDescription = stringResource(Res.string.regenerate),
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                AsyncImage(
+                    model = image,
+                    contentDescription = stringResource(Res.string.ai_image),
+                    alignment = Alignment.Center,
+                    contentScale = ContentScale.Fit,
+                    modifier = imgModifier
+                )
+                // Premium Action Bar Overlay
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (onRegenerate != null) {
                         IconButton(
-                            onClick = { onSaveImage?.invoke(image) },
+                            onClick = onRegenerate,
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.SaveAlt,
-                                contentDescription = stringResource(Res.string.save_image),
-                                tint = MaterialTheme.colorScheme.primary,
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = stringResource(Res.string.regenerate),
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                     }
+                    IconButton(
+                        onClick = { onSaveImage?.invoke(image) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SaveAlt,
+                            contentDescription = stringResource(Res.string.save_image),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
-            if (message.isNotEmpty()) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                    MediumText(
-                        text = message,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .padding(top = 4.dp, end = 8.dp)
-                            .weight(1f)
-                    )
-                    if (onCopyText != null) {
-                        IconButton(
-                            onClick = { onCopyText.invoke(message) },
-                            modifier = Modifier.size(24.dp).padding(start = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ContentCopy,
-                                contentDescription = stringResource(Res.string.copy),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+        }
+        if (message.isNotEmpty()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                MediumText(
+                    text = message,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .padding(top = 4.dp, end = 8.dp)
+                        .weight(1f)
+                )
+                if (onCopyText != null) {
+                    IconButton(
+                        onClick = { onCopyText.invoke(message) },
+                        modifier = Modifier.size(24.dp).padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ContentCopy,
+                            contentDescription = stringResource(Res.string.copy),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
@@ -941,9 +936,9 @@ fun LLMFileSelectTipDialog(
 
                         item {
                             FileSelectionCard(
-                                title = "Diffusion Model",
+                                title = "LLM Model",
                                 subtitle = "Required",
-                                selectedPath = diffusionPath,
+                                selectedPath = llmPath,
                                 isRequired = true,
                                 isLoading = isDiffusionModelLoading,
                                 gradientColors = listOf(
@@ -954,126 +949,6 @@ fun LLMFileSelectTipDialog(
                                     coroutineScope.launch(Dispatchers.Default) {
                                         if(loadingState == 1) return@launch
                                         chatViewModel.selectDiffusionModelFile()
-                                    }
-                                }
-                            )
-                        }
-
-                        // Optional Section
-                        item {
-                            Column(
-                                modifier = Modifier.padding(top = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                MediumText(
-                                    text = "Optional Modules",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Enhance quality and capabilities",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        item {
-                            FileSelectionCard(
-                                title = "VAE Model",
-                                subtitle = "Optional",
-                                selectedPath = vaePath,
-                                isRequired = false,
-                                isLoading = isVaeModelLoading,
-                                gradientColors = listOf(
-                                    Color(0xFF9C27B0),
-                                    Color(0xFF2196F3)
-                                ),
-                                onSelectClick = {
-                                    coroutineScope.launch(Dispatchers.Default) {
-                                        if(loadingState == 1) return@launch
-                                        chatViewModel.selectVaeFile()
-                                    }
-                                }
-                            )
-                        }
-
-                        item {
-                           FileSelectionCard(
-                                title = "LLM Model",
-                                subtitle = "Optional",
-                                selectedPath = llmPath,
-                                isRequired = false,
-                                isLoading = isLlmModelLoading,
-                                gradientColors = listOf(
-                                    Color(0xFF00BCD4),
-                                    Color(0xFF00E5FF)
-                                ),
-                                onSelectClick = {
-                                    coroutineScope.launch(Dispatchers.Default) {
-                                        if(loadingState == 1) return@launch
-                                        chatViewModel.selectLlmFile()
-                                    }
-                                }
-                            )
-                        }
-
-                        item {
-                            FileSelectionCard(
-                                title = "CLIP-L Model",
-                                subtitle = "Optional",
-                                selectedPath = clipLPath,
-                                isRequired = false,
-                                isLoading = isClipLModelLoading,
-                                gradientColors = listOf(
-                                    Color(0xFFE91E63),
-                                    Color(0xFFFF6090)
-                                ),
-                                onSelectClick = {
-                                    coroutineScope.launch(Dispatchers.Default) {
-                                        if(loadingState == 1) return@launch
-                                        chatViewModel.selectClipLFile()
-                                    }
-                                }
-                            )
-                        }
-
-                        item {
-                            FileSelectionCard(
-                                title = "CLIP-G Model",
-                                subtitle = "Optional",
-                                selectedPath = clipGPath,
-                                isRequired = false,
-                                isLoading = isClipGModelLoading,
-                                gradientColors = listOf(
-                                    Color(0xFF4CAF50),
-                                    Color(0xFF8BC34A)
-                                ),
-                                onSelectClick = {
-                                    coroutineScope.launch(Dispatchers.Default) {
-                                        if(loadingState == 1) return@launch
-                                        chatViewModel.selectClipGFile()
-                                    }
-                                }
-                            )
-                        }
-
-                        item {
-                            FileSelectionCard(
-                                title = "T5XXL Model",
-                                subtitle = "Optional",
-                                selectedPath = t5xxlPath,
-                                isRequired = false,
-                                isLoading = isT5xxlModelLoading,
-                                gradientColors = listOf(
-                                    Color(0xFFFF9800),
-                                    Color(0xFFFFB74D)
-                                ),
-                                onSelectClick = {
-                                    coroutineScope.launch(Dispatchers.Default) {
-                                        if(loadingState == 1) return@launch
-                                        chatViewModel.selectT5xxlFile()
                                     }
                                 }
                             )
@@ -1309,156 +1184,6 @@ private fun FileSelectionCard(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun MagicLoadingAnimation() {
-    val infiniteTransition = rememberInfiniteTransition()
-
-    // 主圆环呼吸动画 - 大小变化
-    val primaryScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    // 主圆环透明度 - 配合呼吸
-    val primaryAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    // 光点环绕角度
-    val orbitRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(140.dp)
-            .clip(RoundedCornerShape(20.dp))
-            //.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            ,
-        contentAlignment = Alignment.Center
-    ) {
-        // 主呼吸圆环 - 两层叠加
-        Box(
-            modifier = Modifier.size(80.dp).padding(bottom = 28.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            // 外层光晕
-            Box(
-                modifier = Modifier
-                    .size(80.dp * primaryScale)
-                    .graphicsLayer {
-                        alpha = primaryAlpha * 0.5f
-                    }
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-            )
-
-            // 内层核心圆
-            Box(
-                modifier = Modifier
-                    .size(48.dp * primaryScale)
-                    .graphicsLayer {
-                        alpha = primaryAlpha + 0.3f
-                    }
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-            )
-
-            // 环绕的光点 (6个)
-            repeat(6) { index ->
-                val angle = orbitRotation + (index * 60f)
-                val angleRad = angle * PI / 180
-                val radius = 40f // 轨道半径
-
-                val offsetX = (radius * cos(angleRad)).toFloat()
-                val offsetY = (radius * sin(angleRad)).toFloat()
-
-                // 光点透明度 - 创造深度感
-                val dotAlpha = 0.4f + 0.3f * abs(sin((angle + index * 30) * PI / 180))
-
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .offset(x = offsetX.dp, y = offsetY.dp)
-                        .graphicsLayer {
-                            alpha = dotAlpha.toFloat()
-                        }
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape
-                        )
-                )
-            }
-        }
-
-        // 渐进文字 - "Creating···"
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            MediumText(
-                text = stringResource(Res.string.creating),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                fontWeight = FontWeight.Normal
-            )
-
-            // 三个点依次淡入淡出
-            repeat(3) { index ->
-                val dotAlpha by infiniteTransition.animateFloat(
-                    initialValue = 0.2f,
-                    targetValue = 0.8f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(
-                            durationMillis = 1200,
-                            delayMillis = index * 300,
-                            easing = FastOutSlowInEasing
-                        ),
-                        repeatMode = RepeatMode.Reverse
-                    )
-                )
-
-                MediumText(
-                    text = "·",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = dotAlpha),
-                    modifier = Modifier.padding(start = 1.dp)
-                )
             }
         }
     }

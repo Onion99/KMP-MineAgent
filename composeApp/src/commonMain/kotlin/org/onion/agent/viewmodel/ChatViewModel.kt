@@ -12,7 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import org.onion.agent.native.LLMLoader
+import com.google.ai.edge.litertlm.LiteRtLmJni
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.math.roundToInt
@@ -41,7 +41,7 @@ class ChatViewModel  : ViewModel() {
     }
 
 
-    var LLMLoader:LLMLoader = LLMLoader()
+    var liteRtLmJni:LiteRtLmJni = LiteRtLmJni()
     var diffusionModelPath = mutableStateOf("")
     var vaePath = mutableStateOf("")
     var llmPath = mutableStateOf("")
@@ -144,12 +144,12 @@ class ChatViewModel  : ViewModel() {
 
 
     suspend fun selectLoraFile(): String {
-        return LLMLoader.getModelFilePath()
+        return liteRtLmJni.getModelFilePath()
     }
 
     suspend fun selectDiffusionModelFile(): String{
         isDiffusionModelLoading.value = true
-        val diffusionModelPath = LLMLoader.getModelFilePath()
+        val diffusionModelPath = liteRtLmJni.getModelFilePath()
         this.diffusionModelPath.value = diffusionModelPath
         isDiffusionModelLoading.value = false
         return diffusionModelPath
@@ -157,7 +157,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectVaeFile(): String{
         isVaeModelLoading.value = true
-        val path = LLMLoader.getModelFilePath()
+        val path = liteRtLmJni.getModelFilePath()
         vaePath.value = path
         isVaeModelLoading.value = false
         return path
@@ -165,7 +165,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectLlmFile(): String{
         isLlmModelLoading.value = true
-        val path = LLMLoader.getModelFilePath()
+        val path = liteRtLmJni.getModelFilePath()
         llmPath.value = path
         isLlmModelLoading.value = false
         return path
@@ -173,7 +173,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectClipLFile(): String{
         isClipLModelLoading.value = true
-        val path = LLMLoader.getModelFilePath()
+        val path = liteRtLmJni.getModelFilePath()
         clipLPath.value = path
         isClipLModelLoading.value = false
         return path
@@ -181,7 +181,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectClipGFile(): String{
         isClipGModelLoading.value = true
-        val path = LLMLoader.getModelFilePath()
+        val path = liteRtLmJni.getModelFilePath()
         clipGPath.value = path
         isClipGModelLoading.value = false
         return path
@@ -189,7 +189,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectT5xxlFile(): String{
         isT5xxlModelLoading.value = true
-        val path = LLMLoader.getModelFilePath()
+        val path = liteRtLmJni.getModelFilePath()
         t5xxlPath.value = path
         isT5xxlModelLoading.value = false
         return path
@@ -200,35 +200,31 @@ class ChatViewModel  : ViewModel() {
         initModel = true
         viewModelScope.launch(Dispatchers.Default) {
             loadingModelState.emit(1)
-            
-            // Check if we are initializing LiteRT LM instead of stable diffusion
-            if (diffusionModelPath.value.isBlank() && llmPath.value.isNotBlank()) {
-                isLlmModelLoading.value = true
-                lmEngine = org.onion.agent.native.llm.LmEngine(
-                    LLMLoader = LLMLoader,
-                    modelPath = llmPath.value,
-                    backend = lmBackend.value,
-                    visionBackend = lmVisionBackend.value,
-                    audioBackend = lmAudioBackend.value,
-                    maxNumTokens = lmMaxNumTokens.value,
-                    maxNumImages = lmMaxNumImages.value,
-                    cacheDir = "",
-                    enableBenchmark = false,
-                    enableSpeculativeDecoding = null,
-                    mainNpuNativeLibraryDir = "",
-                    visionNpuNativeLibraryDir = "",
-                    audioNpuNativeLibraryDir = "",
-                    mainBackendNumThreads = lmMainBackendNumThreads.value,
-                    audioBackendNumThreads = lmAudioBackendNumThreads.value
-                )
-                lmEngine?.initialize()
-                
-                lmConversation = lmEngine?.createConversation()
-                
-                isLlmModelLoading.value = false
-                loadingModelState.emit(2)
-                return@launch
-            }
+
+            isLlmModelLoading.value = true
+            lmEngine = org.onion.agent.native.llm.LmEngine(
+                liteRtLmJni = liteRtLmJni,
+                modelPath = llmPath.value,
+                backend = lmBackend.value,
+                visionBackend = lmVisionBackend.value,
+                audioBackend = lmAudioBackend.value,
+                maxNumTokens = lmMaxNumTokens.value,
+                maxNumImages = lmMaxNumImages.value,
+                cacheDir = "",
+                enableBenchmark = false,
+                enableSpeculativeDecoding = null,
+                mainNpuNativeLibraryDir = "",
+                visionNpuNativeLibraryDir = "",
+                audioNpuNativeLibraryDir = "",
+                mainBackendNumThreads = lmMainBackendNumThreads.value,
+                audioBackendNumThreads = lmAudioBackendNumThreads.value
+            )
+            lmEngine?.initialize()
+
+            lmConversation = lmEngine?.createConversation()
+
+            isLlmModelLoading.value = false
+            loadingModelState.emit(2)
 
 
             println("=== Model Path ===")

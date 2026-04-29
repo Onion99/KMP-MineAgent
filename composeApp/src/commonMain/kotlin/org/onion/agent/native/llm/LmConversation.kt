@@ -4,11 +4,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.serialization.json.*
-import org.onion.agent.native.LLMLoader
+import com.google.ai.edge.litertlm.LiteRtLmJni
 import kotlinx.coroutines.CancellationException
 
 class LmConversation(
-    private val LLMLoader: LLMLoader,
+    private val liteRtLmJni: LiteRtLmJni,
     private val handle: Long
 ) : AutoCloseable {
 
@@ -26,7 +26,7 @@ class LmConversation(
             }
         }
 
-        LLMLoader.sendLmMessageAsync(
+        liteRtLmJni.sendLmMessageAsync(
             conversationPointer = handle,
             messageJsonString = message.toJson().toString(),
             extraContextJsonString = extraContextObj.toString(),
@@ -58,13 +58,13 @@ class LmConversation(
 
     fun cancelProcess() {
         checkIsAlive()
-        LLMLoader.cancelLmConversation(handle)
+        liteRtLmJni.cancelLmConversation(handle)
     }
 
     override fun close() {
         if (isAlive) {
             isAlive = false
-            LLMLoader.deleteLmConversation(handle)
+            liteRtLmJni.deleteLmConversation(handle)
         }
     }
 

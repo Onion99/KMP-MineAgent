@@ -1,4 +1,4 @@
-package org.onion.agent.native
+package com.google.ai.edge.litertlm
 
 import androidx.core.net.toUri
 import io.github.vinceglb.filekit.FileKit
@@ -10,7 +10,7 @@ import io.github.vinceglb.filekit.name
 import java.io.File
 import java.io.FileOutputStream
 
-actual class LLMLoader actual constructor() {
+actual class LiteRtLmJni actual constructor() {
 
     init {
         System.loadLibrary("litertlm_jni")
@@ -43,20 +43,20 @@ actual class LLMLoader actual constructor() {
         visionNpuNativeLibraryDir: String, audioNpuNativeLibraryDir: String,
         mainBackendNumThreads: Int, audioBackendNumThreads: Int
     ): Long {
-        return nativeLoadLmEngine(modelPath, backend, visionBackend, audioBackend, maxNumTokens, maxNumImages, cacheDir, enableBenchmark, enableSpeculativeDecoding, mainNpuNativeLibraryDir, visionNpuNativeLibraryDir, audioNpuNativeLibraryDir, mainBackendNumThreads, audioBackendNumThreads)
+        return nativeCreateEngine(modelPath, backend, visionBackend, audioBackend, maxNumTokens, maxNumImages, cacheDir, enableBenchmark, enableSpeculativeDecoding, mainNpuNativeLibraryDir, visionNpuNativeLibraryDir, audioNpuNativeLibraryDir, mainBackendNumThreads, audioBackendNumThreads)
     }
 
     actual fun createLmConversation(
         enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
         channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
     ): Long {
-        return nativeCreateLmConversation(enginePointer, messageJsonString, toolsDescriptionJsonString, channelsJsonString, extraContextJsonString, enableConversationConstrainedDecoding)
+        return nativeCreateConversation(enginePointer, messageJsonString, toolsDescriptionJsonString, channelsJsonString, extraContextJsonString, enableConversationConstrainedDecoding)
     }
 
     actual fun sendLmMessage(
         conversationPointer: Long, messageJsonString: String, extraContextJsonString: String
     ): String {
-        return nativeSendLmMessage(conversationPointer, messageJsonString, extraContextJsonString)
+        return nativeSendMessage(conversationPointer, messageJsonString, extraContextJsonString)
     }
 
     interface LmMessageCallback {
@@ -69,7 +69,7 @@ actual class LLMLoader actual constructor() {
         conversationPointer: Long, messageJsonString: String, extraContextJsonString: String,
         onMessage: (String) -> Unit, onDone: () -> Unit, onError: (Int, String) -> Unit
     ) {
-        nativeSendLmMessageAsync(conversationPointer, messageJsonString, extraContextJsonString, object : LmMessageCallback {
+        nativeSendMessageAsync(conversationPointer, messageJsonString, extraContextJsonString, object : LmMessageCallback {
             override fun onMessage(messageJsonString: String) = onMessage(messageJsonString)
             override fun onDone() = onDone()
             override fun onError(statusCode: Int, message: String) = onError(statusCode, message)
@@ -77,18 +77,18 @@ actual class LLMLoader actual constructor() {
     }
 
     actual fun cancelLmConversation(conversationPointer: Long) {
-        nativeCancelLmConversation(conversationPointer)
+        nativeConversationCancelProcess(conversationPointer)
     }
 
     actual fun deleteLmConversation(conversationPointer: Long) {
-        nativeDeleteLmConversation(conversationPointer)
+        nativeDeleteConversation(conversationPointer)
     }
 
     actual fun deleteLmEngine(enginePointer: Long) {
-        nativeDeleteLmEngine(enginePointer)
+        nativeDeleteEngine(enginePointer)
     }
 
-    private external fun nativeLoadLmEngine(
+    private external fun nativeCreateEngine(
         modelPath: String, backend: String, visionBackend: String, audioBackend: String,
         maxNumTokens: Int, maxNumImages: Int, cacheDir: String, enableBenchmark: Boolean,
         enableSpeculativeDecoding: Boolean?, mainNpuNativeLibraryDir: String,
@@ -96,20 +96,20 @@ actual class LLMLoader actual constructor() {
         mainBackendNumThreads: Int, audioBackendNumThreads: Int
     ): Long
 
-    private external fun nativeCreateLmConversation(
+    private external fun nativeCreateConversation(
         enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
         channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
     ): Long
 
-    private external fun nativeSendLmMessage(
+    private external fun nativeSendMessage(
         conversationPointer: Long, messageJsonString: String, extraContextJsonString: String
     ): String
 
-    private external fun nativeSendLmMessageAsync(
+    private external fun nativeSendMessageAsync(
         conversationPointer: Long, messageJsonString: String, extraContextJsonString: String, callback: LmMessageCallback
     )
 
-    private external fun nativeCancelLmConversation(conversationPointer: Long)
-    private external fun nativeDeleteLmConversation(conversationPointer: Long)
-    private external fun nativeDeleteLmEngine(enginePointer: Long)
+    private external fun nativeConversationCancelProcess(conversationPointer: Long)
+    private external fun nativeDeleteConversation(conversationPointer: Long)
+    private external fun nativeDeleteEngine(enginePointer: Long)
 }
