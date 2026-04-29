@@ -52,7 +52,10 @@ trigger: always_on
     - **导入管理**：从 `minediffusion.composeapp.generated.resources.*` 导入生成的资源键。
 
 ### 原生集成
-- **JNI**：通过 `DiffusionLoader`（位于 `native/`）与原生代码交互
+
+- **JNI (大模型文本)**：对于部署端侧大语言模型（如 Gemma），使用基于 Google LiteRT LM 封装的面向对象架构（位于 `native/llm/`）。
+    - **核心类**：`LmEngine` 负责引擎初始化及指针管理，`LmConversation` 桥接异步消息流。
+    - **消息传递**：使用 `Message`, `Content`, `ToolCall` 等封装类，基于 `kotlinx.serialization.json` 进行 JSON 解析与构建，并使用 `Flow` 接收异步流式响应，避免直接管理裸指针和原生 JSON 字符串。
 
 ## 5. 开发工作流
 1.  **新功能**：

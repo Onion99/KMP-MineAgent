@@ -272,7 +272,9 @@ class ChatViewModel  : ViewModel() {
             _currentChatMessages.add(ChatMessage(message, isUser))
             _currentChatMessages.add(ChatMessage("", false))
             isGenerating.value = true
-            getTextTalkerResponse(message, {}, {})
+            getTextTalkerResponse(message, {}, {
+                println(it.message)
+            })
         }
 
     }
