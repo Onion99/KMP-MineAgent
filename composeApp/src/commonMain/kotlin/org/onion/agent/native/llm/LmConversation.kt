@@ -4,11 +4,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.serialization.json.*
-import org.onion.agent.native.DiffusionLoader
+import org.onion.agent.native.LLMLoader
 import kotlinx.coroutines.CancellationException
 
 class LmConversation(
-    private val diffusionLoader: DiffusionLoader,
+    private val LLMLoader: LLMLoader,
     private val handle: Long
 ) : AutoCloseable {
 
@@ -26,7 +26,7 @@ class LmConversation(
             }
         }
 
-        diffusionLoader.sendLmMessageAsync(
+        LLMLoader.sendLmMessageAsync(
             conversationPointer = handle,
             messageJsonString = message.toJson().toString(),
             extraContextJsonString = extraContextObj.toString(),
@@ -58,13 +58,13 @@ class LmConversation(
 
     fun cancelProcess() {
         checkIsAlive()
-        diffusionLoader.cancelLmConversation(handle)
+        LLMLoader.cancelLmConversation(handle)
     }
 
     override fun close() {
         if (isAlive) {
             isAlive = false
-            diffusionLoader.deleteLmConversation(handle)
+            LLMLoader.deleteLmConversation(handle)
         }
     }
 

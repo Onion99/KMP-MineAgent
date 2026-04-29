@@ -1,12 +1,12 @@
 package org.onion.agent.native.llm
 
-import org.onion.agent.native.DiffusionLoader
+import org.onion.agent.native.LLMLoader
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.buildJsonArray
 
 class LmEngine(
-    val diffusionLoader: DiffusionLoader,
+    val LLMLoader: LLMLoader,
     val modelPath: String,
     val backend: String = "cpu",
     val visionBackend: String = "",
@@ -31,7 +31,7 @@ class LmEngine(
     suspend fun initialize() {
         mutex.withLock {
             check(!isInitialized()) { "Engine is already initialized." }
-            handle = diffusionLoader.loadLmEngine(
+            handle = LLMLoader.loadLmEngine(
                 modelPath = modelPath,
                 backend = backend,
                 visionBackend = visionBackend,
@@ -52,7 +52,7 @@ class LmEngine(
 
     override fun close() {
         handle?.let {
-            diffusionLoader.deleteLmEngine(it)
+            LLMLoader.deleteLmEngine(it)
             handle = null
         }
     }
@@ -77,7 +77,7 @@ class LmEngine(
                 messagesJson.toString()
             } else ""
 
-            val ptr = diffusionLoader.createLmConversation(
+            val ptr = LLMLoader.createLmConversation(
                 enginePointer = handle!!,
                 messageJsonString = messageJsonString,
                 toolsDescriptionJsonString = toolsDescriptionJsonString,
@@ -85,7 +85,7 @@ class LmEngine(
                 extraContextJsonString = "{}",
                 enableConversationConstrainedDecoding = enableConversationConstrainedDecoding
             )
-            return LmConversation(diffusionLoader, ptr)
+            return LmConversation(LLMLoader, ptr)
         }
     }
 

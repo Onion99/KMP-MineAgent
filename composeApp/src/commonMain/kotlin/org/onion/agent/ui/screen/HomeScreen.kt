@@ -35,7 +35,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CheckCircle
@@ -81,7 +80,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -119,16 +117,12 @@ import mineagent.composeapp.generated.resources.text_copied
 import mineagent.composeapp.generated.resources.copy
 import mineagent.composeapp.generated.resources.scroll_to_bottom
 import mineagent.composeapp.generated.resources.select
-import mineagent.composeapp.generated.resources.select_llm_model_title
 import mineagent.composeapp.generated.resources.send_message
 import mineagent.composeapp.generated.resources.stop_generation
 import mineagent.composeapp.generated.resources.user_avatar
 import mineagent.composeapp.generated.resources.user_image
 import mineagent.composeapp.generated.resources.save_image
-import mineagent.composeapp.generated.resources.image_saved
-import mineagent.composeapp.generated.resources.image_save_failed
 import mineagent.composeapp.generated.resources.regenerate
-import org.onion.agent.native.DiffusionLoader
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource

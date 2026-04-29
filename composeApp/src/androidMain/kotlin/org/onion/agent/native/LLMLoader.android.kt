@@ -1,9 +1,5 @@
 package org.onion.agent.native
 
-import android.content.ContentValues
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import androidx.core.net.toUri
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.absolutePath
@@ -11,12 +7,10 @@ import io.github.vinceglb.filekit.context
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import io.github.vinceglb.filekit.name
-import io.github.vinceglb.filekit.saveImageToGallery
-import org.onion.agent.utils.PngMetadata
 import java.io.File
 import java.io.FileOutputStream
 
-actual class DiffusionLoader actual constructor() {
+actual class LLMLoader actual constructor() {
 
     init {
         System.loadLibrary("litertlm_jni")

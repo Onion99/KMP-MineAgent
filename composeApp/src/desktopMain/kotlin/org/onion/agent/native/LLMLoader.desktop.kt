@@ -2,10 +2,9 @@ package org.onion.agent.native
 
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.openFilePicker
-import io.github.vinceglb.filekit.saveImageToGallery
 import org.onion.agent.utils.NativeLibraryLoader
 
-actual class DiffusionLoader actual constructor() {
+actual class LLMLoader actual constructor() {
 
     init {
         NativeLibraryLoader.loadFromResources("GemmaModelConstraintProvider")

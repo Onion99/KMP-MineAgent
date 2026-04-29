@@ -1,6 +1,6 @@
 package org.onion.agent.native
 
-expect class DiffusionLoader(){
+expect class LLMLoader(){
     suspend fun getModelFilePath():String
 
     // ========================================================================================

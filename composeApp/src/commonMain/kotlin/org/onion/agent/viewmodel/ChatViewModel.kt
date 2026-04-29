@@ -12,15 +12,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import org.onion.agent.native.DiffusionLoader
+import org.onion.agent.native.LLMLoader
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 import kotlin.math.roundToInt
-import org.jetbrains.compose.resources.getString
-import mineagent.composeapp.generated.resources.Res
-import mineagent.composeapp.generated.resources.image_generation_finished
-import mineagent.composeapp.generated.resources.video_generation_finished
 import org.onion.agent.getPlatform
 
 class ChatViewModel  : ViewModel() {
@@ -46,7 +41,7 @@ class ChatViewModel  : ViewModel() {
     }
 
 
-    var diffusionLoader:DiffusionLoader = DiffusionLoader()
+    var LLMLoader:LLMLoader = LLMLoader()
     var diffusionModelPath = mutableStateOf("")
     var vaePath = mutableStateOf("")
     var llmPath = mutableStateOf("")
@@ -149,12 +144,12 @@ class ChatViewModel  : ViewModel() {
 
 
     suspend fun selectLoraFile(): String {
-        return diffusionLoader.getModelFilePath()
+        return LLMLoader.getModelFilePath()
     }
 
     suspend fun selectDiffusionModelFile(): String{
         isDiffusionModelLoading.value = true
-        val diffusionModelPath = diffusionLoader.getModelFilePath()
+        val diffusionModelPath = LLMLoader.getModelFilePath()
         this.diffusionModelPath.value = diffusionModelPath
         isDiffusionModelLoading.value = false
         return diffusionModelPath
@@ -162,7 +157,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectVaeFile(): String{
         isVaeModelLoading.value = true
-        val path = diffusionLoader.getModelFilePath()
+        val path = LLMLoader.getModelFilePath()
         vaePath.value = path
         isVaeModelLoading.value = false
         return path
@@ -170,7 +165,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectLlmFile(): String{
         isLlmModelLoading.value = true
-        val path = diffusionLoader.getModelFilePath()
+        val path = LLMLoader.getModelFilePath()
         llmPath.value = path
         isLlmModelLoading.value = false
         return path
@@ -178,7 +173,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectClipLFile(): String{
         isClipLModelLoading.value = true
-        val path = diffusionLoader.getModelFilePath()
+        val path = LLMLoader.getModelFilePath()
         clipLPath.value = path
         isClipLModelLoading.value = false
         return path
@@ -186,7 +181,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectClipGFile(): String{
         isClipGModelLoading.value = true
-        val path = diffusionLoader.getModelFilePath()
+        val path = LLMLoader.getModelFilePath()
         clipGPath.value = path
         isClipGModelLoading.value = false
         return path
@@ -194,7 +189,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectT5xxlFile(): String{
         isT5xxlModelLoading.value = true
-        val path = diffusionLoader.getModelFilePath()
+        val path = LLMLoader.getModelFilePath()
         t5xxlPath.value = path
         isT5xxlModelLoading.value = false
         return path
@@ -210,7 +205,7 @@ class ChatViewModel  : ViewModel() {
             if (diffusionModelPath.value.isBlank() && llmPath.value.isNotBlank()) {
                 isLlmModelLoading.value = true
                 lmEngine = org.onion.agent.native.llm.LmEngine(
-                    diffusionLoader = diffusionLoader,
+                    LLMLoader = LLMLoader,
                     modelPath = llmPath.value,
                     backend = lmBackend.value,
                     visionBackend = lmVisionBackend.value,
