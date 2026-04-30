@@ -13,6 +13,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import com.google.ai.edge.litertlm.LiteRtLmJni
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.cacheDir
+import io.github.vinceglb.filekit.path
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.math.roundToInt
@@ -113,7 +116,7 @@ class ChatViewModel  : ViewModel() {
     // ========================================================================================
     //                              LLM Settings (Gemma 4 LiteRT)
     // ========================================================================================
-    var lmBackend = mutableStateOf("cpu")
+    var lmBackend = mutableStateOf("gpu")//npu,cpu,gpu
     var lmVisionBackend = mutableStateOf("")
     var lmAudioBackend = mutableStateOf("")
     var lmMaxNumTokens = mutableStateOf(1024)
@@ -207,6 +210,7 @@ class ChatViewModel  : ViewModel() {
             println("CLIP-L Path: ${clipLPath.value}")
             println("CLIP-G Path: ${clipGPath.value}")
             println("T5XXL Path: ${t5xxlPath.value}")
+            println("cacheDir path is: ${FileKit.cacheDir.path}")
             isLlmModelLoading.value = true
             lmEngine = org.onion.agent.native.llm.LmEngine(
                 liteRtLmJni = liteRtLmJni,
@@ -216,7 +220,7 @@ class ChatViewModel  : ViewModel() {
                 audioBackend = lmAudioBackend.value,
                 maxNumTokens = lmMaxNumTokens.value,
                 maxNumImages = lmMaxNumImages.value,
-                cacheDir = "",
+                cacheDir = FileKit.cacheDir.path ?: "",
                 enableBenchmark = false,
                 enableSpeculativeDecoding = null,
                 mainNpuNativeLibraryDir = "",

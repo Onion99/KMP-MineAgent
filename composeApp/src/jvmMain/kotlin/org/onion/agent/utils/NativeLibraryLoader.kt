@@ -1,10 +1,15 @@
 package org.onion.agent.utils
 
+import io.github.vinceglb.filekit.FileKit
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 
 object NativeLibraryLoader {
+
+    init {
+        FileKit.init("native_libs")
+    }
 
     private val loadedLibraries = mutableSetOf<String>()
     
