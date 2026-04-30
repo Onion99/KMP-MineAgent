@@ -18,8 +18,13 @@ flatc
 # Bazel winget install Bazel.Bazelisk / brew install bazelisk https://github.com/bazelbuild/bazel/releases
 # Bazelisk  https://github.com/bazelbuild/bazelisk
 bazel
+
 # Install Visual Studio 2022 https://visualstudio.microsoft.com/zh-hans/visual-cpp-build-tools/ → select C++ developer
-# Nice Version https://learn.microsoft.com/zh-cn/visualstudio/install/create-a-network-installation-of-visual-studio?view=vs-2022#download-the-visual-studio-bootstrapper-to-create-the-layout
+Nice Version https://learn.microsoft.com/zh-cn/visualstudio/install/create-a-network-installation-of-visual-studio?view=vs-2022#download-the-visual-studio-bootstrapper-to-create-the-layout
+
+# Android Studio development optimization
+cpp/lite-rt-lm/composeApp/.cxx - right click module - Mark Directory as - Excluded
+
 # Build for Desktop
 ./gradlew :composeApp:run
 
