@@ -1,0 +1,38 @@
+Subject: [PATCH] fix: Windows platform loading model adaptation
+---
+Index: kotlin/java/com/google/ai/edge/litertlm/jni/litertlm.cc
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/kotlin/java/com/google/ai/edge/litertlm/jni/litertlm.cc b/kotlin/java/com/google/ai/edge/litertlm/jni/litertlm.cc
+--- a/kotlin/java/com/google/ai/edge/litertlm/jni/litertlm.cc	(revision dc4478b4856ac2cad335363fe23a26898ff3ef6f)
++++ b/kotlin/java/com/google/ai/edge/litertlm/jni/litertlm.cc	(date 1777516557238)
+@@ -397,12 +397,7 @@
+   std::string model_path_str(model_path_chars);
+   env->ReleaseStringUTFChars(model_path, model_path_chars);
+ 
+-  // Check if the file exists.
+-  struct stat buffer;
+-  if (stat(model_path_str.c_str(), &buffer) != 0) {
+-    ThrowLiteRtLmJniException(env, "Model file not found: " + model_path_str);
+-    return 0;
+-  }
++
+ 
+   auto model_assets = ModelAssets::Create(model_path_str);
+   if (!model_assets.ok()) {
+@@ -572,12 +567,7 @@
+   std::string model_path_str(model_path_chars);
+   env->ReleaseStringUTFChars(model_path, model_path_chars);
+ 
+-  // Check if the file exists.
+-  struct stat buffer;
+-  if (stat(model_path_str.c_str(), &buffer) != 0) {
+-    ThrowLiteRtLmJniException(env, "Model file not found: " + model_path_str);
+-    return 0;
+-  }
++
+ 
+   auto model_assets = ModelAssets::Create(model_path_str);
+   if (!model_assets.ok()) {
