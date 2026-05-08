@@ -34,7 +34,7 @@ actual class LiteRtLmJni actual constructor() {
         enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
         channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
     ): Long {
-        return nativeCreateConversation(enginePointer, messageJsonString, toolsDescriptionJsonString, channelsJsonString, extraContextJsonString, enableConversationConstrainedDecoding)
+        return nativeCreateConversation(enginePointer, null, messageJsonString, toolsDescriptionJsonString, channelsJsonString, extraContextJsonString, enableConversationConstrainedDecoding)
     }
 
     actual fun sendLmMessage(
@@ -81,7 +81,7 @@ actual class LiteRtLmJni actual constructor() {
     ): Long
 
     private external fun nativeCreateConversation(
-        enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
+        enginePointer: Long, samplerConfig: Any?, messageJsonString: String, toolsDescriptionJsonString: String,
         channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
     ): Long
 

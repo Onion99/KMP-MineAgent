@@ -116,13 +116,13 @@ class ChatViewModel  : ViewModel() {
     // ========================================================================================
     //                              LLM Settings (Gemma 4 LiteRT)
     // ========================================================================================
-    var lmBackend = mutableStateOf("gpu")//npu,cpu,gpu
+    var lmBackend = mutableStateOf("CPU")//NPU,CPU,GPU
     var lmVisionBackend = mutableStateOf("")
     var lmAudioBackend = mutableStateOf("")
-    var lmMaxNumTokens = mutableStateOf(1024)
-    var lmMaxNumImages = mutableStateOf(0)
-    var lmMainBackendNumThreads = mutableStateOf(4)
-    var lmAudioBackendNumThreads = mutableStateOf(4)
+    var lmMaxNumTokens = mutableStateOf(-1)
+    var lmMaxNumImages = mutableStateOf(-1)
+    var lmMainBackendNumThreads = mutableStateOf(-1)
+    var lmAudioBackendNumThreads = mutableStateOf(-1)
 
     private var lmEngine: org.onion.agent.native.llm.LmEngine? = null
     private var lmConversation: org.onion.agent.native.llm.LmConversation? = null
@@ -212,28 +212,34 @@ class ChatViewModel  : ViewModel() {
             println("T5XXL Path: ${t5xxlPath.value}")
             println("cacheDir path is: ${FileKit.cacheDir.path}")
             isLlmModelLoading.value = true
-            lmEngine = org.onion.agent.native.llm.LmEngine(
-                liteRtLmJni = liteRtLmJni,
-                modelPath = llmPath.value,
-                backend = lmBackend.value,
-                visionBackend = lmVisionBackend.value,
-                audioBackend = lmAudioBackend.value,
-                maxNumTokens = lmMaxNumTokens.value,
-                maxNumImages = lmMaxNumImages.value,
-                cacheDir = FileKit.cacheDir.path ?: "",
-                enableBenchmark = false,
-                enableSpeculativeDecoding = null,
-                mainNpuNativeLibraryDir = "",
-                visionNpuNativeLibraryDir = "",
-                audioNpuNativeLibraryDir = "",
-                mainBackendNumThreads = lmMainBackendNumThreads.value,
-                audioBackendNumThreads = lmAudioBackendNumThreads.value
-            )
-            lmEngine?.initialize()
+            try {
+                lmEngine = org.onion.agent.native.llm.LmEngine(
+                    liteRtLmJni = liteRtLmJni,
+                    modelPath = llmPath.value,
+                    backend = lmBackend.value,
+                    visionBackend = lmVisionBackend.value,
+                    audioBackend = lmAudioBackend.value,
+                    maxNumTokens = lmMaxNumTokens.value,
+                    maxNumImages = lmMaxNumImages.value,
+                    cacheDir = /*FileKit.cacheDir.path ?:*/ "",
+                    enableBenchmark = false,
+                    enableSpeculativeDecoding = null,
+                    mainNpuNativeLibraryDir = "",
+                    visionNpuNativeLibraryDir = "",
+                    audioNpuNativeLibraryDir = "",
+                    mainBackendNumThreads = lmMainBackendNumThreads.value,
+                    audioBackendNumThreads = lmAudioBackendNumThreads.value
+                )
+                lmEngine?.initialize()
 
-            lmConversation = lmEngine?.createConversation()
-
-            isLlmModelLoading.value = false
+                lmConversation = lmEngine?.createConversation(
+                    systemInstruction = "You are a helpful assistant."
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLlmModelLoading.value = false
+            }
             loadingModelState.emit(2)
         }
     }

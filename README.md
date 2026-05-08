@@ -1,4 +1,4 @@
-#### Option 2: Build from Source
+#### Building from Source (Advanced)
 
 ```bash
 # Clone the repository
@@ -30,6 +30,15 @@ cpp/lite-rt-lm/composeApp/.cxx - right click module - Mark Directory as - Exclud
 
 # Build for Android
 ./gradlew :composeApp:assembleDebug
+```
+
+### Debug
+
+```bash
+
+### windows crash log
+win + r
+eventvwr
 ```
 
 

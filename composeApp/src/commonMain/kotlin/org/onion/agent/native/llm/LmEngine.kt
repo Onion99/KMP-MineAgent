@@ -60,7 +60,7 @@ class LmEngine(
     suspend fun createConversation(
         systemInstruction: String? = null,
         initialMessages: List<Message> = emptyList(),
-        toolsDescriptionJsonString: String = "",
+        toolsDescriptionJsonString: String = "[]",
         enableConversationConstrainedDecoding: Boolean = false
     ): LmConversation {
         mutex.withLock {
@@ -75,7 +75,7 @@ class LmEngine(
                     }
                 }
                 messagesJson.toString()
-            } else ""
+            } else "[]"
 
             val ptr = liteRtLmJni.createLmConversation(
                 enginePointer = handle!!,
