@@ -1,7 +1,7 @@
 package com.google.ai.edge.litertlm
 
-expect class LiteRtLmJni(){
-    suspend fun getModelFilePath():String
+internal expect object LiteRtLmJni {
+    suspend fun getModelFilePath(): String
 
     // ========================================================================================
     //                              LiteRT LM (Text Generation) Methods

@@ -6,7 +6,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.buildJsonArray
 
 class LmEngine(
-    val liteRtLmJni: LiteRtLmJni,
     val modelPath: String,
     val backend: String = "cpu",
     val visionBackend: String = "",
@@ -31,7 +30,7 @@ class LmEngine(
     suspend fun initialize() {
         mutex.withLock {
             check(!isInitialized()) { "Engine is already initialized." }
-            handle = liteRtLmJni.loadLmEngine(
+            handle = LiteRtLmJni.loadLmEngine(
                 modelPath = modelPath,
                 backend = backend,
                 visionBackend = visionBackend,
@@ -52,7 +51,7 @@ class LmEngine(
 
     override fun close() {
         handle?.let {
-            liteRtLmJni.deleteLmEngine(it)
+            LiteRtLmJni.deleteLmEngine(it)
             handle = null
         }
     }
@@ -77,7 +76,7 @@ class LmEngine(
                 messagesJson.toString()
             } else "[]"
 
-            val ptr = liteRtLmJni.createLmConversation(
+            val ptr = LiteRtLmJni.createLmConversation(
                 enginePointer = handle!!,
                 messageJsonString = messageJsonString,
                 toolsDescriptionJsonString = toolsDescriptionJsonString,
@@ -85,7 +84,7 @@ class LmEngine(
                 extraContextJsonString = "{}",
                 enableConversationConstrainedDecoding = enableConversationConstrainedDecoding
             )
-            return LmConversation(liteRtLmJni, ptr)
+            return LmConversation(ptr)
         }
     }
 

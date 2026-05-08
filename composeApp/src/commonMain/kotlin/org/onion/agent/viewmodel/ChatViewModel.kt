@@ -44,7 +44,6 @@ class ChatViewModel  : ViewModel() {
     }
 
 
-    var liteRtLmJni:LiteRtLmJni = LiteRtLmJni()
     var diffusionModelPath = mutableStateOf("")
     var vaePath = mutableStateOf("")
     var llmPath = mutableStateOf("")
@@ -147,12 +146,12 @@ class ChatViewModel  : ViewModel() {
 
 
     suspend fun selectLoraFile(): String {
-        return liteRtLmJni.getModelFilePath()
+        return LiteRtLmJni.getModelFilePath()
     }
 
     suspend fun selectDiffusionModelFile(): String{
         isDiffusionModelLoading.value = true
-        val diffusionModelPath = liteRtLmJni.getModelFilePath()
+        val diffusionModelPath = LiteRtLmJni.getModelFilePath()
         this.diffusionModelPath.value = diffusionModelPath
         isDiffusionModelLoading.value = false
         return diffusionModelPath
@@ -160,7 +159,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectVaeFile(): String{
         isVaeModelLoading.value = true
-        val path = liteRtLmJni.getModelFilePath()
+        val path = LiteRtLmJni.getModelFilePath()
         vaePath.value = path
         isVaeModelLoading.value = false
         return path
@@ -168,7 +167,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectLlmFile(): String{
         isLlmModelLoading.value = true
-        val path = liteRtLmJni.getModelFilePath()
+        val path = LiteRtLmJni.getModelFilePath()
         llmPath.value = path
         isLlmModelLoading.value = false
         return path
@@ -176,7 +175,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectClipLFile(): String{
         isClipLModelLoading.value = true
-        val path = liteRtLmJni.getModelFilePath()
+        val path = LiteRtLmJni.getModelFilePath()
         clipLPath.value = path
         isClipLModelLoading.value = false
         return path
@@ -184,7 +183,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectClipGFile(): String{
         isClipGModelLoading.value = true
-        val path = liteRtLmJni.getModelFilePath()
+        val path = LiteRtLmJni.getModelFilePath()
         clipGPath.value = path
         isClipGModelLoading.value = false
         return path
@@ -192,7 +191,7 @@ class ChatViewModel  : ViewModel() {
 
     suspend fun selectT5xxlFile(): String{
         isT5xxlModelLoading.value = true
-        val path = liteRtLmJni.getModelFilePath()
+        val path = LiteRtLmJni.getModelFilePath()
         t5xxlPath.value = path
         isT5xxlModelLoading.value = false
         return path
@@ -214,7 +213,6 @@ class ChatViewModel  : ViewModel() {
             isLlmModelLoading.value = true
             try {
                 lmEngine = org.onion.agent.native.llm.LmEngine(
-                    liteRtLmJni = liteRtLmJni,
                     modelPath = llmPath.value,
                     backend = lmBackend.value,
                     visionBackend = lmVisionBackend.value,

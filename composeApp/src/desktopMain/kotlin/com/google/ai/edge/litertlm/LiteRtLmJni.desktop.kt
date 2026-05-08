@@ -4,13 +4,12 @@ import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import org.onion.agent.utils.NativeLibraryLoader
 
-actual class LiteRtLmJni actual constructor() {
+internal actual object LiteRtLmJni {
 
     init {
         NativeLibraryLoader.loadFromResources("GemmaModelConstraintProvider")
         NativeLibraryLoader.loadFromResources("litertlm_jni")
     }
-    private var nativePtr = 0L
 
     actual suspend fun getModelFilePath(): String {
         return FileKit.openFilePicker()?.file?.absolutePath ?: ""

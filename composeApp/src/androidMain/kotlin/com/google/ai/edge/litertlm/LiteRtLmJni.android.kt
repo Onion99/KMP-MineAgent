@@ -10,7 +10,7 @@ import io.github.vinceglb.filekit.name
 import java.io.File
 import java.io.FileOutputStream
 
-actual class LiteRtLmJni actual constructor() {
+internal actual object LiteRtLmJni {
 
     init {
         System.loadLibrary("litertlm_jni")

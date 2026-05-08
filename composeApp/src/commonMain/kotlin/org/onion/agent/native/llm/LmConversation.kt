@@ -8,7 +8,6 @@ import com.google.ai.edge.litertlm.LiteRtLmJni
 import kotlinx.coroutines.CancellationException
 
 class LmConversation(
-    private val liteRtLmJni: LiteRtLmJni,
     private val handle: Long
 ) : AutoCloseable {
 
@@ -26,7 +25,7 @@ class LmConversation(
             }
         }
 
-        liteRtLmJni.sendLmMessageAsync(
+        LiteRtLmJni.sendLmMessageAsync(
             conversationPointer = handle,
             messageJsonString = message.toJson().toString(),
             extraContextJsonString = extraContextObj.toString(),
@@ -58,13 +57,13 @@ class LmConversation(
 
     fun cancelProcess() {
         checkIsAlive()
-        liteRtLmJni.cancelLmConversation(handle)
+        LiteRtLmJni.cancelLmConversation(handle)
     }
 
     override fun close() {
         if (isAlive) {
             isAlive = false
-            liteRtLmJni.deleteLmConversation(handle)
+            LiteRtLmJni.deleteLmConversation(handle)
         }
     }
 
