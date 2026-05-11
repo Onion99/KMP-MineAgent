@@ -375,7 +375,13 @@ abstract class BuildNativeLibTask : DefaultTask() {
                 environment("ANDROID_HOME", androidSdkHome.get())
             }
 
-            val cmd = mutableListOf("bazelisk", "build", target, "--config=$config")
+            val cmd = mutableListOf(
+                "bazelisk",
+                "--bazelrc=${workDir.parentFile.parentFile.absolutePath}/.bazelrc.user",
+                "build",
+                target,
+                "--config=$config"
+            )
             cmd.addAll(extraArgs)
             commandLine(cmd)
             isIgnoreExitValue = false
