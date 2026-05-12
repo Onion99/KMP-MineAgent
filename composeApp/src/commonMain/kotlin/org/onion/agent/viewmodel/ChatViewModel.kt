@@ -219,7 +219,7 @@ class ChatViewModel  : ViewModel() {
                     audioBackend = lmAudioBackend.value,
                     maxNumTokens = lmMaxNumTokens.value,
                     maxNumImages = lmMaxNumImages.value,
-                    cacheDir = /*FileKit.cacheDir.path ?:*/ "",
+                    cacheDir = FileKit.cacheDir.path ?: "",
                     enableBenchmark = false,
                     enableSpeculativeDecoding = null,
                     mainNpuNativeLibraryDir = "",

@@ -78,11 +78,14 @@ class LmEngine(
 
             val ptr = LiteRtLmJni.createLmConversation(
                 enginePointer = handle!!,
+                samplerConfig = null,
                 messageJsonString = messageJsonString,
                 toolsDescriptionJsonString = toolsDescriptionJsonString,
                 channelsJsonString = null,
                 extraContextJsonString = "{}",
-                enableConversationConstrainedDecoding = enableConversationConstrainedDecoding
+                enableConversationConstrainedDecoding = enableConversationConstrainedDecoding,
+                filterChannelContentFromKvCache = false,
+                overwritePromptTemplate = null
             )
             return LmConversation(ptr)
         }

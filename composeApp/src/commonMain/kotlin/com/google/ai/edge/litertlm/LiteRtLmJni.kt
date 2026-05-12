@@ -26,11 +26,14 @@ internal expect object LiteRtLmJni {
 
     fun createLmConversation(
         enginePointer: Long,
+        samplerConfig: Any?,
         messageJsonString: String,
         toolsDescriptionJsonString: String,
         channelsJsonString: String?,
         extraContextJsonString: String,
-        enableConversationConstrainedDecoding: Boolean
+        enableConversationConstrainedDecoding: Boolean,
+        filterChannelContentFromKvCache: Boolean = false,
+        overwritePromptTemplate: String? = null
     ): Long
 
     fun sendLmMessage(
@@ -45,7 +48,8 @@ internal expect object LiteRtLmJni {
         extraContextJsonString: String,
         onMessage: (String) -> Unit,
         onDone: () -> Unit,
-        onError: (Int, String) -> Unit
+        onError: (Int, String) -> Unit,
+        visualTokenBudget: Int? = null
     )
 
     fun cancelLmConversation(conversationPointer: Long)

@@ -13,12 +13,13 @@ import java.io.FileOutputStream
 internal actual object LiteRtLmJni {
 
     init {
+        System.loadLibrary("GemmaModelConstraintProvider")
         System.loadLibrary("litertlm_jni")
     }
 
     actual suspend fun getModelFilePath(): String {
         val androidFile = FileKit.openFilePicker(type = FileKitType.File(listOf(
-            "safetensors","ckpt","pt","bin","gguf"
+            "litertlm"
         )))
         androidFile ?: return ""
         val file = File(FileKit.context.filesDir, androidFile!!.name)
@@ -47,16 +48,17 @@ internal actual object LiteRtLmJni {
     }
 
     actual fun createLmConversation(
-        enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
-        channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
+        enginePointer: Long, samplerConfig: Any?, messageJsonString: String, toolsDescriptionJsonString: String,
+        channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean,
+        filterChannelContentFromKvCache: Boolean, overwritePromptTemplate: String?
     ): Long {
-        return nativeCreateConversation(enginePointer, messageJsonString, toolsDescriptionJsonString, channelsJsonString, extraContextJsonString, enableConversationConstrainedDecoding)
+        return nativeCreateConversation(enginePointer, samplerConfig, messageJsonString, toolsDescriptionJsonString, channelsJsonString, extraContextJsonString, enableConversationConstrainedDecoding, filterChannelContentFromKvCache, overwritePromptTemplate)
     }
 
     actual fun sendLmMessage(
         conversationPointer: Long, messageJsonString: String, extraContextJsonString: String
     ): String {
-        return nativeSendMessage(conversationPointer, messageJsonString, extraContextJsonString)
+        return nativeSendMessage(conversationPointer, messageJsonString, extraContextJsonString, null)
     }
 
     interface LmMessageCallback {
@@ -67,13 +69,14 @@ internal actual object LiteRtLmJni {
 
     actual fun sendLmMessageAsync(
         conversationPointer: Long, messageJsonString: String, extraContextJsonString: String,
-        onMessage: (String) -> Unit, onDone: () -> Unit, onError: (Int, String) -> Unit
+        onMessage: (String) -> Unit, onDone: () -> Unit, onError: (Int, String) -> Unit,
+        visualTokenBudget: Int?
     ) {
         nativeSendMessageAsync(conversationPointer, messageJsonString, extraContextJsonString, object : LmMessageCallback {
             override fun onMessage(messageJsonString: String) = onMessage(messageJsonString)
             override fun onDone() = onDone()
             override fun onError(statusCode: Int, message: String) = onError(statusCode, message)
-        })
+        }, visualTokenBudget)
     }
 
     actual fun cancelLmConversation(conversationPointer: Long) {
@@ -97,16 +100,19 @@ internal actual object LiteRtLmJni {
     ): Long
 
     private external fun nativeCreateConversation(
-        enginePointer: Long, messageJsonString: String, toolsDescriptionJsonString: String,
-        channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean
+        enginePointer: Long, samplerConfig: Any?, messageJsonString: String, toolsDescriptionJsonString: String,
+        channelsJsonString: String?, extraContextJsonString: String, enableConversationConstrainedDecoding: Boolean,
+        filterChannelContentFromKvCache: Boolean, overwritePromptTemplate: String?
     ): Long
 
     private external fun nativeSendMessage(
-        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String
+        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String,
+        visualTokenBudget: Int?
     ): String
 
     private external fun nativeSendMessageAsync(
-        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String, callback: LmMessageCallback
+        conversationPointer: Long, messageJsonString: String, extraContextJsonString: String,
+        callback: LmMessageCallback, visualTokenBudget: Int?
     )
 
     private external fun nativeConversationCancelProcess(conversationPointer: Long)
