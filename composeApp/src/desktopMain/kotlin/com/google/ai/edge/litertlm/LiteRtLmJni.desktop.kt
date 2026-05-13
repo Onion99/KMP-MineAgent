@@ -43,7 +43,7 @@ internal actual object LiteRtLmJni {
         return nativeSendMessage(conversationPointer, messageJsonString, extraContextJsonString, null)
     }
 
-    interface LmMessageCallback {
+    interface JniMessageCallback {
         fun onMessage(messageJsonString: String)
         fun onDone()
         fun onError(statusCode: Int, message: String)
@@ -54,7 +54,7 @@ internal actual object LiteRtLmJni {
         onMessage: (String) -> Unit, onDone: () -> Unit, onError: (Int, String) -> Unit,
         visualTokenBudget: Int?
     ) {
-        nativeSendMessageAsync(conversationPointer, messageJsonString, extraContextJsonString, object : LmMessageCallback {
+        nativeSendMessageAsync(conversationPointer, messageJsonString, extraContextJsonString, object : JniMessageCallback {
             override fun onMessage(messageJsonString: String) = onMessage(messageJsonString)
             override fun onDone() = onDone()
             override fun onError(statusCode: Int, message: String) = onError(statusCode, message)
@@ -94,7 +94,7 @@ internal actual object LiteRtLmJni {
 
     private external fun nativeSendMessageAsync(
         conversationPointer: Long, messageJsonString: String, extraContextJsonString: String,
-        callback: LmMessageCallback, visualTokenBudget: Int?
+        callback: JniMessageCallback, visualTokenBudget: Int?
     )
 
     private external fun nativeConversationCancelProcess(conversationPointer: Long)

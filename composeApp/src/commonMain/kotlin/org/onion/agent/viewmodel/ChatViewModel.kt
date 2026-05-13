@@ -16,6 +16,7 @@ import com.google.ai.edge.litertlm.LiteRtLmJni
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.cacheDir
 import io.github.vinceglb.filekit.path
+import kotlinx.coroutines.flow.catch
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.math.roundToInt
@@ -265,7 +266,8 @@ class ChatViewModel  : ViewModel() {
             if(isGenerating.value) stopGeneration()
             if(message.isBlank()) return@launch
             _currentChatMessages.add(ChatMessage(message, isUser))
-            _currentChatMessages.add(ChatMessage("", false))
+            val meta = mapOf("is_generating" to "true")
+            _currentChatMessages.add(ChatMessage("", false, metadata = meta))
             isGenerating.value = true
             getTextTalkerResponse(message, {}, {
                 println(it.message)
@@ -294,53 +296,72 @@ class ChatViewModel  : ViewModel() {
     @OptIn(ExperimentalTime::class)
     fun getTextTalkerResponse(query: String, onCancelled: () -> Unit, onError: (Throwable) -> Unit) {
         if (lmConversation == null) {
+            isGenerating.value = false
+            isInferenceOn = false
+            if (_currentChatMessages.isNotEmpty()) {
+                val lastIdx = _currentChatMessages.lastIndex
+                val meta = mapOf("is_generating" to "false")
+                _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
+                    message = "System: LM Engine not initialized or model not loaded yet. Please wait or check the model path.",
+                    metadata = meta
+                )
+            }
             onError(IllegalStateException("LM Engine not initialized"))
             return
         }
         
-        runCatching {
-            responseGenerationJob = viewModelScope.launch(Dispatchers.Default) {
-                isInferenceOn = true
-                val promptContent = query
-                val startTime = Clock.System.now().toEpochMilliseconds()
-                
-                var generatedResult = ""
-                
-                try {
-                    lmConversation?.sendMessageAsync(org.onion.agent.native.llm.Message.user(promptContent))?.collect { responseMsg ->
-                        val chunk = responseMsg.contents.toString()
-                        generatedResult += chunk
-                        if (_currentChatMessages.isNotEmpty()) {
-                            val lastIdx = _currentChatMessages.lastIndex
-                            val msgToUpdate = _currentChatMessages[lastIdx]
-                            _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim())
-                        }
-                    }
-                    
-                    val generationDuration = Clock.System.now().toEpochMilliseconds() - startTime
-                    if (_currentChatMessages.isNotEmpty()) {
-                        val lastIdx = _currentChatMessages.lastIndex
-                        val meta = mapOf(
-                            "prompt" to promptContent,
-                            "time_taken" to formatDuration(generationDuration)
-                        )
-                        _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(metadata = meta)
-                    }
-                } catch (e: Exception) {
+        responseGenerationJob = viewModelScope.launch(Dispatchers.Default) {
+            isInferenceOn = true
+            val promptContent = query
+            val startTime = Clock.System.now().toEpochMilliseconds()
+            
+            var generatedResult = ""
+            
+            lmConversation?.sendMessageAsync(org.onion.agent.native.llm.Message.user(promptContent))
+                ?.catch { e ->
                     isGenerating.value = false
                     isInferenceOn = false
-                    onError(e)
-                    return@launch
+                    if (e is CancellationException) {
+                        onCancelled()
+                    } else {
+                        if (_currentChatMessages.isNotEmpty()) {
+                            val lastIdx = _currentChatMessages.lastIndex
+                            val meta = mapOf("is_generating" to "false")
+                            _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
+                                message = "Error: ${e.message ?: "Unknown error"}",
+                                metadata = meta
+                            )
+                        }
+                        onError(e)
+                    }
                 }
-                
-                isGenerating.value = false
-                isInferenceOn = false
+                ?.collect { responseMsg ->
+                    val chunk = responseMsg.contents.toString()
+                    println("ChatViewModel: collect received chunk: '$chunk'")
+                    generatedResult += chunk
+                    println("ChatViewModel: generatedResult is now: '$generatedResult'")
+                    if (_currentChatMessages.isNotEmpty()) {
+                        val lastIdx = _currentChatMessages.lastIndex
+                        val msgToUpdate = _currentChatMessages[lastIdx]
+                        val meta = mapOf("is_generating" to "true")
+                        _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
+                    }
+                }
+            
+            println("ChatViewModel: collect finished!")
+            val generationDuration = Clock.System.now().toEpochMilliseconds() - startTime
+            if (_currentChatMessages.isNotEmpty()) {
+                val lastIdx = _currentChatMessages.lastIndex
+                val meta = mapOf(
+                    "prompt" to promptContent,
+                    "time_taken" to formatDuration(generationDuration),
+                    "is_generating" to "false"
+                )
+                _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(metadata = meta)
             }
-        }.getOrElse { exception ->
+            
+            isGenerating.value = false
             isInferenceOn = false
-            if(exception is CancellationException){
-                onCancelled()
-            } else onError(exception)
         }
     }
 }

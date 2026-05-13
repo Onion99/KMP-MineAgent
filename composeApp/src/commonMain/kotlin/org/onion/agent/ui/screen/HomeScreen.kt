@@ -785,10 +785,27 @@ private fun AiMessage(
                 }
             }
         }
-        if (message.isNotEmpty()) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+        
+        val isGenerating = metadata?.get("is_generating") == "true"
+
+        if (message.isEmpty() && isGenerating) {
+            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 2.dp
+                )
                 MediumText(
-                    text = message,
+                    text = stringResource(Res.string.creating) + "...",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        } else if (message.isNotEmpty() || isGenerating) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                val displayText = if (isGenerating) "$message ▌" else message
+                MediumText(
+                    text = displayText,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .padding(top = 4.dp, end = 8.dp)

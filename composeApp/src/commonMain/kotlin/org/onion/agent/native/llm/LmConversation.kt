@@ -6,6 +6,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.serialization.json.*
 import com.google.ai.edge.litertlm.LiteRtLmJni
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 class LmConversation(
     private val handle: Long
@@ -30,22 +31,36 @@ class LmConversation(
             messageJsonString = message.toJson().toString(),
             extraContextJsonString = extraContextObj.toString(),
             onMessage = { messageJsonString ->
-                val messageJsonObject = Json.parseToJsonElement(messageJsonString).jsonObject
-                
-                if (messageJsonObject.containsKey("content") || messageJsonObject.containsKey("channels")) {
-                    trySend(jsonToMessage(messageJsonObject))
-                } else if (messageJsonObject.containsKey("tool_calls")) {
-                    trySend(jsonToMessage(messageJsonObject))
+                println("LmConversation: onMessage received: $messageJsonString")
+                try {
+                    val messageJsonObject = Json.parseToJsonElement(messageJsonString).jsonObject
+                    
+                    if (messageJsonObject.containsKey("content") || messageJsonObject.containsKey("channels")) {
+                        launch {
+                            send(jsonToMessage(messageJsonObject))
+                            println("LmConversation: send success")
+                        }
+                    } else if (messageJsonObject.containsKey("tool_calls")) {
+                        launch {
+                            send(jsonToMessage(messageJsonObject))
+                            println("LmConversation: send tool_calls success")
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("LmConversation: Error parsing message: ${e.message}")
+                    e.printStackTrace()
                 }
             },
             onDone = {
-                close()
+                println("LmConversation: onDone called")
+                this@callbackFlow.close()
             },
             onError = { code, errorMsg ->
+                println("LmConversation: onError called with code $code: $errorMsg")
                 if (code == 1) { // Cancelled
-                    close(CancellationException(errorMsg))
+                    this@callbackFlow.close(CancellationException(errorMsg))
                 } else {
-                    close(RuntimeException("Error $code: $errorMsg"))
+                    this@callbackFlow.close(RuntimeException("Error $code: $errorMsg"))
                 }
             }
         )
