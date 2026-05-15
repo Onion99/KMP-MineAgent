@@ -54,8 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
 import mineagent.composeapp.generated.resources.Res
 import mineagent.composeapp.generated.resources.settings_advanced_subtitle
 import mineagent.composeapp.generated.resources.settings_advanced_title
@@ -87,13 +85,6 @@ import ui.theme.AppTheme
 import kotlin.math.cos
 import kotlin.math.sin
 
-fun NavGraphBuilder.advancedSettingScreen(
-    onBackClick: () -> Unit = {}
-) {
-    composable(RootRoute.AdvancedSettingRoute.name) {
-        AdvancedSettingScreen(onBackClick = onBackClick)
-    }
-}
 
 @Composable
 fun AdvancedSettingScreen(

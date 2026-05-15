@@ -1,36 +1,24 @@
-/*
- * Copyright 2024 The ZZZ Archive Open Source Project by mrfatworm
- * License: MIT License
- */
-
 package org.onion.agent.ui.navigation
 
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
-import org.onion.agent.ui.navigation.route.RoutePage
+import androidx.compose.runtime.snapshots.SnapshotStateList
 
-class NavActions(private val navController: NavHostController) {
+class NavActions(private val backstack: SnapshotStateList<Any>) {
 
-    fun navigationTo(destination: RoutePage) {
-        navController.navigate(destination.name)
-    }
-
-    fun navigationToRoute(route: String) {
-        navController.navigate(route)
+    fun navigationTo(destination: Any) {
+        backstack.add(destination)
     }
 
     fun back() {
-        navController.popBackStack()
+        if (backstack.size > 1) {
+            backstack.removeAt(backstack.size - 1)
+        }
     }
 
     // ------------------------------------------------------------------------
     // 退出当前和进入新页面
     // ------------------------------------------------------------------------
-    fun popAndNavigation(destination: RoutePage) {
-        navController.navigate(destination.name) {
-            popUpTo(navController.graph.findStartDestination().route!!) {
-                this.inclusive = true
-            }
-        }
+    fun popAndNavigation(destination: Any) {
+        backstack.clear()
+        backstack.add(destination)
     }
 }

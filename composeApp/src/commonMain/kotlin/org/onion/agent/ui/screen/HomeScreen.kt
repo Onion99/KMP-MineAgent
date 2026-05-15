@@ -86,8 +86,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
 import coil3.compose.AsyncImage
 import com.onion.model.ChatMessage
 import com.onion.theme.style.MediumOutlinedTextField
@@ -139,11 +137,6 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 
-fun NavGraphBuilder.homeScreen(onSettingsClick: () -> Unit = {},onAdvancedSettingsClick: () -> Unit = {}){
-    composable(/*DetailRoute.Home.name*/MainRoute.HomeRoute.name) {
-        HomeScreen(onSettingsClick,onAdvancedSettingsClick)
-    }
-}
 
 @Composable
 fun HomeScreen(

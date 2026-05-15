@@ -29,6 +29,7 @@ logback = "1.5.18"
 compose-adaptive = "1.1.2"
 lifecycle = "2.9.6"
 coil = "3.1.0"
+navigation3 = "1.1.1"
 [libraries]
 #=== UI
 compottie = { module = "io.github.alexzhirkevich:compottie", version.ref = "lottieVersion" }
@@ -59,7 +60,7 @@ kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-s
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 #=== App Runtime
 runtime-shapes = { module = "org.jetbrains.androidx.graphics:graphics-shapes", version = "1.0.0-alpha09" }
-runtime-navigation = { module = "org.jetbrains.androidx.navigation:navigation-compose", version = "2.9.2" }
+runtime-navigation = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
 runtime-savedstate = { module = "org.jetbrains.androidx.savedstate:savedstate", version = "1.4.0" }
 runtime-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 runtime-lifecycle = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }

@@ -59,8 +59,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
 import mineagent.composeapp.generated.resources.Res
 import mineagent.composeapp.generated.resources.settings_advanced_subtitle
 import mineagent.composeapp.generated.resources.settings_advanced_title
@@ -106,15 +104,6 @@ import org.onion.agent.ui.navigation.route.RootRoute
 import org.onion.agent.viewmodel.ChatViewModel
 import kotlin.math.roundToInt
 
-fun NavGraphBuilder.settingScreen(
-    onBackClick: () -> Unit = {},
-) {
-    composable(RootRoute.SettingRoute.name) {
-        SettingScreen(
-            onBackClick = onBackClick,
-        )
-    }
-}
 
 @Composable
 fun SettingScreen(
