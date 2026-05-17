@@ -110,4 +110,12 @@
     <string name="model_action_load">加载模型</string>
     <string name="model_action_active">正在运行</string>
     <string name="model_action_select_file">选择文件</string>
+    <string name="brand_short">Aura</string>
+    <string name="new_chat">新对话</string>
+    <string name="history">历史记录</string>
+    <string name="chat_date_mobile">今天，清晨如水</string>
+    <string name="chat_date_desktop">今天，清晨如水</string>
+    <string name="chat_input_hint_mobile">分享你的想法...</string>
+    <string name="chat_input_hint_desktop">向虚空倾诉你的思绪...</string>
+    <string name="chat_disclaimer">Aura 基于概率编织回应，请以温和的审视探寻真相。</string>
 </resources>

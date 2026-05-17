@@ -111,4 +111,12 @@
     <string name="model_action_load">Load Model</string>
     <string name="model_action_active">Active Engine</string>
     <string name="model_action_select_file">Select File</string>
+    <string name="brand_short">Aura</string>
+    <string name="new_chat">New Chat</string>
+    <string name="history">History</string>
+    <string name="chat_date_mobile">Today, 10:24 AM</string>
+    <string name="chat_date_desktop">Today, serene morning</string>
+    <string name="chat_input_hint_mobile">Share your thoughts...</string>
+    <string name="chat_input_hint_desktop">Whisper your thoughts to the void...</string>
+    <string name="chat_disclaimer">Aura weaves responses from probability. Seek truth with gentle scrutiny.</string>
 </resources>

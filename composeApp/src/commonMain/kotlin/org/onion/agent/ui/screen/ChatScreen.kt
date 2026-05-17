@@ -82,10 +82,18 @@ import kotlinx.coroutines.launch
 import mineagent.composeapp.generated.resources.Res
 import mineagent.composeapp.generated.resources.ai_image
 import mineagent.composeapp.generated.resources.attachment
+import mineagent.composeapp.generated.resources.brand_short
+import mineagent.composeapp.generated.resources.chat_date_desktop
+import mineagent.composeapp.generated.resources.chat_date_mobile
+import mineagent.composeapp.generated.resources.chat_disclaimer
+import mineagent.composeapp.generated.resources.chat_input_hint_desktop
+import mineagent.composeapp.generated.resources.chat_input_hint_mobile
 import mineagent.composeapp.generated.resources.copy
 import mineagent.composeapp.generated.resources.creating
 import mineagent.composeapp.generated.resources.error_no_interrupt_api
 import mineagent.composeapp.generated.resources.feature_not_available
+import mineagent.composeapp.generated.resources.history
+import mineagent.composeapp.generated.resources.new_chat
 import mineagent.composeapp.generated.resources.regenerate
 import mineagent.composeapp.generated.resources.save_image
 import mineagent.composeapp.generated.resources.scroll_to_bottom
@@ -188,7 +196,7 @@ fun ChatScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Aura",
+                        text = stringResource(Res.string.brand_short),
                         style = AppTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, letterSpacing = 2.sp),
                         color = AppTheme.colors.primary
                     )
@@ -204,7 +212,7 @@ fun ChatScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.AddCircle,
-                                contentDescription = "New Chat",
+                                contentDescription = stringResource(Res.string.new_chat),
                                 tint = AppTheme.colors.primary,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -219,7 +227,7 @@ fun ChatScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.History,
-                                contentDescription = "History",
+                                contentDescription = stringResource(Res.string.history),
                                 tint = AppTheme.colors.primary,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -334,7 +342,7 @@ private fun ChatMessagesList(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (AppTheme.contentType == ContentType.Single) "Today, 10:24 AM" else "Today, serene morning",
+                        text = if (AppTheme.contentType == ContentType.Single) stringResource(Res.string.chat_date_mobile) else stringResource(Res.string.chat_date_desktop),
                         style = AppTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier
@@ -880,7 +888,7 @@ fun InputArea(
                     ) {
                         if (text.isEmpty()) {
                             Text(
-                                text = "Share your thoughts...",
+                                text = stringResource(Res.string.chat_input_hint_mobile),
                                 style = AppTheme.typography.bodyMedium,
                                 color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.5f)
                             )
@@ -965,7 +973,7 @@ fun InputArea(
                         ) {
                             if (text.isEmpty()) {
                                 Text(
-                                    text = "Whisper your thoughts to the void...",
+                                    text = stringResource(Res.string.chat_input_hint_desktop),
                                     style = AppTheme.typography.bodyMedium,
                                     color = AppTheme.colors.outline.copy(alpha = 0.5f)
                                 )
@@ -1004,7 +1012,7 @@ fun InputArea(
                     }
 
                     Text(
-                        text = "Aura weaves responses from probability. Seek truth with gentle scrutiny.",
+                        text = stringResource(Res.string.chat_disclaimer),
                         style = AppTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = AppTheme.colors.outline.copy(alpha = 0.6f),
                         letterSpacing = 0.5.sp
