@@ -49,7 +49,6 @@ trigger: always_on
     - **多语言支持**：在特定语言文件夹中提供翻译（例如中文放在 [values-zh/strings.xml](cci:7://file:///d:/Diffusion/composeApp/src/commonMain/composeResources/values-zh/strings.xml:0:0-0:0)）。
     - **UI 中使用**：在 Composables 中使用 `stringResource(Res.string.key_name)`，**切勿**硬编码字符串。
     - **命名约定**：使用描述性、层级化的键名（例如 `settings_advanced_title`, `settings_flash_attn_desc`）。
-    - **导入管理**：从 `minediffusion.composeapp.generated.resources.*` 导入生成的资源键。
 
 ### 原生集成
 

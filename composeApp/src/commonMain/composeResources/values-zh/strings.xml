@@ -84,4 +84,30 @@
     <string name="settings_lora_strength">权重: %s</string>
     <string name="settings_lora_remove">移除</string>
     <string name="settings_lora_files">LoRA 文件 (*.safetensors)</string>
+
+    <!-- Model Selection Screen -->
+    <string name="model_select_title">神经网络架构</string>
+    <string name="model_select_subtitle">选择要加载至内存的本地语言模型。每种架构在深度推理、创意生成与结构化控制之间提供不同的平衡。</string>
+    <string name="model_select_mobile_title">选择模型</string>
+    <string name="model_select_mobile_subtitle">选择本地智能引擎。</string>
+    <string name="model_section_active">当前运行</string>
+    <string name="model_section_available">可用架构</string>
+    <string name="model_llama3_title">Llama 3 8B Instruct</string>
+    <string name="model_llama3_tagline">通用全能，功能强大</string>
+    <string name="model_llama3_desc">功能强大的通用架构。在复杂推理任务与流畅自然的语言生成之间取得了优雅的平衡，是日常对话交互的理想选择。</string>
+    <string name="model_mistral_title">Mistral 7B v0.2</string>
+    <string name="model_mistral_tagline">极速推理，创意写作</string>
+    <string name="model_mistral_desc">以结构一致性与极速响应著称的高效架构。擅长遵循严格的格式指令与结构化数据提取。</string>
+    <string name="model_gemma_title">Gemma 2B</string>
+    <string name="model_gemma_tagline">Google 开源权重模型</string>
+    <string name="model_gemma_desc">专为极低资源消耗设计的轻量级空灵架构。非常适合快速原型设计、后台任务或内存受限的系统。</string>
+    <string name="model_phi3_title">Phi-3 Mini</string>
+    <string name="model_phi3_tagline">轻量高效，日常事务</string>
+    <string name="model_phi3_desc">紧凑且高度优化的架构。在极低内存占用下，为日常协助与推理任务提供卓越的性能表现。</string>
+    <string name="model_custom_title">自定义本地模型</string>
+    <string name="model_custom_tagline">加载任意兼容的 LiteRT/TFLite 模型</string>
+    <string name="model_custom_desc">从本地存储中选择自定义的模型权重文件，以初始化神经网络引擎。</string>
+    <string name="model_action_load">加载模型</string>
+    <string name="model_action_active">正在运行</string>
+    <string name="model_action_select_file">选择文件</string>
 </resources>

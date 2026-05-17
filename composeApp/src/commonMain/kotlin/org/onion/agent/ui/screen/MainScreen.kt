@@ -105,7 +105,7 @@ fun MainContent(
                 ) { key ->
                     when (key) {
                         is MainRoute.HomeRoute -> NavEntry(key) {
-
+                            ModelScreen()
                         }
 
                         is MainRoute.ChatRoute -> NavEntry(key) {
