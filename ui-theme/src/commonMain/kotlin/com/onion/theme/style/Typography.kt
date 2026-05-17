@@ -1,6 +1,8 @@
 /*
- * Copyright 2024 The ZZZ Archive Open Source Project by mrfatworm
- * License: MIT License
+ * Ethereal Minimalism — Typography
+ * Retains Metropolis font family. Hierarchy established through
+ * font weight and generous line heights rather than excessive
+ * size variations. Headlines use light weight to feel "airy."
  */
 
 package com.onion.theme.style
@@ -38,113 +40,128 @@ data class Typography(
 
 @Composable
 fun provideTypography(scale: Float = 1f): Typography {
-    val noToSansTc = FontFamily(
+    val metropolis = FontFamily(
+        Font(Res.font.metropolis_light, FontWeight.Light),
         Font(Res.font.metropolis_regular, FontWeight.Normal),
         Font(Res.font.metropolis_medium, FontWeight.Medium),
+        Font(Res.font.metropolis_semibold, FontWeight.SemiBold),
         Font(Res.font.metropolis_bold, FontWeight.Bold),
-        Font(Res.font.metropolis_light, FontWeight.Bold),
-        Font(Res.font.metropolis_semibold, FontWeight.Black)
     )
 
     return Typography(
+        // ── Display — monumental, reserved for hero text ──────────
         displayLarge = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Black,
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Light,
             fontSize = 57.sp * scale,
-            lineHeight = 64.sp * scale,
-            letterSpacing = -(0.25).sp,
+            lineHeight = 72.sp * scale,
+            letterSpacing = (-0.25).sp,
         ),
         displayMedium = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Black,
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Light,
             fontSize = 45.sp * scale,
-            lineHeight = 52.sp * scale
+            lineHeight = 58.sp * scale,
         ),
         displaySmall = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Black,
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Light,
             fontSize = 36.sp * scale,
-            lineHeight = 44.sp * scale
+            lineHeight = 48.sp * scale,
         ),
+
+        // ── Headline — "airy" with light weight (300) ────────────
+        // Design.md: headline-lg = 40px/300/52px/-0.02em
         headlineLarge = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Bold,
-            fontSize = 32.sp * scale,
-            lineHeight = 40.sp * scale
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Light,
+            fontSize = 40.sp * scale,
+            lineHeight = 52.sp * scale,
+            letterSpacing = (-0.02).sp,
         ),
+        // Design.md: headline-md = 28px/400/36px
         headlineMedium = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Bold,
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Normal,
             fontSize = 28.sp * scale,
-            lineHeight = 36.sp * scale
+            lineHeight = 36.sp * scale,
         ),
+        // headline-lg-mobile equivalent: 30px/300/38px/-0.01em
         headlineSmall = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp * scale,
-            lineHeight = 32.sp * scale
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Light,
+            fontSize = 30.sp * scale,
+            lineHeight = 38.sp * scale,
+            letterSpacing = (-0.01).sp,
         ),
+
+        // ── Title ────────────────────────────────────────────────
         titleLarge = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Medium,
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Normal,
             fontSize = 22.sp * scale,
-            lineHeight = 28.sp * scale
+            lineHeight = 33.sp * scale,
         ),
         titleMedium = TextStyle(
-            fontFamily = noToSansTc,
+            fontFamily = metropolis,
             fontWeight = FontWeight.Medium,
             fontSize = 16.sp * scale,
             lineHeight = 24.sp * scale,
-            letterSpacing = 0.15.sp
+            letterSpacing = 0.15.sp,
         ),
         titleSmall = TextStyle(
-            fontFamily = noToSansTc,
+            fontFamily = metropolis,
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp * scale,
-            lineHeight = 20.sp * scale,
-            letterSpacing = 0.1.sp
+            lineHeight = 21.sp * scale,
+            letterSpacing = 0.1.sp,
         ),
+
+        // ── Label — semi-bold with wider tracking ────────────────
+        // Design.md: label-md = 14px/600/20px/0.05em
         labelLarge = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp * scale,
-            lineHeight = 16.sp * scale,
-            letterSpacing = 0.1.sp
-        ),
-        labelMedium = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp * scale,
-            lineHeight = 14.sp * scale,
-            letterSpacing = 0.5.sp
-        ),
-        labelSmall = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Medium,
-            fontSize = 12.sp * scale,
-            lineHeight = 12.sp * scale,
-            letterSpacing = 0.5.sp
-        ),
-        bodyLarge = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Normal,
+            fontFamily = metropolis,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 16.sp * scale,
             lineHeight = 24.sp * scale,
-            letterSpacing = 0.5.sp
+            letterSpacing = 0.05.sp,
         ),
-        bodyMedium = TextStyle(
-            fontFamily = noToSansTc,
-            fontWeight = FontWeight.Normal,
+        labelMedium = TextStyle(
+            fontFamily = metropolis,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp * scale,
             lineHeight = 20.sp * scale,
-            letterSpacing = 0.25.sp
+            letterSpacing = 0.05.sp,
         ),
+        labelSmall = TextStyle(
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Medium,
+            fontSize = 12.sp * scale,
+            lineHeight = 16.sp * scale,
+            letterSpacing = 0.05.sp,
+        ),
+
+        // ── Body — ≥ 1.5x line-height for "ethereal whitespace" ─
+        // Design.md: body-lg = 18px/400/30px (1.67x)
+        bodyLarge = TextStyle(
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Normal,
+            fontSize = 18.sp * scale,
+            lineHeight = 30.sp * scale,
+        ),
+        // Design.md: body-md = 16px/400/26px (1.625x)
+        bodyMedium = TextStyle(
+            fontFamily = metropolis,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp * scale,
+            lineHeight = 26.sp * scale,
+        ),
+        // Design.md: caption = 12px/400/16px
         bodySmall = TextStyle(
-            fontFamily = noToSansTc,
+            fontFamily = metropolis,
             fontWeight = FontWeight.Normal,
             fontSize = 12.sp * scale,
             lineHeight = 16.sp * scale,
-            letterSpacing = 0.4.sp
         )
     )
 }

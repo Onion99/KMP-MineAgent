@@ -84,9 +84,9 @@ val navigationDrawerMaxWidth = 360.dp
 fun ModalNavigationContent() {
     Column(
         modifier = Modifier.fillMaxHeight().padding(AppTheme.spacing.s200)
-            .clip(AppTheme.shape.r500)
+            .clip(AppTheme.shape.xxl)
             .widthIn(min = navigationDrawerMinWidth, max = navigationDrawerMaxWidth)
-            .border(AppTheme.size.borderWidth, AppTheme.colors.border, AppTheme.shape.r500)
+            .border(AppTheme.size.borderWidth, AppTheme.colors.outlineVariant, AppTheme.shape.xxl)
             .background(AppTheme.colors.surfaceContainer)
             .padding(horizontal = AppTheme.spacing.s400, vertical = AppTheme.spacing.s450)
     ) {
@@ -114,7 +114,7 @@ fun MainContent(
                     onThemeChanged = {}
                 )
             }
-            Box(modifier = Modifier.weight(1f).widthIn(max = AppTheme.size.maxContainerWidth)) {
+            Box(modifier = Modifier.weight(1f).widthIn(max = AppTheme.size.maxContentWidth)) {
                 NavDisplay(
                     backStack = backstack,
                     onBack = { mainNavActions.back() }
@@ -163,7 +163,7 @@ fun SlideNavigationBar(
 ) {
     Column(
         modifier
-            .border(AppTheme.size.borderWidth, AppTheme.colors.border, CircleShape)
+            .border(AppTheme.size.borderWidth, AppTheme.colors.outlineVariant, CircleShape)
             .background(AppTheme.colors.surfaceContainer, CircleShape).widthIn(min = 80.dp)
             .padding(vertical = AppTheme.spacing.s400).selectableGroup(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -238,7 +238,7 @@ fun BottomNavigationBar(
 @Composable
 private fun navigationRailItemColors() = NavigationRailItemDefaults.colors(
     selectedIconColor = AppTheme.colors.onPrimaryContainer,
-    selectedTextColor = AppTheme.colors.onSurfaceContainer,
+    selectedTextColor = AppTheme.colors.onSurface,
     indicatorColor = AppTheme.colors.primaryContainer,
     unselectedIconColor = AppTheme.colors.onSurfaceVariant,
     unselectedTextColor = AppTheme.colors.onSurfaceVariant
