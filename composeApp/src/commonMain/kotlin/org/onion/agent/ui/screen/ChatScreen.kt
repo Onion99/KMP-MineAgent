@@ -1,15 +1,10 @@
 package org.onion.agent.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -33,21 +29,16 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SaveAlt
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,11 +47,9 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import com.onion.theme.state.ContentType
-import ui.theme.AppTheme
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,139 +62,211 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import com.onion.model.ChatMessage
+import com.onion.theme.state.ContentType
 import com.onion.theme.style.MediumOutlinedTextField
-import com.onion.theme.style.MediumText
-import com.onion.theme.style.Text
-import io.github.alexzhirkevich.compottie.Compottie
-import io.github.alexzhirkevich.compottie.DotLottie
-import io.github.alexzhirkevich.compottie.LottieCompositionSpec
-import io.github.alexzhirkevich.compottie.rememberLottieComposition
-import io.github.alexzhirkevich.compottie.rememberLottiePainter
+import com.onion.theme.style.glassSurface
+import com.onion.theme.style.watercolorGradient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import mineagent.composeapp.generated.resources.Res
-import mineagent.composeapp.generated.resources.ai_avatar
 import mineagent.composeapp.generated.resources.ai_image
-import mineagent.composeapp.generated.resources.ask_anything_placeholder
 import mineagent.composeapp.generated.resources.attachment
-import mineagent.composeapp.generated.resources.clear
+import mineagent.composeapp.generated.resources.copy
 import mineagent.composeapp.generated.resources.creating
 import mineagent.composeapp.generated.resources.error_no_interrupt_api
-import mineagent.composeapp.generated.resources.error_select_correct_llm_model
 import mineagent.composeapp.generated.resources.feature_not_available
-import mineagent.composeapp.generated.resources.ic_avatar_sytem
-import mineagent.composeapp.generated.resources.ic_avatar_user
-import mineagent.composeapp.generated.resources.loading
-import mineagent.composeapp.generated.resources.text_copied
-import mineagent.composeapp.generated.resources.copy
+import mineagent.composeapp.generated.resources.regenerate
+import mineagent.composeapp.generated.resources.save_image
 import mineagent.composeapp.generated.resources.scroll_to_bottom
-import mineagent.composeapp.generated.resources.select
 import mineagent.composeapp.generated.resources.send_message
 import mineagent.composeapp.generated.resources.stop_generation
-import mineagent.composeapp.generated.resources.user_avatar
+import mineagent.composeapp.generated.resources.text_copied
 import mineagent.composeapp.generated.resources.user_image
-import mineagent.composeapp.generated.resources.save_image
-import mineagent.composeapp.generated.resources.regenerate
-import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.onion.agent.utils.Animations
 import org.onion.agent.viewmodel.ChatViewModel
+import ui.theme.AppTheme
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-
-
 @Composable
 fun ChatScreen(
-    onSettingsClick: () -> Unit = {},onAdvancedSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onAdvancedSettingsClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(AppTheme.colors.background)
             .safeDrawingPadding()
     ) {
-        // koinInject() 只是单纯地从 Koin 容器中取出这个 Singleton 实例，而不将其绑定到屏幕的生命周期。这样，即使你在屏幕间导航，ChatViewModel 的 Scope 也会一直保持活跃
         val chatViewModel = koinInject<ChatViewModel>()
         val chatMessages = chatViewModel.currentChatMessages
         var text by remember { mutableStateOf("") }
         val keyboardController = LocalSoftwareKeyboardController.current
         val focusManager = LocalFocusManager.current
         val snackbarHostState = remember { SnackbarHostState() }
-        var showFileDialog by remember { mutableStateOf(chatViewModel.llmPath.value.isEmpty() || chatViewModel.loadingModelState.value == 0) }
         val coroutineScope = rememberCoroutineScope()
-        coroutineScope.launch {
-            chatViewModel.loadingModelState.collect { state ->
-                if(state == 2) showFileDialog = false
-            }
+
+        // Ambient Watercolor Background Effects
+        Box(modifier = Modifier.fillMaxSize().zIndex(0f)) {
+            // Top-Left Glow
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(x = (-100).dp, y = (-100).dp)
+                    .size(500.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                AppTheme.colors.primaryContainer.copy(alpha = 0.25f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+            )
+            // Bottom-Right Glow
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 120.dp, y = 120.dp)
+                    .size(600.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                AppTheme.colors.tertiaryContainer.copy(alpha = 0.2f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+            )
+            // Center-Left Glow
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = 150.dp, y = 0.dp)
+                    .size(400.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                AppTheme.colors.secondaryContainer.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+            )
         }
-        LLMFileSelectTipDialog(
-            showDialog = false,
-            selectAction = {
-                coroutineScope.launch(Dispatchers.Default) {
-                    if(chatViewModel.loadingModelState.value == 1) return@launch
-                    if(chatViewModel.llmPath.value.isBlank()){
-                        snackbarHostState.showSnackbar(getString(Res.string.error_select_correct_llm_model))
-                    }else {
-                        chatViewModel.loadingModelState.emit(1)
-                        chatViewModel.initLLM()
+
+        Column(
+            modifier = Modifier.fillMaxSize().zIndex(10f)
+        ) {
+            // Mobile Top Header
+            if (AppTheme.contentType == ContentType.Single) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AppTheme.colors.surface.copy(alpha = 0.8f))
+                        .padding(horizontal = AppTheme.spacing.containerPaddingMobile, vertical = 16.dp)
+                        .zIndex(30f),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Aura",
+                        style = AppTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, letterSpacing = 2.sp),
+                        color = AppTheme.colors.primary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                chatViewModel.currentChatMessages.clear()
+                            },
+                            modifier = Modifier.size(40.dp).background(AppTheme.colors.primaryContainer.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AddCircle,
+                                contentDescription = "New Chat",
+                                tint = AppTheme.colors.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(getString(Res.string.feature_not_available))
+                                }
+                            },
+                            modifier = Modifier.size(40.dp).background(AppTheme.colors.primaryContainer.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.History,
+                                contentDescription = "History",
+                                tint = AppTheme.colors.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
-            },
-            settingClick = onAdvancedSettingsClick,
-        )
-        ChatMessagesList(chatMessages = chatMessages,snackbarHostState)
-        
-        // Settings Entry Button - Premium floating design
-        SettingsEntryButton(
-            onClick = onSettingsClick,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 12.dp, end = 16.dp)
-        )
-        
-        AskAnythingField(
-            modifier = Modifier.align(Alignment.BottomStart),
-            onAttachClick = {
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(	getString(Res.string.feature_not_available))
-                }
-            },
-            onSendClick = {
-                if (chatViewModel.isGenerating.value) {
+            }
+
+            // Chat History Scrollable Area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                ChatMessagesList(
+                    chatMessages = chatMessages,
+                    snackbarHostState = snackbarHostState,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Input Area
+            InputArea(
+                text = text,
+                isGenerating = chatViewModel.isGenerating.value,
+                onAttachClick = {
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar(getString(Res.string.error_no_interrupt_api))
+                        snackbarHostState.showSnackbar(getString(Res.string.feature_not_available))
                     }
-                    //chatViewModel.stopGeneration()
-                } else {
-                    if (text.isNotEmpty()) {
-                        chatViewModel.sendMessage(text)
-                        text = ""
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
+                },
+                onSendClick = {
+                    if (chatViewModel.isGenerating.value) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(getString(Res.string.error_no_interrupt_api))
+                        }
+                    } else {
+                        if (text.isNotEmpty()) {
+                            chatViewModel.sendMessage(text)
+                            text = ""
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                        }
                     }
-                }
-            },
-            text = text,
-            onTextChange = { text = it },
-            isGenerating = chatViewModel.isGenerating.value
-        )
+                },
+                onTextChange = { text = it }
+            )
+        }
 
         // Snackbar Host
         SnackbarHost(
@@ -213,7 +274,8 @@ fun ChatScreen(
             modifier = Modifier
                 .wrapContentSize()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 100.dp),
+                .padding(bottom = 120.dp)
+                .zIndex(50f),
             snackbar = { snackbarData ->
                 Snackbar(
                     snackbarData,
@@ -222,82 +284,26 @@ fun ChatScreen(
                         .heightIn(min = 40.dp, max = 120.dp)
                         .padding(8.dp),
                     shape = RoundedCornerShape(26.dp),
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    containerColor = AppTheme.colors.tertiaryContainer,
+                    contentColor = AppTheme.colors.onTertiaryContainer
                 )
             }
         )
     }
 }
 
-/**
- * Premium styled settings entry button with glassmorphism effect and rotation animation.
- * Features a smooth rotation on press and elegant shadow effects.
- */
-@Composable
-private fun SettingsEntryButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "settings_rotation")
-    
-    // Subtle continuous rotation animation for visual interest
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "gear_rotation"
-    )
-
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .shadow(
-                elevation = 8.dp,
-                shape = CircleShape,
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-            )
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer,
-                        MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ),
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Settings,
-                contentDescription = "Settings",
-                modifier = Modifier
-                    .size(24.dp)
-                    .graphicsLayer {
-                        rotationZ = rotation
-                    },
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalTime::class)
 @Composable
-private fun ChatMessagesList(chatMessages: List<ChatMessage>,snackbarHostState: SnackbarHostState) {
+private fun ChatMessagesList(
+    chatMessages: List<ChatMessage>,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier
+) {
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val chatViewModel = koinInject<ChatViewModel>()
     val clipboardManager = LocalClipboardManager.current
 
-    // Track scroll position to show/hide button
     val showScrollButton by remember {
         derivedStateOf {
             val layoutInfo = lazyListState.layoutInfo
@@ -309,35 +315,51 @@ private fun ChatMessagesList(chatMessages: List<ChatMessage>,snackbarHostState: 
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 70.dp, bottom = 90.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = 24.dp,
+                bottom = 32.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            items(chatMessages, key = { it.id }) { message ->
+            item {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = if (message.isUser) 64.dp else 16.dp,
-                            end = if (message.isUser) 16.dp else 64.dp,
-                            top = 4.dp,
-                            bottom = 4.dp
-                        )
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
+                    Text(
+                        text = if (AppTheme.contentType == ContentType.Single) "Today, 10:24 AM" else "Today, serene morning",
+                        style = AppTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .background(
+                                color = AppTheme.colors.surfaceVariant.copy(alpha = 0.3f),
+                                shape = CircleShape
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = AppTheme.colors.outlineVariant.copy(alpha = 0.2f),
+                                shape = CircleShape
+                            )
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            items(chatMessages, key = { it.id }) { message ->
+                Box(modifier = Modifier.widthIn(max = 840.dp).fillMaxWidth()) {
                     ChatBubble(
-                        message = message.message,
-                        image = message.image,
-                        isUser = message.isUser,
+                        message = message,
                         onSaveImage = { imageData ->
                             coroutineScope.launch(Dispatchers.Default) {
                                 val fileName = "diffusion_${Clock.System.now().toEpochMilliseconds()}.png"
-                                //val success = chatViewModel.diffusionLoader.saveImage(imageData, fileName, message.metadata)
-                                //val msg = if (success) getString(Res.string.image_saved) else getString(Res.string.image_save_failed)
-                                //snackbarHostState.showSnackbar(msg)
+                                // val success = chatViewModel.diffusionLoader.saveImage(imageData, fileName, message.metadata)
                             }
                         },
                         onRegenerate = if (message.metadata?.containsKey("prompt") == true) {
@@ -346,7 +368,7 @@ private fun ChatMessagesList(chatMessages: List<ChatMessage>,snackbarHostState: 
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar(getString(Res.string.error_no_interrupt_api))
                                     }
-                                }else chatViewModel.reGenerateMessage(message)
+                                } else chatViewModel.reGenerateMessage(message)
                             }
                         } else null,
                         onCopyText = { textToCopy ->
@@ -354,8 +376,7 @@ private fun ChatMessagesList(chatMessages: List<ChatMessage>,snackbarHostState: 
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar(getString(Res.string.text_copied))
                             }
-                        },
-                        metadata = message.metadata
+                        }
                     )
                 }
             }
@@ -364,17 +385,16 @@ private fun ChatMessagesList(chatMessages: List<ChatMessage>,snackbarHostState: 
         ScrollToBottomButton(
             onClick = {
                 coroutineScope.launch {
-                    lazyListState.animateScrollToItem(chatMessages.lastIndex)
+                    lazyListState.animateScrollToItem(chatMessages.size)
                 }
             },
             visibility = showScrollButton,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 100.dp, end = 16.dp)
+                .padding(bottom = 32.dp, end = 24.dp)
         )
     }
 
-    // Existing auto-scroll logic
     val lastMessageLength by remember(chatMessages.size) {
         derivedStateOf { chatMessages.lastOrNull()?.message?.length ?: 0 }
     }
@@ -386,13 +406,12 @@ private fun ChatMessagesList(chatMessages: List<ChatMessage>,snackbarHostState: 
             val layoutInfo = lazyListState.layoutInfo
             val visibleItems = layoutInfo.visibleItemsInfo
             if ((visibleItems.lastOrNull()?.index ?: 0) >= lastIndex - scrollThreshold) {
-                lazyListState.scrollToItem(lastIndex)
+                lazyListState.scrollToItem(chatMessages.size)
             }
         }
     }
 }
 
-// Extracted scroll-to-bottom button component
 @Composable
 private fun ScrollToBottomButton(
     onClick: () -> Unit,
@@ -409,7 +428,7 @@ private fun ScrollToBottomButton(
             onClick = onClick,
             modifier = Modifier
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = AppTheme.colors.primaryContainer,
                     shape = CircleShape
                 )
                 .shadow(6.dp, CircleShape)
@@ -418,7 +437,7 @@ private fun ScrollToBottomButton(
             Icon(
                 imageVector = Icons.Filled.KeyboardDoubleArrowDown,
                 contentDescription = stringResource(Res.string.scroll_to_bottom),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = AppTheme.colors.onPrimaryContainer,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -426,236 +445,189 @@ private fun ScrollToBottomButton(
 }
 
 @Composable
-fun AskAnythingField(
-    text: String,
-    isGenerating: Boolean,
-    modifier: Modifier = Modifier,
-    onAttachClick: () -> Unit,
-    onSendClick: () -> Unit,
-    onTextChange: (String) -> Unit
-) {
-    Box(
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(
-                elevation = 8.dp,
-                shape = MaterialTheme.shapes.extraLarge,
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-            )
-            .background(
-                color = MaterialTheme.colorScheme.surface,
-                shape = MaterialTheme.shapes.extraLarge
-            )
-    ) {
-        MediumOutlinedTextField(
-            value = text,
-            onValueChange = onTextChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(end = 56.dp)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            placeholder = {
-                MediumText(
-                    text = stringResource(Res.string.ask_anything_placeholder),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            },
-            leadingIcon = {
-                AttachIcon(onAttachClick = onAttachClick)
-            },
-            trailingIcon = {
-                if (text.isNotEmpty()) {
-                    ClearIcon(
-                        show = text.isNotEmpty(),
-                        onClick = { onTextChange("") }
-                    )
-                }
-            },
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = Color.Transparent
-            )
-        )
-
-        SendStopButton(
-            isGenerating = isGenerating,
-            modifier = Modifier
-                .padding(end = 12.dp)
-                .size(40.dp)
-                .align(Alignment.CenterEnd),
-            onClick = onSendClick,
-        )
-    }
-}
-
-@Composable
-private fun AttachIcon(
-    onAttachClick: () -> Unit
-) = IconButton(onAttachClick) {
-    Icon(
-        imageVector = Icons.Filled.AttachFile,
-        contentDescription = stringResource(Res.string.attachment),
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.size(20.dp)
-    )
-}
-
-@Composable
-private fun ClearIcon(
-    show: Boolean,
-    onClick: () -> Unit
-) {
-    if (show) {
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(Res.string.clear),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun SendStopButton(
-    isGenerating: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = modifier
-            .background(
-                color = MaterialTheme.colorScheme.primary,
-                shape = CircleShape
-            )
-    ) {
-        Icon(
-            imageVector = if (isGenerating) Icons.Filled.Stop
-            else Icons.AutoMirrored.Filled.Send,
-            contentDescription = if (isGenerating) 	stringResource(Res.string.stop_generation) else stringResource(Res.string.send_message),
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(20.dp)
-        )
-    }
-}
-
-@Composable
 fun ChatBubble(
-    message: String,
-    image: ByteArray? = null,
-    isUser: Boolean,
+    message: ChatMessage,
     onSaveImage: ((ByteArray) -> Unit)? = null,
     onRegenerate: (() -> Unit)? = null,
-    onCopyText: ((String) -> Unit)? = null,
-    metadata: Map<String, String>? = null
+    onCopyText: ((String) -> Unit)? = null
 ) {
-    Box(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = if (isUser)
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(
-                        topStart = if (isUser) 16.dp else 2.dp,
-                        topEnd = if (isUser) 2.dp else 16.dp,
-                        bottomStart = 16.dp,
-                        bottomEnd = 16.dp
-                    )
-                )
-                .padding(16.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ChatBubbleIcon(isUser = isUser)
+    val isSingle = AppTheme.contentType == ContentType.Single
+    val isUser = message.isUser
+    val textContent = message.message
+    val image = message.image
+    val metadata = message.metadata
 
-            ChatBubbleMessage(
-                message = message,
-                image = image,
-                isUser = isUser,
-                onSaveImage = onSaveImage,
-                onRegenerate = onRegenerate,
-                onCopyText = onCopyText,
-                metadata = metadata
-            )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = if (isUser) (if (isSingle) 48.dp else 88.dp) else 0.dp,
+                end = if (isUser) 0.dp else (if (isSingle) 48.dp else 88.dp),
+                top = 8.dp,
+                bottom = 8.dp
+            ),
+        contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
+    ) {
+        if (isUser) {
+            // User Message Bubble
+            if (isSingle) {
+                // Mobile User Bubble
+                Box(
+                    modifier = Modifier
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 4.dp, bottomStart = 24.dp),
+                            spotColor = AppTheme.colors.primary.copy(alpha = 0.3f)
+                        )
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    AppTheme.colors.primary.copy(alpha = 0.9f),
+                                    AppTheme.colors.surfaceTint.copy(alpha = 0.9f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 4.dp, bottomStart = 24.dp)
+                        )
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
+                    UserMessageContent(textContent, image, onCopyText, isSingle = true)
+                }
+            } else {
+                // Desktop User Bubble
+                Box(
+                    modifier = Modifier
+                        .glassSurface(
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 8.dp, bottomEnd = 24.dp, bottomStart = 24.dp),
+                            alpha = AppTheme.elevation.glassSurfaceAlpha,
+                            borderAlpha = AppTheme.elevation.glassBorderAlpha
+                        )
+                        .background(
+                            color = AppTheme.colors.surfaceContainerHigh.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 8.dp, bottomEnd = 24.dp, bottomStart = 24.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = AppTheme.colors.outlineVariant.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 8.dp, bottomEnd = 24.dp, bottomStart = 24.dp)
+                        )
+                        .padding(horizontal = 24.dp, vertical = 20.dp)
+                ) {
+                    UserMessageContent(textContent, image, onCopyText, isSingle = false)
+                }
+            }
+        } else {
+            // AI Message Bubble
+            if (isSingle) {
+                // Mobile AI Bubble
+                Box(
+                    modifier = Modifier
+                        .glassSurface(
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 4.dp),
+                            alpha = AppTheme.elevation.glassSurfaceAlpha,
+                            borderAlpha = AppTheme.elevation.glassBorderAlpha
+                        )
+                        .background(
+                            color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 4.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = AppTheme.colors.surfaceContainerHigh,
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 4.dp)
+                        )
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
+                    AiMessageContent(textContent, image, onSaveImage, onRegenerate, onCopyText, metadata, isSingle = true)
+                }
+            } else {
+                // Desktop AI Bubble with Avatar
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // AI Avatar
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                shape = CircleShape,
+                                spotColor = AppTheme.colors.primary.copy(alpha = 0.2f)
+                            )
+                            .background(
+                                color = AppTheme.colors.primaryContainer.copy(alpha = 0.2f),
+                                shape = CircleShape
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = AppTheme.colors.primary.copy(alpha = 0.1f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = "AI Avatar",
+                            tint = AppTheme.colors.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // AI Bubble Container
+                    Box(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .glassSurface(
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp),
+                                alpha = AppTheme.elevation.glassSurfaceAlpha,
+                                borderAlpha = AppTheme.elevation.glassBorderAlpha
+                            )
+                            .background(
+                                color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.7f),
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = AppTheme.colors.outlineVariant.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp)
+                            )
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp))
+                    ) {
+                        // Soft internal glow simulating watercolor bleeding
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            AppTheme.colors.primaryContainer.copy(alpha = 0.15f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                                .align(Alignment.TopCenter)
+                        )
+
+                        Box(modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp)) {
+                            AiMessageContent(textContent, image, onSaveImage, onRegenerate, onCopyText, metadata, isSingle = false)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ChatBubbleIcon(isUser: Boolean) {
-    if (isUser) {
-        UserIcon()
-    } else {
-        AiProviderIcon()
-    }
-}
-
-@Composable
-private fun UserIcon() {
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .background(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                shape = CircleShape
-            )
-            .padding(6.dp)
-    ) {
-        Image(
-            painter = painterResource(Res.drawable.ic_avatar_user),
-            contentDescription = stringResource(Res.string.user_avatar),
-            modifier = Modifier.size(24.dp)
-        )
-    }
-}
-
-@Composable
-private fun AiProviderIcon() {
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .background(
-                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
-                shape = CircleShape
-            )
-            .padding(6.dp)
-    ) {
-        Image(
-            painter = painterResource(Res.drawable.ic_avatar_sytem),
-            contentDescription = stringResource(Res.string.ai_avatar),
-            modifier = Modifier.size(24.dp)
-        )
-    }
-}
-
-@Composable
-private fun ChatBubbleMessage(
+private fun UserMessageContent(
     message: String,
     image: ByteArray? = null,
-    isUser: Boolean,
-    onSaveImage: ((ByteArray) -> Unit)? = null,
-    onRegenerate: (() -> Unit)? = null,
     onCopyText: ((String) -> Unit)? = null,
-    metadata: Map<String, String>? = null
+    isSingle: Boolean
 ) {
-    if (isUser) {
-        UserMessage(message = message, image = image, onCopyText = onCopyText)
-    } else {
-        AiMessage(message = message, image = image, onSaveImage = onSaveImage, onRegenerate = onRegenerate, onCopyText = onCopyText, metadata = metadata)
-    }
-}
+    val textColor = if (isSingle) AppTheme.colors.onPrimary else AppTheme.colors.onSurface
 
-@Composable
-private fun UserMessage(message: String, image: ByteArray? = null, onCopyText: ((String) -> Unit)? = null) {
     Column(modifier = Modifier.fillMaxWidth()) {
         if (image != null) {
             AsyncImage(
@@ -664,15 +636,20 @@ private fun UserMessage(message: String, image: ByteArray? = null, onCopyText: (
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .clip(RoundedCornerShape(8.dp))
-                    .padding(bottom = 4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .padding(bottom = 8.dp)
             )
         }
         if (message.isNotEmpty()) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                MediumText(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
                     text = message,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    style = if (isSingle) AppTheme.typography.bodyMedium else AppTheme.typography.bodyLarge,
+                    color = textColor,
                     modifier = Modifier
                         .padding(top = 4.dp, end = 8.dp)
                         .weight(1f)
@@ -685,7 +662,7 @@ private fun UserMessage(message: String, image: ByteArray? = null, onCopyText: (
                         Icon(
                             imageVector = Icons.Filled.ContentCopy,
                             contentDescription = stringResource(Res.string.copy),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = if (isSingle) AppTheme.colors.onPrimary.copy(alpha = 0.7f) else AppTheme.colors.primary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -696,24 +673,22 @@ private fun UserMessage(message: String, image: ByteArray? = null, onCopyText: (
 }
 
 @Composable
-private fun AiMessage(
+private fun AiMessageContent(
     message: String,
     image: ByteArray? = null,
     onSaveImage: ((ByteArray) -> Unit)? = null,
     onRegenerate: (() -> Unit)? = null,
     onCopyText: ((String) -> Unit)? = null,
-    metadata: Map<String, String>? = null
+    metadata: Map<String, String>? = null,
+    isSingle: Boolean
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // 正常显示逻辑
         if (image != null) {
-            Box(modifier = Modifier.wrapContentSize()) {
-                // Try to pre-calculate aspect ratio to prevent layout shifts
+            Box(modifier = Modifier.wrapContentSize().padding(bottom = 12.dp)) {
                 val widthStr = metadata?.get("width")
                 val heightStr = metadata?.get("height")
                 val imgModifier = Modifier
-                    .padding(bottom = 4.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .let { m ->
                         if (widthStr != null && heightStr != null && widthStr.toFloatOrNull() != null && heightStr.toFloatOrNull() != null) {
                             val w = widthStr.toFloat()
@@ -731,13 +706,12 @@ private fun AiMessage(
                     contentScale = ContentScale.Fit,
                     modifier = imgModifier
                 )
-                // Premium Action Bar Overlay
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            color = AppTheme.colors.surface.copy(alpha = 0.7f),
                             shape = RoundedCornerShape(16.dp)
                         )
                         .padding(horizontal = 4.dp, vertical = 4.dp),
@@ -752,7 +726,7 @@ private fun AiMessage(
                             Icon(
                                 imageVector = Icons.Filled.Refresh,
                                 contentDescription = stringResource(Res.string.regenerate),
-                                tint = MaterialTheme.colorScheme.onSurface,
+                                tint = AppTheme.colors.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -764,7 +738,7 @@ private fun AiMessage(
                         Icon(
                             imageVector = Icons.Filled.SaveAlt,
                             contentDescription = stringResource(Res.string.save_image),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = AppTheme.colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -775,24 +749,34 @@ private fun AiMessage(
         val isGenerating = metadata?.get("is_generating") == "true"
 
         if (message.isEmpty() && isGenerating) {
-            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
+                    color = AppTheme.colors.primary,
                     strokeWidth = 2.dp
                 )
-                MediumText(
+                Text(
                     text = stringResource(Res.string.creating) + "...",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp)
+                    style = if (isSingle) AppTheme.typography.bodyMedium else AppTheme.typography.bodyLarge,
+                    color = AppTheme.colors.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp)
                 )
             }
         } else if (message.isNotEmpty() || isGenerating) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
                 val displayText = if (isGenerating) "$message ▌" else message
-                MediumText(
+                Text(
                     text = displayText,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = if (isSingle) AppTheme.typography.bodyMedium else AppTheme.typography.bodyLarge,
+                    color = AppTheme.colors.onSurface.copy(alpha = 0.9f),
                     modifier = Modifier
                         .padding(top = 4.dp, end = 8.dp)
                         .weight(1f)
@@ -805,7 +789,7 @@ private fun AiMessage(
                         Icon(
                             imageVector = Icons.Filled.ContentCopy,
                             contentDescription = stringResource(Res.string.copy),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = AppTheme.colors.primary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -815,376 +799,221 @@ private fun AiMessage(
     }
 }
 
-@OptIn(ExperimentalResourceApi::class)
 @Composable
-fun LLMFileSelectTipDialog(
-    showDialog: Boolean,
-    selectAction: () -> Unit,settingClick: () -> Unit
+fun InputArea(
+    text: String,
+    isGenerating: Boolean,
+    onAttachClick: () -> Unit,
+    onSendClick: () -> Unit,
+    onTextChange: (String) -> Unit
 ) {
-    if (showDialog) {
-        // koinInject唯一的“副作用”是 onCleared() 永远不会被调用
-        val chatViewModel = koinInject<ChatViewModel>()
-        val loadingState by chatViewModel.loadingModelState.collectAsState(0)
-        val vaePath by chatViewModel.vaePath
-        val llmPath by chatViewModel.llmPath
-        val clipLPath by chatViewModel.clipLPath
-        val clipGPath by chatViewModel.clipGPath
-        val t5xxlPath by chatViewModel.t5xxlPath
-        val diffusionPath by chatViewModel.diffusionModelPath
-        val isDiffusionModelLoading by chatViewModel.isDiffusionModelLoading
-        val isVaeModelLoading by chatViewModel.isVaeModelLoading
-        val isLlmModelLoading by chatViewModel.isLlmModelLoading
-        val isClipLModelLoading by chatViewModel.isClipLModelLoading
-        val isClipGModelLoading by chatViewModel.isClipGModelLoading
-        val isT5xxlModelLoading by chatViewModel.isT5xxlModelLoading
-        val coroutineScope = rememberCoroutineScope()
+    val isSingle = AppTheme.contentType == ContentType.Single
 
-        val infiniteTransition = rememberInfiniteTransition(label = "settings_rotation")
-
-        // Subtle continuous rotation animation for visual interest
-        val rotation by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 20000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "gear_rotation"
-        )
-        Dialog(
-            onDismissRequest = {},
-            properties = DialogProperties(
-                dismissOnClickOutside = false,
-                usePlatformDefaultWidth = false
-            )
-        ) {
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .fillMaxHeight(0.85f),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Scrollable Content
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentPadding = PaddingValues(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Header
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                val composition by rememberLottieComposition {
-                                    LottieCompositionSpec.DotLottie(
-                                        Res.readBytes("files/anim_ai_file_.lottie")
-                                    )
-                                }
-                                Image(
-                                    painter = rememberLottiePainter(
-                                        composition = composition,
-                                        iterations = Compottie.IterateForever
-                                    ),
-                                    contentDescription = "File animation",
-                                    modifier = Modifier
-                                        .align(Alignment.Center)
-                                        .size(120.dp)
-                                        .padding(bottom = 8.dp)
-                                )
-
-                                IconButton(
-                                    onClick = settingClick,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(48.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Settings,
-                                        contentDescription = "Settings",
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .graphicsLayer {
-                                                rotationZ = rotation
-                                            }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Required Section
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                MediumText(
-                                    text = "Core Model",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Required for image generation",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        item {
-                            FileSelectionCard(
-                                title = "LLM Model",
-                                subtitle = "Required",
-                                selectedPath = llmPath,
-                                isRequired = true,
-                                isLoading = isDiffusionModelLoading,
-                                gradientColors = listOf(
-                                    Color(0xFFFFA726),
-                                    Color(0xFF81C784)
-                                ),
-                                onSelectClick = {
-                                    coroutineScope.launch(Dispatchers.Default) {
-                                        if(loadingState == 1) return@launch
-                                        chatViewModel.selectLlmFile()
-                                    }
-                                }
-                            )
-                        }
-                    }
-
-                    // Footer Button (Fixed)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp)
-                    ) {
-                        Button(
-                            onClick = selectAction,
-                            enabled = llmPath.isNotEmpty() && loadingState != 1,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                                .clip(RoundedCornerShape(26.dp))
-                                .background(
-                                    brush = if (llmPath.isNotEmpty() && loadingState != 1) {
-                                        Brush.horizontalGradient(
-                                            colors = listOf(
-                                                Color(0xFFFFA726),
-                                                Color(0xFF81C784)
-                                            )
-                                        )
-                                    } else {
-                                        Brush.horizontalGradient(
-                                            colors = listOf(
-                                                Color.Gray.copy(alpha = 0.3f),
-                                                Color.Gray.copy(alpha = 0.3f)
-                                            )
-                                        )
-                                    }
-                                ),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent
-                            )
-                        ) {
-                            MediumText(
-                                text = if(loadingState == 1) stringResource(Res.string.loading) 
-                                       else stringResource(Res.string.select),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (diffusionPath.isNotEmpty() && loadingState != 1) 
-                                    Color.White else Color.White.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun FileSelectionCard(
-    title: String,
-    subtitle: String,
-    selectedPath: String,
-    isRequired: Boolean,
-    isLoading: Boolean,
-    gradientColors: List<Color>,
-    onSelectClick: () -> Unit
-) {
-    val isSelected = selectedPath.isNotEmpty()
-    val contentType = AppTheme.contentType
-    
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        border = if (isSelected) {
-            BorderStroke(
-                width = 2.dp,
-                brush = Brush.horizontalGradient(gradientColors)
-            )
-        } else null
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Left side: Icon and Info
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Icon with gradient background
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(
-                            brush = Brush.linearGradient(gradientColors),
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isSelected) Icons.Filled.CheckCircle 
-                                      else Icons.Filled.InsertDriveFile,
-                        contentDescription = title,
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        AppTheme.colors.background.copy(alpha = 0.8f),
+                        AppTheme.colors.background
                     )
-                }
-                
-                // Title and path
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                )
+            )
+            .padding(
+                start = if (isSingle) AppTheme.spacing.containerPaddingMobile else 48.dp,
+                end = if (isSingle) AppTheme.spacing.containerPaddingMobile else 48.dp,
+                top = 24.dp,
+                bottom = if (isSingle) 16.dp else 32.dp
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier.widthIn(max = 840.dp).fillMaxWidth()
+        ) {
+            if (isSingle) {
+                // Mobile Input Area
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(32.dp),
+                            spotColor = AppTheme.colors.primary.copy(alpha = 0.15f)
+                        )
+                        .glassSurface(
+                            shape = RoundedCornerShape(32.dp),
+                            alpha = AppTheme.elevation.glassSurfaceAlpha,
+                            borderAlpha = AppTheme.elevation.glassBorderAlpha
+                        )
+                        .background(
+                            color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(32.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = AppTheme.colors.surfaceContainerHigh,
+                            shape = RoundedCornerShape(32.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (contentType == ContentType.Single) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                             MediumText(
-                                text = title,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                    IconButton(
+                        onClick = onAttachClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AttachFile,
+                            contentDescription = stringResource(Res.string.attachment),
+                            tint = AppTheme.colors.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 40.dp, max = 120.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (text.isEmpty()) {
+                            Text(
+                                text = "Share your thoughts...",
+                                style = AppTheme.typography.bodyMedium,
+                                color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.5f)
                             )
-                            
-                            // Badge
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        color = if (isRequired) 
-                                            MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
-                                        else 
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = subtitle,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (isRequired) 
-                                        MaterialTheme.colorScheme.error
-                                    else 
-                                        MaterialTheme.colorScheme.primary
-                                )
-                            }
                         }
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            MediumText(
-                                text = title,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            
-                            // Badge
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        color = if (isRequired) 
-                                            MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
-                                        else 
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                        shape = RoundedCornerShape(4.dp)
+                        MediumOutlinedTextField(
+                            value = text,
+                            onValueChange = onTextChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            singleLine = false,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent
+                            ),
+                            style = AppTheme.typography.bodyMedium.copy(color = AppTheme.colors.onSurface)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onSendClick,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        AppTheme.colors.primaryContainer,
+                                        AppTheme.colors.primaryFixed
                                     )
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
+                                ),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = if (isGenerating) Icons.Filled.Stop else Icons.Filled.ArrowUpward,
+                            contentDescription = if (isGenerating) stringResource(Res.string.stop_generation) else stringResource(Res.string.send_message),
+                            tint = AppTheme.colors.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            } else {
+                // Desktop Input Area
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .glassSurface(
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp),
+                                alpha = AppTheme.elevation.glassSurfaceAlpha,
+                                borderAlpha = AppTheme.elevation.glassBorderAlpha
+                            )
+                            .background(
+                                color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = AppTheme.colors.outlineVariant.copy(alpha = 0.4f),
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        //horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        IconButton(
+                            onClick = onAttachClick,
+                            modifier = Modifier.size(40.dp).align(Alignment.CenterVertically)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AttachFile,
+                                contentDescription = stringResource(Res.string.attachment),
+                                tint = AppTheme.colors.outline,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 30.dp, max = 150.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (text.isEmpty()) {
                                 Text(
-                                    text = subtitle,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (isRequired) 
-                                        MaterialTheme.colorScheme.error
-                                    else 
-                                        MaterialTheme.colorScheme.primary
+                                    text = "Whisper your thoughts to the void...",
+                                    style = AppTheme.typography.bodyMedium,
+                                    color = AppTheme.colors.outline.copy(alpha = 0.5f)
                                 )
                             }
+                            MediumOutlinedTextField(
+                                value = text,
+                                onValueChange = onTextChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                singleLine = false,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent
+                                ),
+                                style = AppTheme.typography.bodyMedium.copy(color = AppTheme.colors.onSurface)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onSendClick,
+                            modifier = Modifier
+                                .background(
+                                    color = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
+                                    shape = CircleShape
+                                ).align(Alignment.CenterVertically).size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isGenerating) Icons.Filled.Stop else Icons.Filled.ArrowUpward,
+                                contentDescription = if (isGenerating) stringResource(Res.string.stop_generation) else stringResource(Res.string.send_message),
+                                tint = AppTheme.colors.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
-                    
-                    // File path or placeholder
-                    MediumText(
-                        text = if (isSelected) {
-                            selectedPath.split("/", "\\").lastOrNull() ?: selectedPath
-                        } else {
-                            "No file selected"
-                        },
-                        fontSize = 12.sp,
-                        color = if (isSelected) 
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        else 
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                }
-            }
-            
-            // Select button
-            Button(
-                onClick = onSelectClick,
-                enabled = !isLoading,
-                modifier = Modifier
-                    .height(36.dp)
-                    .widthIn(min = 70.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                } else {
-                    MediumText(
-                        text = if (isSelected) "Change" else "Select",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+
+                    Text(
+                        text = "Aura weaves responses from probability. Seek truth with gentle scrutiny.",
+                        style = AppTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = AppTheme.colors.outline.copy(alpha = 0.6f),
+                        letterSpacing = 0.5.sp
                     )
                 }
             }

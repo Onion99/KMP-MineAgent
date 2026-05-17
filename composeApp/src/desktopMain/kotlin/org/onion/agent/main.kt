@@ -9,6 +9,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = BuildConfig.APP_NAME,
+        state = rememberWindowState(width = 1200.dp, height = 800.dp)
     ) {
         App()
     }

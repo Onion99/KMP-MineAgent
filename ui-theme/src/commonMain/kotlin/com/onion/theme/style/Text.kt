@@ -222,7 +222,8 @@ fun MediumOutlinedTextField(
     minLines: Int = 1,
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = OutlinedTextFieldDefaults.shape,
-    colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    style: TextStyle = AppTheme.typography.bodyMedium
 ){
-    OutlinedTextField(value, onValueChange, modifier, enabled, readOnly, AppTheme.typography.bodyMedium, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, visualTransformation, keyboardOptions, keyboardActions, singleLine, maxLines, minLines, interactionSource, shape, colors)
+    OutlinedTextField(value, onValueChange, modifier, enabled, readOnly, style, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, visualTransformation, keyboardOptions, keyboardActions, singleLine, maxLines, minLines, interactionSource, shape, colors)
 }
