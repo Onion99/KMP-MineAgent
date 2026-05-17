@@ -40,7 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -92,11 +94,6 @@ fun MainContent(
                 EtherealNavigationRail(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .padding(
-                            start = AppTheme.spacing.md,
-                            top = AppTheme.spacing.md,
-                            bottom = AppTheme.spacing.md
-                        )
                         .padding(verticalSafePadding()),
                     selectedRoute = currentRoute,
                     onRouteSelected = { mainNavActions.popAndNavigation(it) },
@@ -175,14 +172,31 @@ fun EtherealNavigationRail(
     selectedRoute: Any?,
     onRouteSelected: (Any) -> Unit,
 ) {
+    val isDark by AppTheme.isDark
+    val containerBg = if (isDark) {
+        AppTheme.colors.surfaceDim.copy(alpha = 0.4f)
+    } else {
+        AppTheme.colors.surface.copy(alpha = 0.4f)
+    }
+    val borderColor = AppTheme.colors.outlineVariant.copy(alpha = 0.3f)
+
     Column(
         modifier
-            .glassSurface(
+            .width(288.dp)
+            /*.glassSurface(
                 shape = AppTheme.shape.xxl,
                 alpha = AppTheme.elevation.glassSurfaceAlpha,
                 borderAlpha = AppTheme.elevation.glassBorderAlpha
-            )
-            .width(288.dp)
+            )*/
+            .background(containerBg)
+            .drawBehind {
+                drawLine(
+                    color = borderColor,
+                    start = Offset(size.width, 0f),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
             .padding(AppTheme.spacing.lg)
             .selectableGroup(),
         horizontalAlignment = Alignment.Start,
@@ -196,12 +210,11 @@ fun EtherealNavigationRail(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = AppTheme.spacing.md)
-                    .padding(top = AppTheme.spacing.sm, bottom = AppTheme.spacing.xxl)
+                    .padding(top = AppTheme.spacing.md, bottom = AppTheme.spacing.xxl)
             ) {
-                val isDark by AppTheme.isDark
                 Text(
                     text = "Aura LLM",
-                    style = AppTheme.typography.headlineSmall.copy(
+                    style = AppTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Light,
                         letterSpacing = (-0.5).sp
                     ),
@@ -253,7 +266,7 @@ fun EtherealNavigationRail(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = AppTheme.spacing.md),
+                    .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.lg),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
