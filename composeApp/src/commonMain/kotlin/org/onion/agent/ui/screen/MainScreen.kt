@@ -122,11 +122,7 @@ fun MainContent(
                         }
 
                         is MainRoute.SettingRoute -> NavEntry(key) {
-                            ImageSettingScreen(
-                                onBackClick = {
-                                    mainNavActions.popAndNavigation(MainRoute.HomeRoute)
-                                }
-                            )
+                            SettingScreen()
                         }
 
                         else -> NavEntry(key) {
