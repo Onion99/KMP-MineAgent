@@ -862,12 +862,12 @@ fun InputArea(
                 ) {
                     IconButton(
                         onClick = onAttachClick,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp).align(Alignment.CenterVertically)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.AttachFile,
                             contentDescription = stringResource(Res.string.attachment),
-                            tint = AppTheme.colors.onSurfaceVariant,
+                            tint = AppTheme.colors.outline,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -904,21 +904,15 @@ fun InputArea(
                     IconButton(
                         onClick = onSendClick,
                         modifier = Modifier
-                            .size(40.dp)
                             .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        AppTheme.colors.primaryContainer,
-                                        AppTheme.colors.primaryFixed
-                                    )
-                                ),
+                                color = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
                                 shape = CircleShape
-                            )
+                            ).align(Alignment.CenterVertically).size(40.dp)
                     ) {
                         Icon(
                             imageVector = if (isGenerating) Icons.Filled.Stop else Icons.Filled.ArrowUpward,
                             contentDescription = if (isGenerating) stringResource(Res.string.stop_generation) else stringResource(Res.string.send_message),
-                            tint = AppTheme.colors.onPrimaryContainer,
+                            tint = AppTheme.colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
