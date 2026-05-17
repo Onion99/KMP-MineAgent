@@ -32,12 +32,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation3.runtime.NavEntry
+import org.onion.agent.ui.navigation.route.RoutePage
 import androidx.navigation3.ui.NavDisplay
 import com.onion.theme.helper.verticalSafePadding
 import com.onion.theme.state.AdaptiveLayoutType
@@ -156,7 +166,7 @@ fun MainContent(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Desktop — Ethereal Glassmorphism Vertical Navigation Rail
+// Desktop — Ethereal Glassmorphism Vertical Navigation Rail (SideNavBar)
 // ════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -168,116 +178,195 @@ fun EtherealNavigationRail(
     Column(
         modifier
             .glassSurface(
-                shape = AppTheme.shape.full,
+                shape = AppTheme.shape.xxl,
                 alpha = AppTheme.elevation.glassSurfaceAlpha,
                 borderAlpha = AppTheme.elevation.glassBorderAlpha
             )
-            .widthIn(min = 72.dp)
-            .padding(vertical = AppTheme.spacing.lg)
+            .width(288.dp)
+            .padding(AppTheme.spacing.lg)
             .selectableGroup(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // ── Brand mark ──
-        BrandMark()
-
-        Spacer(Modifier.height(AppTheme.spacing.lg))
-
-        // ── Scrollable nav items ──
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+            modifier = Modifier.weight(1f)
         ) {
-            NAV_BOTTOM_ITEMS.forEach { routePage ->
-                val isSelected = routePage == selectedRoute
-                val iconAlpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0.6f,
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "nav_icon_alpha"
+            // ── Header ──
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.md)
+                    .padding(top = AppTheme.spacing.sm, bottom = AppTheme.spacing.xxl)
+            ) {
+                val isDark by AppTheme.isDark
+                Text(
+                    text = "Aura LLM",
+                    style = AppTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Light,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = if (isDark) AppTheme.colors.inversePrimary else AppTheme.colors.primary
                 )
-
-                NavigationRailItem(
-                    selected = isSelected,
-                    onClick = { onRouteSelected(routePage) },
-                    icon = {
-                        Icon(
-                            imageVector = vectorResource(routePage.iconRes),
-                            contentDescription = stringResource(routePage.textRes),
-                            modifier = Modifier
-                                .size(AppTheme.size.iconLarge)
-                                .alpha(iconAlpha)
-                        )
-                    },
-                    colors = etherealRailItemColors()
+                Spacer(modifier = Modifier.height(AppTheme.spacing.xs))
+                Text(
+                    text = "LOCAL INTELLIGENCE",
+                    style = AppTheme.typography.bodySmall.copy(
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = AppTheme.colors.tertiary
                 )
             }
 
+            // ── Scrollable nav items ──
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            ) {
+                NAV_BOTTOM_ITEMS.forEach { routePage ->
+                    val isSelected = routePage == selectedRoute
+                    DesktopNavigationItem(
+                        routePage = routePage,
+                        isSelected = isSelected,
+                        onClick = { onRouteSelected(routePage) }
+                    )
+                }
+            }
+        }
+
+        // ── Bottom Status indicator & Theme Toggle ──
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Spacer(
                 modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = AppTheme.spacing.xl)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(AppTheme.colors.outlineVariant.copy(alpha = 0.2f))
             )
 
-            // ── Theme toggle ──
-            ThemeToggleRailItem()
+            Spacer(modifier = Modifier.height(AppTheme.spacing.lg))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                shape = AppTheme.shape.full,
+                                spotColor = AppTheme.colors.primary,
+                                ambientColor = AppTheme.colors.primary
+                            )
+                            .background(color = AppTheme.colors.primary, shape = AppTheme.shape.full)
+                    )
+
+                    Text(
+                        text = "System Ready",
+                        style = AppTheme.typography.bodySmall,
+                        color = AppTheme.colors.tertiary
+                    )
+                }
+
+                val isDarkState = AppTheme.isDark
+                val isDark by isDarkState
+                Box(
+                    modifier = Modifier
+                        .size(AppTheme.size.iconButtonSmall)
+                        .clip(AppTheme.shape.full)
+                        .background(AppTheme.colors.surfaceVariant.copy(alpha = 0.3f))
+                        .clickable { isDarkState.value = !isDarkState.value },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = vectorResource(
+                            if (isDark) Res.drawable.ic_sun else Res.drawable.ic_moon
+                        ),
+                        contentDescription = stringResource(
+                            if (isDark) Res.string.light_theme else Res.string.dark_theme
+                        ),
+                        modifier = Modifier.size(AppTheme.size.icon),
+                        tint = AppTheme.colors.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
 
-/**
- * Compact brand mark — a small gradient circle with initials,
- * sits at the top of the navigation rail.
- */
 @Composable
-private fun BrandMark() {
-    Box(
+private fun DesktopNavigationItem(
+    routePage: RoutePage,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val isDark by AppTheme.isDark
+
+    val targetBgColor = when {
+        isSelected && isDark -> AppTheme.colors.primaryFixedDim.copy(alpha = 0.2f)
+        isSelected && !isDark -> AppTheme.colors.primaryContainer.copy(alpha = 0.4f)
+        else -> Color.Transparent
+    }
+    val backgroundColor by animateColorAsState(
+        targetValue = targetBgColor,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "nav_item_bg"
+    )
+
+    val targetContentColor = when {
+        isSelected && isDark -> AppTheme.colors.inversePrimary
+        isSelected && !isDark -> AppTheme.colors.primary
+        else -> AppTheme.colors.onSurfaceVariant.copy(alpha = 0.8f)
+    }
+    val contentColor by animateColorAsState(
+        targetValue = targetContentColor,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "nav_item_content"
+    )
+
+    val paddingStart by animateDpAsState(
+        targetValue = if (isSelected) 20.dp else 16.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "nav_item_padding"
+    )
+
+    Row(
         modifier = Modifier
-            .size(AppTheme.size.iconButton)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        AppTheme.colors.primary,
-                        AppTheme.colors.secondary
-                    )
-                ),
-                shape = AppTheme.shape.full
-            ),
-        contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .clip(AppTheme.shape.regular)
+            .background(backgroundColor)
+            .clickable { onClick() }
+            .padding(start = paddingStart, end = 16.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
     ) {
+        Icon(
+            imageVector = vectorResource(routePage.iconRes),
+            contentDescription = stringResource(routePage.textRes),
+            modifier = Modifier.size(AppTheme.size.iconLarge),
+            tint = contentColor
+        )
+
         Text(
-            text = "A",
-            style = AppTheme.typography.labelLarge,
-            color = AppTheme.colors.onPrimary
+            text = stringResource(routePage.textRes),
+            style = AppTheme.typography.labelMedium.copy(
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+            ),
+            color = contentColor
         )
     }
-}
-
-/**
- * Theme toggle item at the bottom of the rail.
- */
-@Composable
-private fun ThemeToggleRailItem() {
-    val isDark by AppTheme.isDark
-    NavigationRailItem(
-        selected = false,
-        onClick = { /* Theme toggle handled externally */ },
-        icon = {
-            Icon(
-                imageVector = vectorResource(
-                    if (isDark) Res.drawable.ic_sun else Res.drawable.ic_moon
-                ),
-                contentDescription = stringResource(
-                    if (isDark) Res.string.light_theme else Res.string.dark_theme
-                ),
-                modifier = Modifier.size(AppTheme.size.icon),
-                tint = AppTheme.colors.onSurfaceVariant
-            )
-        },
-        colors = etherealRailItemColors()
-    )
 }
 
 
@@ -327,15 +416,6 @@ fun EtherealBottomNavigationBar(
 // ════════════════════════════════════════════════════════════════════════════
 // Shared — Color configurations for navigation items
 // ════════════════════════════════════════════════════════════════════════════
-
-@Composable
-private fun etherealRailItemColors() = NavigationRailItemDefaults.colors(
-    selectedIconColor = AppTheme.colors.onPrimaryContainer,
-    selectedTextColor = AppTheme.colors.onSurface,
-    indicatorColor = AppTheme.colors.primaryContainer.copy(alpha = 0.7f),
-    unselectedIconColor = AppTheme.colors.onSurfaceVariant,
-    unselectedTextColor = AppTheme.colors.onSurfaceVariant
-)
 
 @Composable
 private fun etherealBarItemColors() = NavigationBarItemDefaults.colors(
