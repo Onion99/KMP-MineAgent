@@ -546,7 +546,7 @@ fun ChatBubble(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     // AI Avatar
-                    Box(
+                    /*Box(
                         modifier = Modifier
                             .size(40.dp)
                             .shadow(
@@ -571,13 +571,13 @@ fun ChatBubble(
                             tint = AppTheme.colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
-                    }
+                    }*/
 
                     // AI Bubble Container
                     Box(
                         modifier = Modifier
                             .weight(1f, fill = false)
-                            .glassSurface(
+                            /*.glassSurface(
                                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp),
                                 alpha = AppTheme.elevation.glassSurfaceAlpha,
                                 borderAlpha = AppTheme.elevation.glassBorderAlpha
@@ -590,8 +590,8 @@ fun ChatBubble(
                                 width = 1.dp,
                                 color = AppTheme.colors.outlineVariant.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp)
-                            )
-                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp))
+                            )*/
+                            .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp))
                     ) {
                         // Soft internal glow simulating watercolor bleeding
                         Box(
