@@ -17,7 +17,7 @@ import org.onion.agent.ui.navigation.NavActions
 import org.onion.agent.ui.navigation.route.MainRoute
 import org.onion.agent.ui.navigation.route.RootRoute
 import org.onion.agent.ui.screen.MainScreen
-import org.onion.agent.ui.screen.SettingScreen
+import org.onion.agent.ui.screen.ImageSettingScreen
 import org.onion.agent.ui.screen.AdvancedSettingScreen
 import org.onion.agent.ui.screen.SplashScreen
 import org.onion.agent.utils.imageLoaderDiskCache
@@ -54,7 +54,7 @@ fun App() {
                         )
                     }
                     RootRoute.SettingRoute -> NavEntry(key) {
-                        SettingScreen(
+                        ImageSettingScreen(
                             onBackClick = { rootNavActions.back() }
                         )
                     }

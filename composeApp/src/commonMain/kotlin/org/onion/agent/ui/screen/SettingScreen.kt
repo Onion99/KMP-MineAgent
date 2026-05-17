@@ -25,12 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Tune
@@ -60,8 +57,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import mineagent.composeapp.generated.resources.Res
-import mineagent.composeapp.generated.resources.settings_advanced_subtitle
-import mineagent.composeapp.generated.resources.settings_advanced_title
 import mineagent.composeapp.generated.resources.settings_back
 import mineagent.composeapp.generated.resources.settings_cfg_scale
 import mineagent.composeapp.generated.resources.settings_cfg_scale_description
@@ -70,8 +65,6 @@ import mineagent.composeapp.generated.resources.settings_sampler_desc
 import mineagent.composeapp.generated.resources.settings_batch_count
 import mineagent.composeapp.generated.resources.settings_batch_count_description
 import mineagent.composeapp.generated.resources.settings_current_configuration
-import mineagent.composeapp.generated.resources.settings_flash_attn
-import mineagent.composeapp.generated.resources.settings_flash_attn_desc
 import mineagent.composeapp.generated.resources.settings_generation_quality
 import mineagent.composeapp.generated.resources.settings_generation_quality_subtitle
 import mineagent.composeapp.generated.resources.settings_height
@@ -80,9 +73,6 @@ import mineagent.composeapp.generated.resources.settings_image_dimensions_subtit
 import mineagent.composeapp.generated.resources.settings_preset_landscape
 import mineagent.composeapp.generated.resources.settings_preset_portrait
 import mineagent.composeapp.generated.resources.settings_preset_square
-import mineagent.composeapp.generated.resources.settings_quant_default
-import mineagent.composeapp.generated.resources.settings_quantization
-import mineagent.composeapp.generated.resources.settings_quantization_desc
 import mineagent.composeapp.generated.resources.settings_quick_presets
 import mineagent.composeapp.generated.resources.settings_steps
 import mineagent.composeapp.generated.resources.settings_steps_description
@@ -94,19 +84,16 @@ import mineagent.composeapp.generated.resources.settings_lora_subtitle
 import mineagent.composeapp.generated.resources.settings_lora_add
 import mineagent.composeapp.generated.resources.settings_lora_strength
 import mineagent.composeapp.generated.resources.settings_lora_remove
-import mineagent.composeapp.generated.resources.settings_lora_files
 import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.launch
 import com.onion.model.LoraConfig
 import org.koin.compose.koinInject
-import org.onion.agent.ui.navigation.route.MainRoute
-import org.onion.agent.ui.navigation.route.RootRoute
 import org.onion.agent.viewmodel.ChatViewModel
 import kotlin.math.roundToInt
 
 
 @Composable
-fun SettingScreen(
+fun ImageSettingScreen(
     onBackClick: () -> Unit = {},
 ) {
     val chatViewModel = koinInject<ChatViewModel>()
