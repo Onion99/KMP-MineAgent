@@ -2,7 +2,6 @@ package org.onion.agent.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -25,8 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,12 +34,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,7 +47,6 @@ import org.onion.agent.ui.navigation.route.RoutePage
 import androidx.navigation3.ui.NavDisplay
 import com.onion.theme.helper.verticalSafePadding
 import com.onion.theme.state.AdaptiveLayoutType
-import com.onion.theme.style.glassSurface
 import mineagent.composeapp.generated.resources.Res
 import mineagent.composeapp.generated.resources.dark_theme
 import mineagent.composeapp.generated.resources.ic_moon
@@ -112,16 +105,16 @@ fun MainContent(
                 ) { key ->
                     when (key) {
                         is MainRoute.HomeRoute -> NavEntry(key) {
-                            HomeScreen(
+
+                        }
+
+                        is MainRoute.ChatRoute -> NavEntry(key) {
+                            ChatScreen(
                                 onSettingsClick = {
                                     mainNavActions.popAndNavigation(MainRoute.SettingRoute)
                                 },
                                 onAdvancedSettingsClick = onAdvancedSettingsClick
                             )
-                        }
-
-                        is MainRoute.ChatRoute -> NavEntry(key) {
-                            ChatScreen()
                         }
 
                         is MainRoute.LibraryRoute -> NavEntry(key) {

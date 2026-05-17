@@ -1,7 +1,6 @@
 package org.onion.agent.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -126,20 +124,15 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import org.onion.agent.ui.navigation.route.MainRoute
 import org.onion.agent.utils.Animations
 import org.onion.agent.viewmodel.ChatViewModel
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 
 
 @Composable
-fun HomeScreen(
+fun ChatScreen(
     onSettingsClick: () -> Unit = {},onAdvancedSettingsClick: () -> Unit = {}
 ) {
     Box(
