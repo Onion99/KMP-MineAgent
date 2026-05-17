@@ -163,7 +163,7 @@ fun HomeScreen(
             }
         }
         LLMFileSelectTipDialog(
-            showDialog = showFileDialog,
+            showDialog = false,
             selectAction = {
                 coroutineScope.launch(Dispatchers.Default) {
                     if(chatViewModel.loadingModelState.value == 1) return@launch

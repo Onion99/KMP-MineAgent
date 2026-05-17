@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <resources>
     <string name="home">首页</string>
+    <string name="chat">对话</string>
+    <string name="library">资源库</string>
     <string name="setting">设置</string>
+    <string name="app_brand">Aura LLM</string>
+    <string name="local_intelligence">本地智能</string>
     <string name="light_theme">亮色主題</string>
     <string name="dark_theme">暗色主題</string>
     <string name="error_select_correct_llm_model">请选择正确的LLM模型文件</string>

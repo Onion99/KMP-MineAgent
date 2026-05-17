@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <resources>
     <string name="home">Home</string>
+    <string name="chat">Chat</string>
+    <string name="library">Library</string>
     <string name="setting">Setting</string>
     <string name="unknown">unknown</string>
+    <string name="app_brand">Aura LLM</string>
+    <string name="local_intelligence">Local Intelligence</string>
     <string name="light_theme">Light Theme</string>
     <string name="dark_theme">Dark Theme</string>
     <string name="error_select_correct_llm_model">Please select a valid LLM model file</string>
