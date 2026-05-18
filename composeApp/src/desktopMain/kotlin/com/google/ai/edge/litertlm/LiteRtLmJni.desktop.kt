@@ -4,19 +4,50 @@ import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import org.onion.agent.utils.NativeLibraryLoader
 
+import com.sun.jna.Library
+import com.sun.jna.Native
+import com.sun.jna.WString
+
+interface Kernel32 : Library {
+    fun SetDllDirectoryW(path: WString): Boolean
+    fun AddDllDirectory(path: WString): com.sun.jna.Pointer?
+    fun SetDefaultDllDirectories(directoryFlags: Int): Boolean
+
+    companion object {
+        val INSTANCE: Kernel32 by lazy {
+            Native.load("kernel32", Kernel32::class.java)
+        }
+        const val LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000
+        const val LOAD_LIBRARY_SEARCH_USER_DIRS = 0x00000400
+    }
+}
+
 internal actual object LiteRtLmJni {
 
     init {
         val osName = System.getProperty("os.name").lowercase()
         NativeLibraryLoader.loadFromResources("GemmaModelConstraintProvider")
-        if (osName.contains("win")) {
-            try { NativeLibraryLoader.loadFromResources("LiteRt") } catch (e: Exception) { println(e) }
-            try { NativeLibraryLoader.loadFromResources("LiteRtWebGpuAccelerator") } catch (e: Exception) { println(e) }
-            try { NativeLibraryLoader.loadFromResources("LiteRtTopKWebGpuSampler") } catch (e: Exception) { println(e) }
-            try { NativeLibraryLoader.loadFromResources("dxcompiler") } catch (e: Exception) { println(e) }
-            try { NativeLibraryLoader.loadFromResources("dxil") } catch (e: Exception) { println(e) }
-        }
         NativeLibraryLoader.loadFromResources("litertlm_jni")
+        if (osName.contains("win")) {
+            try {
+                val tempDir = NativeLibraryLoader.tempDirectoryPath
+                println("Setting DLL directory to: $tempDir")
+                val wTempDir = WString(tempDir)
+                Kernel32.INSTANCE.SetDllDirectoryW(wTempDir)
+                Kernel32.INSTANCE.SetDefaultDllDirectories(Kernel32.LOAD_LIBRARY_SEARCH_DEFAULT_DIRS or Kernel32.LOAD_LIBRARY_SEARCH_USER_DIRS)
+                Kernel32.INSTANCE.AddDllDirectory(wTempDir)
+            } catch (e: Exception) {
+                println("Failed to set DLL directory via JNA: $e")
+            }
+            try { NativeLibraryLoader.loadFromResources("dxil") } catch (e: Exception) { println(e) }
+            try { NativeLibraryLoader.loadFromResources("dxcompiler") } catch (e: Exception) { println(e) }
+            try { NativeLibraryLoader.loadFromResources("LiteRt") } catch (e: Exception) { println(e) }
+            // Note: Avoid loading prebuilt WebGPU accelerator DLL directly due to ABI mismatch in tflite::Subgraph 
+            // between source-built JNI and prebuilt DLL. This allows the runtime to gracefully catch the unsupported 
+            // status and trigger our automatic CPU fallback mechanism without causing EXCEPTION_ACCESS_VIOLATION.
+            // try { NativeLibraryLoader.loadFromResources("LiteRtWebGpuAccelerator") } catch (e: Exception) { println(e) }
+            // try { NativeLibraryLoader.loadFromResources("LiteRtTopKWebGpuSampler") } catch (e: Exception) { println(e) }
+        }
     }
 
     actual suspend fun getModelFilePath(): String {
@@ -34,7 +65,18 @@ internal actual object LiteRtLmJni {
         visionNpuNativeLibraryDir: String, audioNpuNativeLibraryDir: String,
         mainBackendNumThreads: Int, audioBackendNumThreads: Int
     ): Long {
-        return nativeCreateEngine(modelPath, backend, visionBackend, audioBackend, maxNumTokens, maxNumImages, cacheDir, enableBenchmark, enableSpeculativeDecoding, mainNpuNativeLibraryDir, visionNpuNativeLibraryDir, audioNpuNativeLibraryDir, mainBackendNumThreads, audioBackendNumThreads)
+        return try {
+            val ptr = nativeCreateEngine(modelPath, backend, visionBackend, audioBackend, maxNumTokens, maxNumImages, cacheDir, enableBenchmark, enableSpeculativeDecoding, mainNpuNativeLibraryDir, visionNpuNativeLibraryDir, audioNpuNativeLibraryDir, mainBackendNumThreads, audioBackendNumThreads)
+            if (ptr == 0L && backend.lowercase() != "cpu") {
+                println("Warning: Engine creation returned 0 for backend '$backend'. Falling back to CPU backend...")
+                nativeCreateEngine(modelPath, "cpu", visionBackend, audioBackend, maxNumTokens, maxNumImages, cacheDir, enableBenchmark, enableSpeculativeDecoding, mainNpuNativeLibraryDir, visionNpuNativeLibraryDir, audioNpuNativeLibraryDir, mainBackendNumThreads, audioBackendNumThreads)
+            } else {
+                ptr
+            }
+        } catch (e: Exception) {
+            println("Warning: GPU/NPU environment initialization failed ($e). Falling back to CPU backend...")
+            nativeCreateEngine(modelPath, "cpu", visionBackend, audioBackend, maxNumTokens, maxNumImages, cacheDir, enableBenchmark, enableSpeculativeDecoding, mainNpuNativeLibraryDir, visionNpuNativeLibraryDir, audioNpuNativeLibraryDir, mainBackendNumThreads, audioBackendNumThreads)
+        }
     }
 
     actual fun createLmConversation(
