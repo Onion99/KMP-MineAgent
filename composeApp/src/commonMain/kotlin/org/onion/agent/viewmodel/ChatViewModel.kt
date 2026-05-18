@@ -121,7 +121,7 @@ class ChatViewModel  : ViewModel() {
     var lmAudioBackend = mutableStateOf("")
     var lmMaxNumTokens = mutableStateOf(-1)
     var lmMaxNumImages = mutableStateOf(-1)
-    var lmMainBackendNumThreads = mutableStateOf(-1)
+    var lmMainBackendNumThreads = mutableStateOf(2)
     var lmAudioBackendNumThreads = mutableStateOf(-1)
 
     private var lmEngine: org.onion.agent.native.llm.LmEngine? = null

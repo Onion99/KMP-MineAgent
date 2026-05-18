@@ -7,7 +7,15 @@ import org.onion.agent.utils.NativeLibraryLoader
 internal actual object LiteRtLmJni {
 
     init {
+        val osName = System.getProperty("os.name").lowercase()
         NativeLibraryLoader.loadFromResources("GemmaModelConstraintProvider")
+        if (osName.contains("win")) {
+            try { NativeLibraryLoader.loadFromResources("LiteRt") } catch (e: Exception) { println(e) }
+            try { NativeLibraryLoader.loadFromResources("LiteRtWebGpuAccelerator") } catch (e: Exception) { println(e) }
+            try { NativeLibraryLoader.loadFromResources("LiteRtTopKWebGpuSampler") } catch (e: Exception) { println(e) }
+            try { NativeLibraryLoader.loadFromResources("dxcompiler") } catch (e: Exception) { println(e) }
+            try { NativeLibraryLoader.loadFromResources("dxil") } catch (e: Exception) { println(e) }
+        }
         NativeLibraryLoader.loadFromResources("litertlm_jni")
     }
 

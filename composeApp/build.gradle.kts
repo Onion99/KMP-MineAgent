@@ -404,6 +404,26 @@ abstract class BuildNativeLibTask : DefaultTask() {
             println("警告: Bazel 产物目录不存在: $bazelBinDir")
         }
 
+        // 如果是 Windows 平台，自动拷贝预编译的依赖库以及 DXC 库到 cpp/libs
+        if (platform == "windows") {
+            val prebuiltDir = File(workDir, "prebuilt/windows_x86_64")
+            if (prebuiltDir.exists() && prebuiltDir.isDirectory) {
+                prebuiltDir.listFiles { _, name -> name.endsWith(".dll") }?.forEach { f ->
+                    val destName = if (f.name.startsWith("lib")) f.name else "lib${f.name}"
+                    f.copyTo(File(cppLibsDir, destName), overwrite = true)
+                    println("预编译库拷贝: ${f.name} -> ${cppLibsDir}/$destName")
+                }
+            }
+            val pythonBazelBinDir = File(workDir, "bazel-bin/python/litert_lm")
+            if (pythonBazelBinDir.exists() && pythonBazelBinDir.isDirectory) {
+                pythonBazelBinDir.listFiles { _, name -> name.endsWith(".dll") }?.forEach { f ->
+                    val destName = f.name
+                    f.copyTo(File(cppLibsDir, destName), overwrite = true)
+                    println("DXC 库拷贝: ${f.name} -> ${cppLibsDir}/$destName")
+                }
+            }
+        }
+
         // 如果设置了次要输出目录，则将产物拷贝到那里
         if (secondaryOutputDir.isPresent) {
             val destDir = secondaryOutputDir.get()
@@ -443,6 +463,7 @@ desktopPlatforms.forEach { platform ->
 
         // 平台特定的额外 Bazel 参数
         val extraArgs = when(platform) {
+            "windows" -> listOf("//python/litert_lm:copy_dxcompiler_dll", "//python/litert_lm:copy_dxil_dll")
             "macos" -> listOf("--config=macos_arm64")  // macOS 默认构建 arm64
             else -> listOf()
         }
@@ -463,7 +484,12 @@ desktopPlatforms.forEach { platform ->
         // 只有当前平台才设置次要输出目录以供迁移
         if (isCurrentPlatform) {
             this.secondaryOutputDir.set(file(jvmResourceLibDirStr))
-            this.secondaryOutputSuffix.set(".so") // 或者根据平台设置
+            val suffix = when (platform) {
+                "windows" -> ".dll"
+                "macos" -> ".dylib"
+                else -> ".so"
+            }
+            this.secondaryOutputSuffix.set(suffix)
         }
 
         onlyIf { isCurrentPlatform }

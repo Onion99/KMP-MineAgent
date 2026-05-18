@@ -34,7 +34,7 @@ object NativeLibraryLoader {
         // Assumes the library files are directly in "libs/" within resources
         when {
             osName.contains("win") -> {
-                libFileName = "lib$baseName.dll"
+                libFileName = if (baseName == "dxcompiler" || baseName == "dxil") "$baseName.dll" else "lib$baseName.dll"
                 resourcePath = "/libs/$libFileName" // Path relative to resources root
             }
             osName.contains("mac") -> {
