@@ -30,6 +30,7 @@ compose-adaptive = "1.1.2"
 lifecycle = "2.9.6"
 coil = "3.1.0"
 navigation3 = "1.1.1"
+jna = "5.14.0"
 [libraries]
 #=== UI
 compottie = { module = "io.github.alexzhirkevich:compottie", version.ref = "lottieVersion" }
@@ -72,6 +73,8 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "kotlinx-serialization" }
 #=== JS
 quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
+#=== JNA
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 #=== Koin
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }

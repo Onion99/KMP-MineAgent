@@ -116,7 +116,7 @@ class ChatViewModel  : ViewModel() {
     // ========================================================================================
     //                              LLM Settings (Gemma 4 LiteRT)
     // ========================================================================================
-    var lmBackend = mutableStateOf("CPU")//NPU,CPU,GPU
+    var lmBackend = mutableStateOf("GPU")//NPU,CPU,GPU
     var lmVisionBackend = mutableStateOf("")
     var lmAudioBackend = mutableStateOf("")
     var lmMaxNumTokens = mutableStateOf(-1)

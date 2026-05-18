@@ -13,11 +13,14 @@ object NativeLibraryLoader {
 
     private val loadedLibraries = mutableSetOf<String>()
     
-    private val tempDir: File by lazy {
+    val tempDir: File by lazy {
         val dir = java.nio.file.Files.createTempDirectory("native_libs_").toFile()
         dir.deleteOnExit()
         dir
     }
+
+    val tempDirectoryPath: String
+        get() = tempDir.absolutePath
 
     @Synchronized // Ensure thread safety
     fun loadFromResources(baseName: String) {
