@@ -463,7 +463,14 @@ desktopPlatforms.forEach { platform ->
 
         // 平台特定的额外 Bazel 参数
         val extraArgs = when(platform) {
-            "windows" -> listOf("//python/litert_lm:copy_dxcompiler_dll", "//python/litert_lm:copy_dxil_dll")
+            "windows" -> listOf(
+                "--features=static_link_msvcrt",
+                "--host_features=static_link_msvcrt",
+                "--copt=/MT",
+                "--host_copt=/MT",
+                "//python/litert_lm:copy_dxcompiler_dll",
+                "//python/litert_lm:copy_dxil_dll"
+            )
             "macos" -> listOf("--config=macos_arm64")  // macOS 默认构建 arm64
             else -> listOf()
         }
