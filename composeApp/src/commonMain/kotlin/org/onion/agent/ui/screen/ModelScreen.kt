@@ -43,6 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
@@ -62,6 +63,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -179,8 +181,25 @@ fun ModelScreen() {
                 .fillMaxSize()
                 .background(AppTheme.colors.surface)
         ) {
+            val interact1 = remember { MutableInteractionSource() }
+            val hover1 by interact1.collectIsHoveredAsState()
+            val w1 by animateFloatAsState(if (hover1) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+            
+            val interact2 = remember { MutableInteractionSource() }
+            val hover2 by interact2.collectIsHoveredAsState()
+            val w2 by animateFloatAsState(if (hover2) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+            
+            val interact3 = remember { MutableInteractionSource() }
+            val hover3 by interact3.collectIsHoveredAsState()
+            val w3 by animateFloatAsState(if (hover3) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+            
+            val interact4 = remember { MutableInteractionSource() }
+            val hover4 by interact4.collectIsHoveredAsState()
+            val w4 by animateFloatAsState(if (hover4) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+
             ModelColumnCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(w1),
+                interactionSource = interact1,
                 vendor = "Meta AI",
                 title = "Llama 3",
                 desc = stringResource(Res.string.model_llama3_desc),
@@ -193,7 +212,8 @@ fun ModelScreen() {
                 onClick = { onLoadClick("llama3_8b_instruct.tflite") }
             )
             ModelColumnCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(w2),
+                interactionSource = interact2,
                 vendor = "Mistral AI",
                 title = "Mistral",
                 desc = stringResource(Res.string.model_mistral_desc),
@@ -206,7 +226,8 @@ fun ModelScreen() {
                 onClick = { onLoadClick("mistral_7b_v0.2.tflite") }
             )
             ModelColumnCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(w3),
+                interactionSource = interact3,
                 vendor = "Google",
                 title = "Gemma",
                 desc = stringResource(Res.string.model_gemma_desc),
@@ -219,7 +240,8 @@ fun ModelScreen() {
                 onClick = { onLoadClick("gemma_2b.tflite") }
             )
             CustomModelColumnCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(w4),
+                interactionSource = interact4,
                 imageUrl = LLAMA_IMAGE,
                 isActive = activeId == "custom",
                 isLoading = loadingState == 1 && activeId == "custom",
@@ -233,6 +255,7 @@ fun ModelScreen() {
 @Composable
 private fun ModelColumnCard(
     modifier: Modifier = Modifier,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     vendor: String,
     title: String,
     desc: String,
@@ -244,18 +267,10 @@ private fun ModelColumnCard(
     isDesktop: Boolean,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
     var mousePos by remember { mutableStateOf(Offset.Unspecified) }
     var size by remember { mutableStateOf(IntSize.Zero) }
-
-    // Weight animation for Desktop hover
-    val weight by animateFloatAsState(
-        targetValue = if (isHovered && isDesktop) 1.5f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
-        label = "weightAnim"
-    )
 
     // Sub-content reveal animation
     val subContentAlpha by animateFloatAsState(
@@ -327,7 +342,7 @@ private fun ModelColumnCard(
         modifier = baseModifier
             .fillMaxHeight()
             .onSizeChanged { size = it }
-            //.clipToBounds()
+            .clip(RectangleShape)
             .drawBehind {
                 if (isDesktop) {
                     drawLine(
@@ -382,7 +397,7 @@ private fun ModelColumnCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                /*.background(
+                .background(
                     Brush.verticalGradient(
                         colors = listOf(
                             AppTheme.colors.surface.copy(alpha = 0.2f),
@@ -390,7 +405,7 @@ private fun ModelColumnCard(
                             AppTheme.colors.onSurface.copy(alpha = 0.4f)
                         )
                     )
-                )*/
+                )
         )
 
         // Content
@@ -535,24 +550,17 @@ private fun ModelColumnCard(
 @Composable
 private fun CustomModelColumnCard(
     modifier: Modifier = Modifier,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     imageUrl: String,
     isActive: Boolean,
     isLoading: Boolean,
     isDesktop: Boolean,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
     var mousePos by remember { mutableStateOf(Offset.Unspecified) }
     var size by remember { mutableStateOf(IntSize.Zero) }
-
-    // Weight animation for Desktop hover
-    val weight by animateFloatAsState(
-        targetValue = if (isHovered && isDesktop) 1.5f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
-        label = "weightAnim"
-    )
 
     val addIconScale by animateFloatAsState(
         targetValue = if (isHovered) 1.1f else 1f,
@@ -594,7 +602,7 @@ private fun CustomModelColumnCard(
         modifier = baseModifier
             .fillMaxHeight()
             .onSizeChanged { size = it }
-            //.clipToBounds()
+            .clip(RectangleShape)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
