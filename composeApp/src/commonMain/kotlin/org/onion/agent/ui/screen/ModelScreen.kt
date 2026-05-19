@@ -268,6 +268,7 @@ private fun ModelColumnCard(
     onClick: () -> Unit
 ) {
     val isHovered by interactionSource.collectIsHoveredAsState()
+    val isDark = AppTheme.isDark.value
 
     var mousePos by remember { mutableStateOf(Offset.Unspecified) }
     var size by remember { mutableStateOf(IntSize.Zero) }
@@ -317,10 +318,11 @@ private fun ModelColumnCard(
         animationSpec = tween(durationMillis = 800),
         label = "filterAnim"
     )
-    val colorMatrix = remember(filterProgress) {
+    val colorMatrix = remember(filterProgress, isDark) {
         ColorMatrix().apply {
-            setToSaturation(1f + 0.2f * filterProgress) // 1.2 saturation
-            val b = 1f + 0.05f * filterProgress // 1.05 brightness
+            setToSaturation(1f + (if (isDark) 0.1f else 0.2f) * filterProgress)
+            val baseBrightness = if (isDark) 0.7f else 1f
+            val b = baseBrightness + 0.05f * filterProgress
             this.timesAssign(
                 ColorMatrix(
                     floatArrayOf(
@@ -385,6 +387,7 @@ private fun ModelColumnCard(
             colorFilter = ColorFilter.colorMatrix(colorMatrix),
             modifier = Modifier
                 .fillMaxSize()
+                .alpha(if (isDark) 0.35f else 1f)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
@@ -400,9 +403,10 @@ private fun ModelColumnCard(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            AppTheme.colors.surface.copy(alpha = 0.2f),
+                            AppTheme.colors.surface.copy(alpha = if (isDark) 0.4f else 0.2f),
                             Color.Transparent,
-                            AppTheme.colors.onSurface.copy(alpha = 0.4f)
+                            Color.Transparent,
+                            AppTheme.colors.surface.copy(alpha = if (isDark) 0.9f else 0.7f)
                         )
                     )
                 )
@@ -558,6 +562,7 @@ private fun CustomModelColumnCard(
     onClick: () -> Unit
 ) {
     val isHovered by interactionSource.collectIsHoveredAsState()
+    val isDark = AppTheme.isDark.value
 
     var mousePos by remember { mutableStateOf(Offset.Unspecified) }
     var size by remember { mutableStateOf(IntSize.Zero) }
@@ -644,7 +649,7 @@ private fun CustomModelColumnCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(0.4f)
+                .alpha(if (isDark) 0.15f else 0.4f)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
