@@ -1,32 +1,35 @@
 package org.onion.agent.ui.screen
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,33 +42,43 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import coil3.compose.AsyncImage
 import com.onion.theme.state.ContentType
-import com.onion.theme.style.glassSurface
-import com.onion.theme.style.watercolorGradient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import mineagent.composeapp.generated.resources.Res
 import mineagent.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.onion.agent.viewmodel.ChatViewModel
 import ui.theme.AppTheme
 
-private data class ModelItem(
-    val id: String,
-    val titleRes: StringResource,
-    val taglineRes: StringResource,
-    val descRes: StringResource,
-    val icon: ImageVector,
-    val defaultPath: String
-)
+private const val LLAMA_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDsgbHVHlCf5v6YUjv-Je7bm7In40zlaeKk6GhPwGoCHak9kx3nej8J245laEqJhJe1W0RTTjVnthtcNHxhcbe2QgKTzD5W0YX394LL5PLR05m2YoUT0JH_Bre_Wo9CBsPT-MeXrK_s3Vf5uWr1Z9Xn3RaDBua1dg7rMIsY978IR8XLAGhTpVMNNmLQkx9Fyhoa9Gkho4gqQOzkpnsyydmifjhuTek5LrUJlwbbpyjMifBiKAtD8S3toq7azZHYCZQyXT5dpppY9nkB"
+private const val MISTRAL_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuD8o8aZNLTvIgUrtBqGiztyxIvfQtAyXFqFNZyTrxu3rmjLIPdchmk9LccLoU8yKNXLQMECYg3ubwK6iKVXkfvYYPTfQPMcJcLFZ8Z-GP8p-gVhtksGoluyPestlkiWtA7BBzqcX8MVG9szJhlRjMrTZF713vSMQWDpTf9go4RM0VnWZouSR86yCKSgbxnBjKvL5ML3KuJ5JzyJKFKVxlsUcIImuYMFSYdP3bs7qY2OhNCnuoGChAVb-5Gcv6nckz2zjWzd_l9_kwQb"
+private const val GEMMA_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDWkOy6D5ciDtTG5DLdR-1LtbFAMhhZXa5B7akzpiWT_ycjlBozeLls5BJMh8j2O2W1bpRbaX2jlhj4MySX5JoezZHOMCDqSJuqPWWeVTJbEqZ0S2rwIz5NXjfHTTgRRsWcujbd5B0eGnvdfyL7UwjdJsgp6P2kERHDvBMvoKn7pfymks7C0BuOhR5DpIQpHcmiDppbPakISzCy5fokd82mmAk7g5y4bPM5b67i-k_UbovYLM6Ja06banznnRAGa1d_T-yocsMXp0s4"
 
 @Composable
 fun ModelScreen() {
@@ -74,58 +87,22 @@ fun ModelScreen() {
     val currentPath by chatViewModel.llmPath
     val coroutineScope = rememberCoroutineScope()
 
-    val modelItems = remember {
-        listOf(
-            ModelItem(
-                id = "llama3",
-                titleRes = Res.string.model_llama3_title,
-                taglineRes = Res.string.model_llama3_tagline,
-                descRes = Res.string.model_llama3_desc,
-                icon = Icons.Default.Memory,
-                defaultPath = "llama3_8b_instruct.tflite"
-            ),
-            ModelItem(
-                id = "mistral",
-                titleRes = Res.string.model_mistral_title,
-                taglineRes = Res.string.model_mistral_tagline,
-                descRes = Res.string.model_mistral_desc,
-                icon = Icons.Default.Speed,
-                defaultPath = "mistral_7b_v0.2.tflite"
-            ),
-            ModelItem(
-                id = "gemma",
-                titleRes = Res.string.model_gemma_title,
-                taglineRes = Res.string.model_gemma_tagline,
-                descRes = Res.string.model_gemma_desc,
-                icon = Icons.Default.AutoAwesome,
-                defaultPath = "gemma_2b.tflite"
-            ),
-            ModelItem(
-                id = "phi3",
-                titleRes = Res.string.model_phi3_title,
-                taglineRes = Res.string.model_phi3_tagline,
-                descRes = Res.string.model_phi3_desc,
-                icon = Icons.Default.Storage,
-                defaultPath = "phi3_mini.tflite"
-            )
-        )
-    }
+    val contentType = AppTheme.contentType
 
     val activeId = remember(currentPath) {
         when {
             currentPath.contains("llama3", ignoreCase = true) -> "llama3"
             currentPath.contains("mistral", ignoreCase = true) -> "mistral"
             currentPath.contains("gemma", ignoreCase = true) -> "gemma"
-            currentPath.contains("phi3", ignoreCase = true) -> "phi3"
             currentPath.isNotEmpty() -> "custom"
-            else -> "" // default active if empty
+            else -> ""
         }
     }
 
-    val onLoadClick: (ModelItem) -> Unit = { item ->
+    val onLoadClick: (String) -> Unit = { path ->
         coroutineScope.launch(Dispatchers.Default) {
             if (loadingState == 1) return@launch
-            chatViewModel.llmPath.value = item.defaultPath
+            chatViewModel.llmPath.value = path
             chatViewModel.loadingModelState.emit(1)
             chatViewModel.initLLM()
         }
@@ -142,308 +119,388 @@ fun ModelScreen() {
         }
     }
 
-    val contentType = AppTheme.contentType
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppTheme.colors.surface)
-    ) {
-        if (contentType == ContentType.Single) {
-            // Mobile Layout
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(AppTheme.spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
-            ) {
-                // Header
-                Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
-                    Text(
-                        text = stringResource(Res.string.model_select_mobile_title),
-                        style = AppTheme.typography.headlineSmall,
-                        color = AppTheme.colors.onSurface
-                    )
-                    Text(
-                        text = stringResource(Res.string.model_select_mobile_subtitle),
-                        style = AppTheme.typography.bodyMedium,
-                        color = AppTheme.colors.onSurfaceVariant
-                    )
-                }
-
-                // Active Section
-                Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)) {
-                    Text(
-                        text = stringResource(Res.string.model_section_active),
-                        style = AppTheme.typography.labelMedium,
-                        color = AppTheme.colors.primary
-                    )
-                    val activeItem = modelItems.find { it.id == activeId }
-                    if (activeItem != null) {
-                        ModelCard(
-                            item = activeItem,
-                            isActive = true,
-                            isLoading = loadingState == 1,
-                            onLoadClick = {}
-                        )
-                    } else if (activeId == "custom") {
-                        CustomModelCard(
-                            currentPath = currentPath,
-                            isActive = true,
-                            isLoading = loadingState == 1,
-                            onSelectClick = onSelectCustomClick
-                        )
-                    }
-                }
-
-                // Available Section
-                Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)) {
-                    Text(
-                        text = stringResource(Res.string.model_section_available),
-                        style = AppTheme.typography.labelMedium,
-                        color = AppTheme.colors.tertiary
-                    )
-                    modelItems.filter { it.id != activeId }.forEach { item ->
-                        ModelCard(
-                            item = item,
-                            isActive = false,
-                            isLoading = false,
-                            onLoadClick = { onLoadClick(item) }
-                        )
-                    }
-                    if (activeId != "custom") {
-                        CustomModelCard(
-                            currentPath = currentPath,
-                            isActive = false,
-                            isLoading = false,
-                            onSelectClick = onSelectCustomClick
-                        )
-                    }
-                }
-            }
-        } else {
-            // Desktop Layout
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(AppTheme.spacing.containerPaddingDesktop),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xl)
-            ) {
-                // Header
-                Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-                    Text(
-                        text = stringResource(Res.string.model_select_title),
-                        style = AppTheme.typography.headlineLarge,
-                        color = AppTheme.colors.onSurface
-                    )
-                    Text(
-                        text = stringResource(Res.string.model_select_subtitle),
-                        style = AppTheme.typography.bodyLarge,
-                        color = AppTheme.colors.onSurfaceVariant
-                    )
-                }
-
-                // Grid of cards
-                val desktopItems = modelItems.toList()
-                Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)) {
-                    // Row 1: Llama 3 & Mistral
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            ModelCard(
-                                item = desktopItems[0],
-                                isActive = desktopItems[0].id == activeId,
-                                isLoading = desktopItems[0].id == activeId && loadingState == 1,
-                                onLoadClick = { onLoadClick(desktopItems[0]) }
-                            )
-                        }
-                        Box(modifier = Modifier.weight(1f)) {
-                            ModelCard(
-                                item = desktopItems[1],
-                                isActive = desktopItems[1].id == activeId,
-                                isLoading = desktopItems[1].id == activeId && loadingState == 1,
-                                onLoadClick = { onLoadClick(desktopItems[1]) }
-                            )
-                        }
-                    }
-                    // Row 2: Gemma & Phi-3
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            ModelCard(
-                                item = desktopItems[2],
-                                isActive = desktopItems[2].id == activeId,
-                                isLoading = desktopItems[2].id == activeId && loadingState == 1,
-                                onLoadClick = { onLoadClick(desktopItems[2]) }
-                            )
-                        }
-                        Box(modifier = Modifier.weight(1f)) {
-                            ModelCard(
-                                item = desktopItems[3],
-                                isActive = desktopItems[3].id == activeId,
-                                isLoading = desktopItems[3].id == activeId && loadingState == 1,
-                                onLoadClick = { onLoadClick(desktopItems[3]) }
-                            )
-                        }
-                    }
-                    // Row 3: Custom Model Card
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            CustomModelCard(
-                                currentPath = currentPath,
-                                isActive = activeId == "custom",
-                                isLoading = activeId == "custom" && loadingState == 1,
-                                onSelectClick = onSelectCustomClick
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
+    if (contentType == ContentType.Single) {
+        // Mobile Layout: Column inside Scroll
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AppTheme.colors.surface)
+                .verticalScroll(rememberScrollState())
+        ) {
+            ModelColumnCard(
+                vendor = "Meta AI",
+                title = "Llama 3",
+                desc = stringResource(Res.string.model_llama3_desc),
+                contextWindow = "128k",
+                vram = "48GB",
+                imageUrl = LLAMA_IMAGE,
+                isActive = activeId == "llama3",
+                isLoading = loadingState == 1 && activeId == "llama3",
+                isDesktop = false,
+                onClick = { onLoadClick("llama3_8b_instruct.tflite") }
+            )
+            ModelColumnCard(
+                vendor = "Mistral AI",
+                title = "Mistral",
+                desc = stringResource(Res.string.model_mistral_desc),
+                contextWindow = "32k",
+                vram = "16GB",
+                imageUrl = MISTRAL_IMAGE,
+                isActive = activeId == "mistral",
+                isLoading = loadingState == 1 && activeId == "mistral",
+                isDesktop = false,
+                onClick = { onLoadClick("mistral_7b_v0.2.tflite") }
+            )
+            ModelColumnCard(
+                vendor = "Google",
+                title = "Gemma",
+                desc = stringResource(Res.string.model_gemma_desc),
+                contextWindow = "8k",
+                vram = "8GB",
+                imageUrl = GEMMA_IMAGE,
+                isActive = activeId == "gemma",
+                isLoading = loadingState == 1 && activeId == "gemma",
+                isDesktop = false,
+                onClick = { onLoadClick("gemma_2b.tflite") }
+            )
+            CustomModelColumnCard(
+                imageUrl = LLAMA_IMAGE,
+                isActive = activeId == "custom",
+                isLoading = loadingState == 1 && activeId == "custom",
+                isDesktop = false,
+                onClick = onSelectCustomClick
+            )
+        }
+    } else {
+        // Desktop Layout: Flex Row
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AppTheme.colors.surface)
+        ) {
+            ModelColumnCard(
+                modifier = Modifier.weight(1f),
+                vendor = "Meta AI",
+                title = "Llama 3",
+                desc = stringResource(Res.string.model_llama3_desc),
+                contextWindow = "128k",
+                vram = "48GB",
+                imageUrl = LLAMA_IMAGE,
+                isActive = activeId == "llama3",
+                isLoading = loadingState == 1 && activeId == "llama3",
+                isDesktop = true,
+                onClick = { onLoadClick("llama3_8b_instruct.tflite") }
+            )
+            ModelColumnCard(
+                modifier = Modifier.weight(1f),
+                vendor = "Mistral AI",
+                title = "Mistral",
+                desc = stringResource(Res.string.model_mistral_desc),
+                contextWindow = "32k",
+                vram = "16GB",
+                imageUrl = MISTRAL_IMAGE,
+                isActive = activeId == "mistral",
+                isLoading = loadingState == 1 && activeId == "mistral",
+                isDesktop = true,
+                onClick = { onLoadClick("mistral_7b_v0.2.tflite") }
+            )
+            ModelColumnCard(
+                modifier = Modifier.weight(1f),
+                vendor = "Google",
+                title = "Gemma",
+                desc = stringResource(Res.string.model_gemma_desc),
+                contextWindow = "8k",
+                vram = "8GB",
+                imageUrl = GEMMA_IMAGE,
+                isActive = activeId == "gemma",
+                isLoading = loadingState == 1 && activeId == "gemma",
+                isDesktop = true,
+                onClick = { onLoadClick("gemma_2b.tflite") }
+            )
+            CustomModelColumnCard(
+                modifier = Modifier.weight(1f),
+                imageUrl = LLAMA_IMAGE,
+                isActive = activeId == "custom",
+                isLoading = loadingState == 1 && activeId == "custom",
+                isDesktop = true,
+                onClick = onSelectCustomClick
+            )
         }
     }
 }
 
 @Composable
-private fun ModelCard(
-    item: ModelItem,
+private fun ModelColumnCard(
+    modifier: Modifier = Modifier,
+    vendor: String,
+    title: String,
+    desc: String,
+    contextWindow: String,
+    vram: String,
+    imageUrl: String,
     isActive: Boolean,
     isLoading: Boolean,
-    onLoadClick: () -> Unit
+    isDesktop: Boolean,
+    onClick: () -> Unit
 ) {
-    val borderColor by animateColorAsState(
-        targetValue = if (isActive) AppTheme.colors.primary else Color.Transparent,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "card_border"
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    var mousePos by remember { mutableStateOf(Offset.Unspecified) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+
+    // Weight animation for Desktop hover
+    val weight by animateFloatAsState(
+        targetValue = if (isHovered && isDesktop) 1.5f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+        label = "weightAnim"
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .glassSurface(
-                shape = AppTheme.shape.xxl,
-                alpha = if (isActive) AppTheme.elevation.glassSurfaceAlpha else 0.4f,
-                borderAlpha = if (isActive) 0.5f else AppTheme.elevation.glassBorderAlpha
-            )
-            .border(
-                width = if (isActive) 2.dp else 0.dp,
-                color = borderColor,
-                shape = AppTheme.shape.xxl
-            )
-            .let {
-                if (isActive) {
-                    it.watercolorGradient(
-                        startColor = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
-                        endColor = AppTheme.colors.secondaryContainer.copy(alpha = 0.2f)
+    // Sub-content reveal animation
+    val subContentAlpha by animateFloatAsState(
+        targetValue = if (isHovered || !isDesktop) 1f else 0f,
+        animationSpec = tween(durationMillis = 700),
+        label = "alphaAnim"
+    )
+
+    val subContentOffsetY by animateDpAsState(
+        targetValue = if (isHovered || !isDesktop) 0.dp else 16.dp,
+        animationSpec = tween(durationMillis = 700, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+        label = "offsetAnim"
+    )
+
+    // Parallax logic matching JS
+    val targetTranslateX = if (isHovered && mousePos.isSpecified && size.width > 0) {
+        ((mousePos.x / size.width) - 0.5f) * 40f
+    } else 0f
+    val targetTranslateY = if (isHovered && mousePos.isSpecified && size.height > 0) {
+        ((mousePos.y / size.height) - 0.5f) * 40f
+    } else 0f
+
+    val translateX by animateFloatAsState(
+        targetValue = targetTranslateX,
+        animationSpec = tween(durationMillis = 1200, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+        label = "translateXAnim"
+    )
+    val translateY by animateFloatAsState(
+        targetValue = targetTranslateY,
+        animationSpec = tween(durationMillis = 1200, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+        label = "translateYAnim"
+    )
+
+    // Image scale animation matching CSS
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered) 1.1f else 1f,
+        animationSpec = tween(durationMillis = 1200, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+        label = "scaleAnim"
+    )
+
+    // CSS filter: saturate(1.2) brightness(1.05)
+    val filterProgress by animateFloatAsState(
+        targetValue = if (isHovered) 1f else 0f,
+        animationSpec = tween(durationMillis = 800),
+        label = "filterAnim"
+    )
+    val colorMatrix = remember(filterProgress) {
+        ColorMatrix().apply {
+            setToSaturation(1f + 0.2f * filterProgress) // 1.2 saturation
+            val b = 1f + 0.05f * filterProgress // 1.05 brightness
+            this.timesAssign(
+                ColorMatrix(
+                    floatArrayOf(
+                        b, 0f, 0f, 0f, 0f,
+                        0f, b, 0f, 0f, 0f,
+                        0f, 0f, b, 0f, 0f,
+                        0f, 0f, 0f, 1f, 0f
                     )
-                } else it
+                )
+            )
+        }
+    }
+
+    val baseModifier = if (isDesktop) modifier else modifier.height(480.dp)
+
+    Box(
+        modifier = baseModifier
+            .fillMaxHeight()
+            .onSizeChanged { size = it }
+            .border(width = 0.5.dp, color = AppTheme.colors.outlineVariant.copy(alpha = 0.2f))
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        when (event.type) {
+                            PointerEventType.Move -> {
+                                mousePos = event.changes.first().position
+                            }
+                            PointerEventType.Exit -> {
+                                mousePos = Offset.Unspecified
+                            }
+                        }
+                    }
+                }
             }
-            .padding(AppTheme.spacing.lg)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
     ) {
+        // Watercolor Background
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            colorFilter = ColorFilter.colorMatrix(colorMatrix),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    this.translationX = translateX
+                    this.translationY = translateY
+                }
+        )
+
+        // Gradient overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            AppTheme.colors.surface.copy(alpha = 0.2f),
+                            Color.Transparent,
+                            AppTheme.colors.onSurface.copy(alpha = 0.4f)
+                        )
+                    )
+                )
+        )
+
+        // Content
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isDesktop) 40.dp else 24.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header: Icon + Title + Tagline
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
-            ) {
+            // Top Section
+            Column {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .background(
-                            color = if (isActive) AppTheme.colors.primaryContainer else AppTheme.colors.surfaceVariant.copy(alpha = 0.5f),
-                            shape = AppTheme.shape.lg
-                        ),
-                    contentAlignment = Alignment.Center
+                        .border(
+                            width = 1.dp,
+                            color = AppTheme.colors.primary.copy(alpha = 0.3f),
+                            shape = AppTheme.shape.full
+                        )
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = stringResource(item.titleRes),
-                        modifier = Modifier.size(AppTheme.size.iconLarge),
-                        tint = if (isActive) AppTheme.colors.onPrimaryContainer else AppTheme.colors.onSurfaceVariant
+                    Text(
+                        text = vendor.uppercase(),
+                        style = AppTheme.typography.labelMedium.copy(fontSize = 10.sp, letterSpacing = 2.sp),
+                        color = AppTheme.colors.primary
                     )
                 }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(item.titleRes),
-                        style = AppTheme.typography.headlineMedium.copy(fontSize = 22.sp),
-                        color = AppTheme.colors.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(item.taglineRes),
-                        style = AppTheme.typography.labelMedium,
-                        color = if (isActive) AppTheme.colors.primary else AppTheme.colors.secondary
-                    )
+                Spacer(modifier = Modifier.height(16.dp))
+                val titleStyle = if (isDesktop) {
+                    AppTheme.typography.headlineLarge.copy(fontSize = 56.sp)
+                } else {
+                    AppTheme.typography.headlineLarge.copy(fontSize = 36.sp)
                 }
+                Text(
+                    text = title,
+                    style = titleStyle,
+                    color = AppTheme.colors.onSurface,
+                    modifier = Modifier.graphicsLayer {
+                        translationX = if (isHovered) 8f else 0f
+                    }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = desc,
+                    style = AppTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Light),
+                    color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.widthIn(max = 280.dp)
+                )
             }
 
-            // Description
-            Text(
-                text = stringResource(item.descRes),
-                style = AppTheme.typography.bodyMedium,
-                color = AppTheme.colors.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = AppTheme.spacing.xs)
-            )
-
-            // Action Button / Status Badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+            // Bottom Section (Specs & Button)
+            Column(
+                modifier = Modifier
+                    .alpha(subContentAlpha)
+                    .offset(y = subContentOffsetY)
             ) {
-                if (isActive) {
+                // Specs
+                Box(modifier = Modifier.padding(top = 16.dp)) {
+                    // Border top line
+                    Box(
+                        modifier = Modifier
+                            .height(1.dp)
+                            .fillMaxWidth()
+                            .background(AppTheme.colors.onSurface.copy(alpha = 0.1f))
+                    )
                     Row(
                         modifier = Modifier
-                            .height(AppTheme.size.buttonHeight)
-                            .background(
-                                color = AppTheme.colors.primary,
-                                shape = AppTheme.shape.full
-                            )
-                            .padding(horizontal = AppTheme.spacing.lg),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+                            .fillMaxWidth()
+                            .padding(top = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(32.dp)
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = AppTheme.colors.onPrimary,
-                                strokeWidth = 2.dp
-                            )
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = stringResource(Res.string.loading),
-                                style = AppTheme.typography.labelMedium,
-                                color = AppTheme.colors.onPrimary
+                                text = "CONTEXT WINDOW",
+                                style = AppTheme.typography.labelMedium.copy(fontSize = 10.sp, letterSpacing = 2.sp),
+                                color = AppTheme.colors.onSurface.copy(alpha = 0.5f)
                             )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = AppTheme.colors.onPrimary
-                            )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = stringResource(Res.string.model_action_active),
-                                style = AppTheme.typography.labelMedium,
-                                color = AppTheme.colors.onPrimary
+                                text = contextWindow,
+                                style = AppTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light),
+                                color = AppTheme.colors.onSurface
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "VRAM REQUIRED",
+                                style = AppTheme.typography.labelMedium.copy(fontSize = 10.sp, letterSpacing = 2.sp),
+                                color = AppTheme.colors.onSurface.copy(alpha = 0.5f)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = vram,
+                                style = AppTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light),
+                                color = AppTheme.colors.onSurface
                             )
                         }
                     }
-                } else {
-                    Button(
-                        onClick = onLoadClick,
-                        modifier = Modifier.height(AppTheme.size.buttonHeight),
-                        shape = AppTheme.shape.full,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = AppTheme.colors.primary
-                        ),
-                        border = BorderStroke(1.dp, AppTheme.colors.primary)
-                    ) {
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Button
+                Button(
+                    onClick = onClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.colors.primary,
+                        contentColor = AppTheme.colors.onPrimary
+                    )
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = AppTheme.colors.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(Res.string.loading),
+                            style = AppTheme.typography.labelMedium
+                        )
+                    } else if (isActive) {
+                        Text(
+                            text = stringResource(Res.string.model_action_active),
+                            style = AppTheme.typography.labelMedium
+                        )
+                    } else {
                         Text(
                             text = stringResource(Res.string.model_action_load),
                             style = AppTheme.typography.labelMedium
@@ -456,134 +513,181 @@ private fun ModelCard(
 }
 
 @Composable
-private fun CustomModelCard(
-    currentPath: String,
+private fun CustomModelColumnCard(
+    modifier: Modifier = Modifier,
+    imageUrl: String,
     isActive: Boolean,
     isLoading: Boolean,
-    onSelectClick: () -> Unit
+    isDesktop: Boolean,
+    onClick: () -> Unit
 ) {
-    val borderColor by animateColorAsState(
-        targetValue = if (isActive) AppTheme.colors.primary else Color.Transparent,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "custom_card_border"
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    var mousePos by remember { mutableStateOf(Offset.Unspecified) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+
+    // Weight animation for Desktop hover
+    val weight by animateFloatAsState(
+        targetValue = if (isHovered && isDesktop) 1.5f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+        label = "weightAnim"
     )
 
+    val addIconScale by animateFloatAsState(
+        targetValue = if (isHovered) 1.1f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "scaleAnim"
+    )
+
+    // Parallax logic matching JS
+    val targetTranslateX = if (isHovered && mousePos.isSpecified && size.width > 0) {
+        ((mousePos.x / size.width) - 0.5f) * 40f
+    } else 0f
+    val targetTranslateY = if (isHovered && mousePos.isSpecified && size.height > 0) {
+        ((mousePos.y / size.height) - 0.5f) * 40f
+    } else 0f
+
+    val translateX by animateFloatAsState(
+        targetValue = targetTranslateX,
+        animationSpec = tween(durationMillis = 1200, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+        label = "translateXAnim"
+    )
+    val translateY by animateFloatAsState(
+        targetValue = targetTranslateY,
+        animationSpec = tween(durationMillis = 1200, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+        label = "translateYAnim"
+    )
+
+    // Image scale animation matching CSS
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered) 1.1f else 1f,
+        animationSpec = tween(durationMillis = 1200, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+        label = "scaleBgAnim"
+    )
+
+    val baseModifier = if (isDesktop) modifier else modifier.height(480.dp)
+
+    val primaryColor = AppTheme.colors.primary
+
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .glassSurface(
-                shape = AppTheme.shape.xxl,
-                alpha = if (isActive) AppTheme.elevation.glassSurfaceAlpha else 0.4f,
-                borderAlpha = if (isActive) 0.5f else AppTheme.elevation.glassBorderAlpha
-            )
-            .border(
-                width = if (isActive) 2.dp else 0.dp,
-                color = borderColor,
-                shape = AppTheme.shape.xxl
-            )
-            .let {
-                if (isActive) {
-                    it.watercolorGradient(
-                        startColor = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
-                        endColor = AppTheme.colors.secondaryContainer.copy(alpha = 0.2f)
-                    )
-                } else it
-            }
-            .padding(AppTheme.spacing.lg)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
-        ) {
-            // Header: Icon + Title + Tagline
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(
-                            color = if (isActive) AppTheme.colors.primaryContainer else AppTheme.colors.surfaceVariant.copy(alpha = 0.5f),
-                            shape = AppTheme.shape.lg
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = stringResource(Res.string.model_custom_title),
-                        modifier = Modifier.size(AppTheme.size.iconLarge),
-                        tint = if (isActive) AppTheme.colors.onPrimaryContainer else AppTheme.colors.onSurfaceVariant
-                    )
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(Res.string.model_custom_title),
-                        style = AppTheme.typography.headlineMedium.copy(fontSize = 22.sp),
-                        color = AppTheme.colors.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(Res.string.model_custom_tagline),
-                        style = AppTheme.typography.labelMedium,
-                        color = if (isActive) AppTheme.colors.primary else AppTheme.colors.secondary
-                    )
-                }
-            }
-
-            // Description & Current Path
-            Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
-                Text(
-                    text = stringResource(Res.string.model_custom_desc),
-                    style = AppTheme.typography.bodyMedium,
-                    color = AppTheme.colors.onSurfaceVariant
-                )
-                if (currentPath.isNotEmpty() && isActive) {
-                    Text(
-                        text = "Path: ${currentPath.split("/", "\\").lastOrNull() ?: currentPath}",
-                        style = AppTheme.typography.bodySmall,
-                        color = AppTheme.colors.tertiary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            // Action Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = onSelectClick,
-                    modifier = Modifier.height(AppTheme.size.buttonHeight),
-                    shape = AppTheme.shape.full,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppTheme.colors.primary,
-                        contentColor = AppTheme.colors.onPrimary
-                    )
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = AppTheme.colors.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(Res.string.loading),
-                            style = AppTheme.typography.labelMedium
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(Res.string.model_action_select_file),
-                            style = AppTheme.typography.labelMedium
-                        )
+        modifier = baseModifier
+            .fillMaxHeight()
+            .onSizeChanged { size = it }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        when (event.type) {
+                            PointerEventType.Move -> {
+                                mousePos = event.changes.first().position
+                            }
+                            PointerEventType.Exit -> {
+                                mousePos = Offset.Unspecified
+                            }
+                        }
                     }
                 }
+            }
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+    ) {
+        // Dashed border inside
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .drawBehind {
+                    drawRoundRect(
+                        color = primaryColor.copy(alpha = 0.2f),
+                        style = Stroke(
+                            width = 2.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 20f), 0f)
+                        ),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(24.dp.toPx())
+                    )
+                }
+        )
+
+        // Background image with opacity
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.4f)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    this.translationX = translateX
+                    this.translationY = translateY
+                }
+        )
+
+        // Content
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .padding(bottom = 24.dp)
+                    .size(64.dp)
+                    .background(
+                        color = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
+                        shape = AppTheme.shape.full
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = AppTheme.colors.primary.copy(alpha = 0.1f),
+                        shape = AppTheme.shape.full
+                    )
+                    .graphicsLayer {
+                        scaleX = addIconScale
+                        scaleY = addIconScale
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = AppTheme.colors.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        tint = AppTheme.colors.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(Res.string.model_custom_title),
+                style = AppTheme.typography.headlineMedium.copy(fontSize = 32.sp, fontWeight = FontWeight.Light),
+                color = AppTheme.colors.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = stringResource(Res.string.model_custom_tagline) + " (.gguf)",
+                style = AppTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
+                color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.widthIn(max = 180.dp),
+                textAlign = TextAlign.Center
+            )
+
+            if (isActive) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(Res.string.model_action_active),
+                    style = AppTheme.typography.labelMedium,
+                    color = AppTheme.colors.primary
+                )
             }
         }
     }
