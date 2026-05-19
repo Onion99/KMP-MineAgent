@@ -43,6 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -319,12 +320,31 @@ private fun ModelColumnCard(
     }
 
     val baseModifier = if (isDesktop) modifier else modifier.height(480.dp)
+    
+    val borderColor = AppTheme.colors.outlineVariant.copy(alpha = 0.2f)
 
     Box(
         modifier = baseModifier
             .fillMaxHeight()
             .onSizeChanged { size = it }
-            .border(width = 0.5.dp, color = AppTheme.colors.outlineVariant.copy(alpha = 0.2f))
+            .clipToBounds()
+            .drawBehind {
+                if (isDesktop) {
+                    drawLine(
+                        color = borderColor,
+                        start = Offset(size.width.toFloat(), 0f),
+                        end = Offset(size.width.toFloat(), size.height.toFloat()),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                } else {
+                    drawLine(
+                        color = borderColor,
+                        start = Offset(0f, size.height.toFloat()),
+                        end = Offset(size.width.toFloat(), size.height.toFloat()),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+            }
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -574,6 +594,7 @@ private fun CustomModelColumnCard(
         modifier = baseModifier
             .fillMaxHeight()
             .onSizeChanged { size = it }
+            .clipToBounds()
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
