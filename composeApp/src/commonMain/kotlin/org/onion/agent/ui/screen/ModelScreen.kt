@@ -327,7 +327,7 @@ private fun ModelColumnCard(
         modifier = baseModifier
             .fillMaxHeight()
             .onSizeChanged { size = it }
-            .clipToBounds()
+            //.clipToBounds()
             .drawBehind {
                 if (isDesktop) {
                     drawLine(
@@ -382,7 +382,7 @@ private fun ModelColumnCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
+                /*.background(
                     Brush.verticalGradient(
                         colors = listOf(
                             AppTheme.colors.surface.copy(alpha = 0.2f),
@@ -390,7 +390,7 @@ private fun ModelColumnCard(
                             AppTheme.colors.onSurface.copy(alpha = 0.4f)
                         )
                     )
-                )
+                )*/
         )
 
         // Content
@@ -594,7 +594,7 @@ private fun CustomModelColumnCard(
         modifier = baseModifier
             .fillMaxHeight()
             .onSizeChanged { size = it }
-            .clipToBounds()
+            //.clipToBounds()
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
