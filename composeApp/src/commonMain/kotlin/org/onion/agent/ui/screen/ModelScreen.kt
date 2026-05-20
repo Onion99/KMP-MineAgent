@@ -253,8 +253,8 @@ fun ModelScreen() {
             ) {
                 ModelColumnCard(
                     vendor = "Alibaba",
-                    title = "Qwen 4B",
-                    desc = stringResource(Res.string.model_qwen4b_desc),
+                    title = "Qwen 3 4B",
+                    desc = stringResource(Res.string.model_qwen3_desc),
                     contextWindow = "32k",
                     vram = "8GB",
                     imageUrl = QWEN_IMAGE,
@@ -268,8 +268,8 @@ fun ModelScreen() {
                 )
                 ModelColumnCard(
                     vendor = "Google",
-                    title = "Gemma 3 4B",
-                    desc = stringResource(Res.string.model_gemma3_desc),
+                    title = "Gemma 4 4B",
+                    desc = stringResource(Res.string.model_gemma4_desc),
                     contextWindow = "8k",
                     vram = "8GB",
                     imageUrl = GEMMA_IMAGE,
@@ -312,8 +312,8 @@ fun ModelScreen() {
                     modifier = Modifier.weight(w1),
                     interactionSource = interact1,
                     vendor = "Alibaba",
-                    title = "Qwen 4B",
-                    desc = stringResource(Res.string.model_qwen4b_desc),
+                    title = "Qwen 3 4B",
+                    desc = stringResource(Res.string.model_qwen3_desc),
                     contextWindow = "32k",
                     vram = "8GB",
                     imageUrl = QWEN_IMAGE,
@@ -329,8 +329,8 @@ fun ModelScreen() {
                     modifier = Modifier.weight(w2),
                     interactionSource = interact2,
                     vendor = "Google",
-                    title = "Gemma 3 4B",
-                    desc = stringResource(Res.string.model_gemma3_desc),
+                    title = "Gemma 4 4B",
+                    desc = stringResource(Res.string.model_gemma4_desc),
                     contextWindow = "8k",
                     vram = "8GB",
                     imageUrl = GEMMA_IMAGE,
@@ -996,7 +996,7 @@ private fun CustomModelColumnCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = stringResource(Res.string.model_custom_tagline) + " (.gguf)",
+                text = stringResource(Res.string.model_custom_tagline) + " (.litertlm)",
                 style = AppTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
                 color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.widthIn(max = 180.dp),
