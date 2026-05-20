@@ -12,6 +12,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import io.ktor.client.plugins.timeout
+import io.ktor.client.plugins.HttpTimeout
 
 class DownloadManagerImpl(
     private val httpClient: HttpClient,
@@ -191,6 +193,10 @@ class DownloadManagerImpl(
                 val statement = httpClient.prepareGet(url) {
                     if (useRange && existingSize > 0) {
                         header(HttpHeaders.Range, "bytes=$existingSize-")
+                    }
+                    timeout {
+                        requestTimeoutMillis = Long.MAX_VALUE
+                        socketTimeoutMillis = Long.MAX_VALUE
                     }
                 }
 
