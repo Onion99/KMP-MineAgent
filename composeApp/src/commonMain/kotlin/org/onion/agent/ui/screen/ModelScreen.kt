@@ -78,10 +78,44 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.onion.agent.viewmodel.ChatViewModel
 import ui.theme.AppTheme
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.cacheDir
+import io.github.vinceglb.filekit.path
+import com.onion.network.download.DownloadManager
+import com.onion.network.download.DownloadStatus
+import com.onion.network.download.DownloadTask
+import com.onion.network.http.PlatformFileUtil
 
-private const val LLAMA_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDsgbHVHlCf5v6YUjv-Je7bm7In40zlaeKk6GhPwGoCHak9kx3nej8J245laEqJhJe1W0RTTjVnthtcNHxhcbe2QgKTzD5W0YX394LL5PLR05m2YoUT0JH_Bre_Wo9CBsPT-MeXrK_s3Vf5uWr1Z9Xn3RaDBua1dg7rMIsY978IR8XLAGhTpVMNNmLQkx9Fyhoa9Gkho4gqQOzkpnsyydmifjhuTek5LrUJlwbbpyjMifBiKAtD8S3toq7azZHYCZQyXT5dpppY9nkB"
-private const val MISTRAL_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuD8o8aZNLTvIgUrtBqGiztyxIvfQtAyXFqFNZyTrxu3rmjLIPdchmk9LccLoU8yKNXLQMECYg3ubwK6iKVXkfvYYPTfQPMcJcLFZ8Z-GP8p-gVhtksGoluyPestlkiWtA7BBzqcX8MVG9szJhlRjMrTZF713vSMQWDpTf9go4RM0VnWZouSR86yCKSgbxnBjKvL5ML3KuJ5JzyJKFKVxlsUcIImuYMFSYdP3bs7qY2OhNCnuoGChAVb-5Gcv6nckz2zjWzd_l9_kwQb"
+private const val QWEN_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuD8o8aZNLTvIgUrtBqGiztyxIvfQtAyXFqFNZyTrxu3rmjLIPdchmk9LccLoU8yKNXLQMECYg3ubwK6iKVXkfvYYPTfQPMcJcLFZ8Z-GP8p-gVhtksGoluyPestlkiWtA7BBzqcX8MVG9szJhlRjMrTZF713vSMQWDpTf9go4RM0VnWZouSR86yCKSgbxnBjKvL5ML3KuJ5JzyJKFKVxlsUcIImuYMFSYdP3bs7qY2OhNCnuoGChAVb-5Gcv6nckz2zjWzd_l9_kwQb"
 private const val GEMMA_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDWkOy6D5ciDtTG5DLdR-1LtbFAMhhZXa5B7akzpiWT_ycjlBozeLls5BJMh8j2O2W1bpRbaX2jlhj4MySX5JoezZHOMCDqSJuqPWWeVTJbEqZ0S2rwIz5NXjfHTTgRRsWcujbd5B0eGnvdfyL7UwjdJsgp6P2kERHDvBMvoKn7pfymks7C0BuOhR5DpIQpHcmiDppbPakISzCy5fokd82mmAk7g5y4bPM5b67i-k_UbovYLM6Ja06banznnRAGa1d_T-yocsMXp0s4"
+private const val CUSTOM_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDsgbHVHlCf5v6YUjv-Je7bm7In40zlaeKk6GhPwGoCHak9kx3nej8J245laEqJhJe1W0RTTjVnthtcNHxhcbe2QgKTzD5W0YX394LL5PLR05m2YoUT0JH_Bre_Wo9CBsPT-MeXrK_s3Vf5uWr1Z9Xn3RaDBua1dg7rMIsY978IR8XLAGhTpVMNNmLQkx9Fyhoa9Gkho4gqQOzkpnsyydmifjhuTek5LrUJlwbbpyjMifBiKAtD8S3toq7azZHYCZQyXT5dpppY9nkB"
+
+
+private const val QWEN_URL = "https://huggingface.co/litert-community/Qwen3-4B/resolve/main/qwen3_4b_channelwise_int8_float32kv.litertlm?download=true"
+private const val GEMMA_URL = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true"
+
+private fun formatSpeed(bytesPerSecond: Long): String {
+    return when {
+        bytesPerSecond <= 0 -> "0 B/s"
+        bytesPerSecond < 1024 -> "$bytesPerSecond B/s"
+        bytesPerSecond < 1024 * 1024 -> "${(bytesPerSecond / 1024f).toString().take(4)} KB/s"
+        else -> "${(bytesPerSecond / (1024f * 1024f)).toString().take(4)} MB/s"
+    }
+}
+
+private fun formatEta(seconds: Long): String {
+    if (seconds < 0) return "EST: --"
+    val m = seconds / 60
+    val s = seconds % 60
+    return if (m > 0) {
+        "EST: ${m}M ${s}S REMAINING"
+    } else {
+        "EST: ${s}S REMAINING"
+    }
+}
+
+private const val QWEN_EXPECTED_SIZE = 5672370176L
+private const val GEMMA_EXPECTED_SIZE = 3659530240L
 
 @Composable
 fun ModelScreen() {
@@ -89,13 +123,36 @@ fun ModelScreen() {
     val loadingState by chatViewModel.loadingModelState.collectAsState(0)
     val currentPath by chatViewModel.llmPath
     val coroutineScope = rememberCoroutineScope()
+    val downloadManager = koinInject<DownloadManager>()
+    val downloadTasks by downloadManager.tasksFlow.collectAsState(emptyList())
+
+    val cacheDirPath = remember { FileKit.cacheDir.path ?: "" }
+    val qwenFilePath = remember(cacheDirPath) { "$cacheDirPath/qwen3_4b_channelwise_int8_float32.litertlm" }
+    val gemmaFilePath = remember(cacheDirPath) { "$cacheDirPath/gemma-4-E4B.litertlm" }
+
+    val qwenTask = remember(downloadTasks) { downloadTasks.firstOrNull { it.url == QWEN_URL || it.filePath == qwenFilePath } }
+    val gemmaTask = remember(downloadTasks) { downloadTasks.firstOrNull { it.url == GEMMA_URL || it.filePath == gemmaFilePath } }
+
+    val qwenExists = remember(downloadTasks) {
+        if (qwenTask != null) {
+            qwenTask.status == DownloadStatus.COMPLETED
+        } else {
+            PlatformFileUtil.getFileSize(qwenFilePath) >= QWEN_EXPECTED_SIZE
+        }
+    }
+    val gemmaExists = remember(downloadTasks) {
+        if (gemmaTask != null) {
+            gemmaTask.status == DownloadStatus.COMPLETED
+        } else {
+            PlatformFileUtil.getFileSize(gemmaFilePath) >= GEMMA_EXPECTED_SIZE
+        }
+    }
 
     val contentType = AppTheme.contentType
 
     val activeId = remember(currentPath) {
         when {
-            currentPath.contains("llama3", ignoreCase = true) -> "llama3"
-            currentPath.contains("mistral", ignoreCase = true) -> "mistral"
+            currentPath.contains("qwen", ignoreCase = true) -> "qwen"
             currentPath.contains("gemma", ignoreCase = true) -> "gemma"
             currentPath.isNotEmpty() -> "custom"
             else -> ""
@@ -108,6 +165,19 @@ fun ModelScreen() {
             chatViewModel.llmPath.value = path
             chatViewModel.loadingModelState.emit(1)
             chatViewModel.initLLM()
+        }
+    }
+
+    val onDownloadClick: (String, String, DownloadTask?) -> Unit = { url, filePath, task ->
+        if (task != null) {
+            when (task.status) {
+                DownloadStatus.DOWNLOADING -> downloadManager.pause(task.id)
+                DownloadStatus.PAUSED -> downloadManager.resume(task.id)
+                DownloadStatus.FAILED, DownloadStatus.CANCELLED -> downloadManager.resume(task.id)
+                else -> {}
+            }
+        } else {
+            downloadManager.download(url, filePath)
         }
     }
 
@@ -131,43 +201,37 @@ fun ModelScreen() {
                 .verticalScroll(rememberScrollState())
         ) {
             ModelColumnCard(
-                vendor = "Meta AI",
-                title = "Llama 3",
-                desc = stringResource(Res.string.model_llama3_desc),
-                contextWindow = "128k",
-                vram = "48GB",
-                imageUrl = LLAMA_IMAGE,
-                isActive = activeId == "llama3",
-                isLoading = loadingState == 1 && activeId == "llama3",
-                isDesktop = false,
-                onClick = { onLoadClick("llama3_8b_instruct.tflite") }
-            )
-            ModelColumnCard(
-                vendor = "Mistral AI",
-                title = "Mistral",
-                desc = stringResource(Res.string.model_mistral_desc),
+                vendor = "Alibaba",
+                title = "Qwen 4B",
+                desc = stringResource(Res.string.model_qwen4b_desc),
                 contextWindow = "32k",
-                vram = "16GB",
-                imageUrl = MISTRAL_IMAGE,
-                isActive = activeId == "mistral",
-                isLoading = loadingState == 1 && activeId == "mistral",
+                vram = "8GB",
+                imageUrl = QWEN_IMAGE,
+                isActive = activeId == "qwen",
+                isLoading = loadingState == 1 && activeId == "qwen",
                 isDesktop = false,
-                onClick = { onLoadClick("mistral_7b_v0.2.tflite") }
+                isDownloaded = qwenExists,
+                downloadTask = qwenTask,
+                onDownloadClick = { onDownloadClick(QWEN_URL, qwenFilePath, qwenTask) },
+                onClick = { onLoadClick(qwenFilePath) }
             )
             ModelColumnCard(
                 vendor = "Google",
-                title = "Gemma",
-                desc = stringResource(Res.string.model_gemma_desc),
+                title = "Gemma 3 4B",
+                desc = stringResource(Res.string.model_gemma3_desc),
                 contextWindow = "8k",
                 vram = "8GB",
                 imageUrl = GEMMA_IMAGE,
                 isActive = activeId == "gemma",
                 isLoading = loadingState == 1 && activeId == "gemma",
                 isDesktop = false,
-                onClick = { onLoadClick("gemma_2b.tflite") }
+                isDownloaded = gemmaExists,
+                downloadTask = gemmaTask,
+                onDownloadClick = { onDownloadClick(GEMMA_URL, gemmaFilePath, gemmaTask) },
+                onClick = { onLoadClick(gemmaFilePath) }
             )
             CustomModelColumnCard(
-                imageUrl = LLAMA_IMAGE,
+                imageUrl = CUSTOM_IMAGE,
                 isActive = activeId == "custom",
                 isLoading = loadingState == 1 && activeId == "custom",
                 isDesktop = false,
@@ -192,57 +256,45 @@ fun ModelScreen() {
             val interact3 = remember { MutableInteractionSource() }
             val hover3 by interact3.collectIsHoveredAsState()
             val w3 by animateFloatAsState(if (hover3) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
-            
-            val interact4 = remember { MutableInteractionSource() }
-            val hover4 by interact4.collectIsHoveredAsState()
-            val w4 by animateFloatAsState(if (hover4) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
 
             ModelColumnCard(
                 modifier = Modifier.weight(w1),
                 interactionSource = interact1,
-                vendor = "Meta AI",
-                title = "Llama 3",
-                desc = stringResource(Res.string.model_llama3_desc),
-                contextWindow = "128k",
-                vram = "48GB",
-                imageUrl = LLAMA_IMAGE,
-                isActive = activeId == "llama3",
-                isLoading = loadingState == 1 && activeId == "llama3",
+                vendor = "Alibaba",
+                title = "Qwen 4B",
+                desc = stringResource(Res.string.model_qwen4b_desc),
+                contextWindow = "32k",
+                vram = "8GB",
+                imageUrl = QWEN_IMAGE,
+                isActive = activeId == "qwen",
+                isLoading = loadingState == 1 && activeId == "qwen",
                 isDesktop = true,
-                onClick = { onLoadClick("llama3_8b_instruct.tflite") }
+                isDownloaded = qwenExists,
+                downloadTask = qwenTask,
+                onDownloadClick = { onDownloadClick(QWEN_URL, qwenFilePath, qwenTask) },
+                onClick = { onLoadClick(qwenFilePath) }
             )
             ModelColumnCard(
                 modifier = Modifier.weight(w2),
                 interactionSource = interact2,
-                vendor = "Mistral AI",
-                title = "Mistral",
-                desc = stringResource(Res.string.model_mistral_desc),
-                contextWindow = "32k",
-                vram = "16GB",
-                imageUrl = MISTRAL_IMAGE,
-                isActive = activeId == "mistral",
-                isLoading = loadingState == 1 && activeId == "mistral",
-                isDesktop = true,
-                onClick = { onLoadClick("mistral_7b_v0.2.tflite") }
-            )
-            ModelColumnCard(
-                modifier = Modifier.weight(w3),
-                interactionSource = interact3,
                 vendor = "Google",
-                title = "Gemma",
-                desc = stringResource(Res.string.model_gemma_desc),
+                title = "Gemma 3 4B",
+                desc = stringResource(Res.string.model_gemma3_desc),
                 contextWindow = "8k",
                 vram = "8GB",
                 imageUrl = GEMMA_IMAGE,
                 isActive = activeId == "gemma",
                 isLoading = loadingState == 1 && activeId == "gemma",
                 isDesktop = true,
-                onClick = { onLoadClick("gemma_2b.tflite") }
+                isDownloaded = gemmaExists,
+                downloadTask = gemmaTask,
+                onDownloadClick = { onDownloadClick(GEMMA_URL, gemmaFilePath, gemmaTask) },
+                onClick = { onLoadClick(gemmaFilePath) }
             )
             CustomModelColumnCard(
-                modifier = Modifier.weight(w4),
-                interactionSource = interact4,
-                imageUrl = LLAMA_IMAGE,
+                modifier = Modifier.weight(w3),
+                interactionSource = interact3,
+                imageUrl = CUSTOM_IMAGE,
                 isActive = activeId == "custom",
                 isLoading = loadingState == 1 && activeId == "custom",
                 isDesktop = true,
@@ -251,6 +303,7 @@ fun ModelScreen() {
         }
     }
 }
+
 
 @Composable
 private fun ModelColumnCard(
@@ -265,6 +318,9 @@ private fun ModelColumnCard(
     isActive: Boolean,
     isLoading: Boolean,
     isDesktop: Boolean,
+    isDownloaded: Boolean,
+    downloadTask: DownloadTask?,
+    onDownloadClick: () -> Unit,
     onClick: () -> Unit
 ) {
     val isHovered by interactionSource.collectIsHoveredAsState()
@@ -340,6 +396,14 @@ private fun ModelColumnCard(
     
     val borderColor = AppTheme.colors.outlineVariant.copy(alpha = 0.2f)
 
+    val cardOnClick = {
+        if (isDownloaded) {
+            onClick()
+        } else {
+            onDownloadClick()
+        }
+    }
+
     Box(
         modifier = baseModifier
             .fillMaxHeight()
@@ -377,7 +441,7 @@ private fun ModelColumnCard(
                     }
                 }
             }
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = cardOnClick)
     ) {
         // Watercolor Background
         AsyncImage(
@@ -511,45 +575,149 @@ private fun ModelColumnCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Button
-                Button(
-                    onClick = onClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppTheme.colors.primary,
-                        contentColor = AppTheme.colors.onPrimary
-                    )
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = AppTheme.colors.onPrimary,
-                            strokeWidth = 2.dp
+                // Button or Download Progress Section
+                if (!isDownloaded && downloadTask != null && 
+                    (downloadTask.status == DownloadStatus.DOWNLOADING || 
+                     downloadTask.status == DownloadStatus.QUEUED || 
+                     downloadTask.status == DownloadStatus.PAUSED ||
+                     downloadTask.status == DownloadStatus.FAILED)) {
+                    
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val statusText = when (downloadTask.status) {
+                                DownloadStatus.QUEUED -> "Queued..."
+                                DownloadStatus.PAUSED -> "Paused"
+                                DownloadStatus.FAILED -> "Failed: ${downloadTask.errorMessage?.take(40) ?: "Unknown error"}"
+                                else -> "Downloading..."
+                            }
+                            val textColor = if (downloadTask.status == DownloadStatus.FAILED) {
+                                AppTheme.colors.error
+                            } else {
+                                AppTheme.colors.onSurface.copy(alpha = 0.8f)
+                            }
+                            Text(
+                                text = statusText,
+                                style = AppTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = textColor,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (downloadTask.status != DownloadStatus.FAILED) {
+                                Text(
+                                    text = "${(downloadTask.progress * 100).toInt()}%",
+                                    style = AppTheme.typography.bodySmall.copy(fontWeight = FontWeight.Light),
+                                    color = AppTheme.colors.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                        
+                        // Progress Bar
+                        val progressBarColor = if (downloadTask.status == DownloadStatus.FAILED) {
+                            AppTheme.colors.error.copy(alpha = 0.6f)
+                        } else {
+                            AppTheme.colors.primary.copy(alpha = 0.6f)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .background(
+                                    color = AppTheme.colors.onSurface.copy(alpha = 0.05f),
+                                    shape = AppTheme.shape.full
+                                )
+                                .clickable {
+                                    onDownloadClick()
+                                }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(fraction = downloadTask.progress.coerceIn(0f, 1f))
+                                    .background(
+                                        color = progressBarColor,
+                                        shape = AppTheme.shape.full
+                                    )
+                            )
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            if (downloadTask.status == DownloadStatus.FAILED) {
+                                Text(
+                                    text = "TAP CARD TO RETRY",
+                                    style = AppTheme.typography.bodySmall.copy(fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold),
+                                    color = AppTheme.colors.error
+                                )
+                            } else {
+                                Text(
+                                    text = formatSpeed(downloadTask.speedBytesPerSecond),
+                                    style = AppTheme.typography.bodySmall.copy(fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Light),
+                                    color = AppTheme.colors.onSurface.copy(alpha = 0.4f)
+                                )
+                                Text(
+                                    text = formatEta(downloadTask.etaSeconds),
+                                    style = AppTheme.typography.bodySmall.copy(fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Light),
+                                    color = AppTheme.colors.onSurface.copy(alpha = 0.4f)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = cardOnClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppTheme.colors.primary,
+                            contentColor = AppTheme.colors.onPrimary
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(Res.string.loading),
-                            style = AppTheme.typography.labelMedium
-                        )
-                    } else if (isActive) {
-                        Text(
-                            text = stringResource(Res.string.model_action_active),
-                            style = AppTheme.typography.labelMedium
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(Res.string.model_action_load),
-                            style = AppTheme.typography.labelMedium
-                        )
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = AppTheme.colors.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(Res.string.loading),
+                                style = AppTheme.typography.labelMedium
+                            )
+                        } else if (!isDownloaded) {
+                            Text(
+                                text = stringResource(Res.string.model_action_download),
+                                style = AppTheme.typography.labelMedium
+                            )
+                        } else if (isActive) {
+                            Text(
+                                text = stringResource(Res.string.model_action_active),
+                                style = AppTheme.typography.labelMedium
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(Res.string.model_action_load),
+                                style = AppTheme.typography.labelMedium
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
 
 @Composable
 private fun CustomModelColumnCard(

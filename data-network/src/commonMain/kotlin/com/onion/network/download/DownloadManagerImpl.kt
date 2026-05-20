@@ -312,6 +312,8 @@ class DownloadManagerImpl(
             }
             throw e
         } catch (e: Exception) {
+            println("Download failed for task $id: ${e.message}")
+            e.printStackTrace()
             updateTask(id) {
                 it.copy(
                     status = DownloadStatus.FAILED,
