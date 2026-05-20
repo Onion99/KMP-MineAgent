@@ -51,7 +51,8 @@ class ChatViewModel  : ViewModel() {
     var clipLPath = mutableStateOf("")
     var clipGPath = mutableStateOf("")
     var t5xxlPath = mutableStateOf("")
-    private var initModel = false
+    private var isInitializing = false
+    private var activeModelPath: String? = null
     // 0 default,1 loading,2 loading completely
     var loadingModelState = MutableStateFlow(0)
     var isDiffusionModelLoading = mutableStateOf(false)
@@ -198,23 +199,43 @@ class ChatViewModel  : ViewModel() {
         return path
     }
 
-    fun initLLM(){
-        if(initModel) return
-        initModel = true
+    fun initLLM() {
+        if (isInitializing) return
+        if (lmEngine != null && llmPath.value == activeModelPath) {
+            return
+        }
+        isInitializing = true
         viewModelScope.launch(Dispatchers.Default) {
             loadingModelState.emit(1)
-            println("=== Model Path ===")
-            println("Model Path: ${diffusionModelPath.value}")
-            println("VAE Path: ${vaePath.value}")
-            println("LLM Path: ${llmPath.value}")
-            println("CLIP-L Path: ${clipLPath.value}")
-            println("CLIP-G Path: ${clipGPath.value}")
-            println("T5XXL Path: ${t5xxlPath.value}")
-            println("cacheDir path is: ${FileKit.cacheDir.path}")
-            isLlmModelLoading.value = true
             try {
+                if (isGenerating.value) {
+                    stopGeneration()
+                }
+                try {
+                    lmConversation?.close()
+                    lmConversation = null
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                try {
+                    lmEngine?.close()
+                    lmEngine = null
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                println("=== Model Path ===")
+                println("Model Path: ${diffusionModelPath.value}")
+                println("VAE Path: ${vaePath.value}")
+                println("LLM Path: ${llmPath.value}")
+                println("CLIP-L Path: ${clipLPath.value}")
+                println("CLIP-G Path: ${clipGPath.value}")
+                println("T5XXL Path: ${t5xxlPath.value}")
+                println("cacheDir path is: ${FileKit.cacheDir.path}")
+                isLlmModelLoading.value = true
+                val currentLlmPath = llmPath.value
                 lmEngine = org.onion.agent.native.llm.LmEngine(
-                    modelPath = llmPath.value,
+                    modelPath = currentLlmPath,
                     backend = lmBackend.value,
                     visionBackend = lmVisionBackend.value,
                     audioBackend = lmAudioBackend.value,
@@ -234,12 +255,29 @@ class ChatViewModel  : ViewModel() {
                 lmConversation = lmEngine?.createConversation(
                     systemInstruction = "You are a helpful assistant."
                 )
+                activeModelPath = currentLlmPath
             } catch (e: Exception) {
                 e.printStackTrace()
+                activeModelPath = null
             } finally {
+                isInitializing = false
                 isLlmModelLoading.value = false
             }
             loadingModelState.emit(2)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            lmConversation?.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            lmEngine?.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

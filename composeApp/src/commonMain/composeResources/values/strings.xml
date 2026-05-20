@@ -114,4 +114,6 @@
     <string name="chat_input_hint_mobile">Share your thoughts...</string>
     <string name="chat_input_hint_desktop">Whisper your thoughts to the void...</string>
     <string name="chat_disclaimer">Aura weaves responses from probability. Seek truth with gentle scrutiny.</string>
+    <string name="model_loading_title">Initializing Model</string>
+    <string name="model_loading_subtitle">Configuring weights and preparing the local engine...</string>
 </resources>

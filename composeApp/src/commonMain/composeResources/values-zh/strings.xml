@@ -113,4 +113,6 @@
     <string name="chat_input_hint_mobile">分享你的想法...</string>
     <string name="chat_input_hint_desktop">向虚空倾诉你的思绪...</string>
     <string name="chat_disclaimer">Aura 基于概率编织回应，请以温和的审视探寻真相。</string>
+    <string name="model_loading_title">模型初始化中</string>
+    <string name="model_loading_subtitle">正在配置权重并准备本地神经网络引擎...</string>
 </resources>

@@ -85,6 +85,15 @@ import com.onion.network.download.DownloadManager
 import com.onion.network.download.DownloadStatus
 import com.onion.network.download.DownloadTask
 import com.onion.network.http.PlatformFileUtil
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.TileMode
+import com.onion.theme.style.glassSurface
+import com.onion.theme.style.watercolorGradient
 
 private const val QWEN_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuD8o8aZNLTvIgUrtBqGiztyxIvfQtAyXFqFNZyTrxu3rmjLIPdchmk9LccLoU8yKNXLQMECYg3ubwK6iKVXkfvYYPTfQPMcJcLFZ8Z-GP8p-gVhtksGoluyPestlkiWtA7BBzqcX8MVG9szJhlRjMrTZF713vSMQWDpTf9go4RM0VnWZouSR86yCKSgbxnBjKvL5ML3KuJ5JzyJKFKVxlsUcIImuYMFSYdP3bs7qY2OhNCnuoGChAVb-5Gcv6nckz2zjWzd_l9_kwQb"
 private const val GEMMA_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDWkOy6D5ciDtTG5DLdR-1LtbFAMhhZXa5B7akzpiWT_ycjlBozeLls5BJMh8j2O2W1bpRbaX2jlhj4MySX5JoezZHOMCDqSJuqPWWeVTJbEqZ0S2rwIz5NXjfHTTgRRsWcujbd5B0eGnvdfyL7UwjdJsgp6P2kERHDvBMvoKn7pfymks7C0BuOhR5DpIQpHcmiDppbPakISzCy5fokd82mmAk7g5y4bPM5b67i-k_UbovYLM6Ja06banznnRAGa1d_T-yocsMXp0s4"
@@ -116,6 +125,47 @@ private fun formatEta(seconds: Long): String {
 
 private const val QWEN_EXPECTED_SIZE = 5672370176L
 private const val GEMMA_EXPECTED_SIZE = 3659530240L
+
+@Composable
+private fun FlowingProgressIndicator(
+    modifier: Modifier = Modifier,
+    color: Color = AppTheme.colors.primary,
+    secondaryColor: Color = AppTheme.colors.secondary
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "flowingProgress")
+    val animatedOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "offset"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(4.dp)
+            .clip(AppTheme.shape.full)
+            .background(AppTheme.colors.onSurface.copy(alpha = 0.05f))
+            .drawWithContent {
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            color.copy(alpha = 0.1f),
+                            color,
+                            secondaryColor,
+                            color.copy(alpha = 0.1f)
+                        ),
+                        start = Offset(animatedOffset - 500f, 0f),
+                        end = Offset(animatedOffset + 500f, 0f),
+                        tileMode = TileMode.Repeated
+                    )
+                )
+            }
+    )
+}
 
 @Composable
 fun ModelScreen() {
@@ -192,114 +242,184 @@ fun ModelScreen() {
         }
     }
 
-    if (contentType == ContentType.Single) {
-        // Mobile Layout: Column inside Scroll
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(AppTheme.colors.surface)
-                .verticalScroll(rememberScrollState())
-        ) {
-            ModelColumnCard(
-                vendor = "Alibaba",
-                title = "Qwen 4B",
-                desc = stringResource(Res.string.model_qwen4b_desc),
-                contextWindow = "32k",
-                vram = "8GB",
-                imageUrl = QWEN_IMAGE,
-                isActive = activeId == "qwen",
-                isLoading = loadingState == 1 && activeId == "qwen",
-                isDesktop = false,
-                isDownloaded = qwenExists,
-                downloadTask = qwenTask,
-                onDownloadClick = { onDownloadClick(QWEN_URL, qwenFilePath, qwenTask) },
-                onClick = { onLoadClick(qwenFilePath) }
-            )
-            ModelColumnCard(
-                vendor = "Google",
-                title = "Gemma 3 4B",
-                desc = stringResource(Res.string.model_gemma3_desc),
-                contextWindow = "8k",
-                vram = "8GB",
-                imageUrl = GEMMA_IMAGE,
-                isActive = activeId == "gemma",
-                isLoading = loadingState == 1 && activeId == "gemma",
-                isDesktop = false,
-                isDownloaded = gemmaExists,
-                downloadTask = gemmaTask,
-                onDownloadClick = { onDownloadClick(GEMMA_URL, gemmaFilePath, gemmaTask) },
-                onClick = { onLoadClick(gemmaFilePath) }
-            )
-            CustomModelColumnCard(
-                imageUrl = CUSTOM_IMAGE,
-                isActive = activeId == "custom",
-                isLoading = loadingState == 1 && activeId == "custom",
-                isDesktop = false,
-                onClick = onSelectCustomClick
-            )
-        }
-    } else {
-        // Desktop Layout: Flex Row
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(AppTheme.colors.surface)
-        ) {
-            val interact1 = remember { MutableInteractionSource() }
-            val hover1 by interact1.collectIsHoveredAsState()
-            val w1 by animateFloatAsState(if (hover1) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
-            
-            val interact2 = remember { MutableInteractionSource() }
-            val hover2 by interact2.collectIsHoveredAsState()
-            val w2 by animateFloatAsState(if (hover2) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
-            
-            val interact3 = remember { MutableInteractionSource() }
-            val hover3 by interact3.collectIsHoveredAsState()
-            val w3 by animateFloatAsState(if (hover3) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (contentType == ContentType.Single) {
+            // Mobile Layout: Column inside Scroll
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppTheme.colors.surface)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                ModelColumnCard(
+                    vendor = "Alibaba",
+                    title = "Qwen 4B",
+                    desc = stringResource(Res.string.model_qwen4b_desc),
+                    contextWindow = "32k",
+                    vram = "8GB",
+                    imageUrl = QWEN_IMAGE,
+                    isActive = activeId == "qwen",
+                    isLoading = loadingState == 1 && activeId == "qwen",
+                    isDesktop = false,
+                    isDownloaded = qwenExists,
+                    downloadTask = qwenTask,
+                    onDownloadClick = { onDownloadClick(QWEN_URL, qwenFilePath, qwenTask) },
+                    onClick = { onLoadClick(qwenFilePath) }
+                )
+                ModelColumnCard(
+                    vendor = "Google",
+                    title = "Gemma 3 4B",
+                    desc = stringResource(Res.string.model_gemma3_desc),
+                    contextWindow = "8k",
+                    vram = "8GB",
+                    imageUrl = GEMMA_IMAGE,
+                    isActive = activeId == "gemma",
+                    isLoading = loadingState == 1 && activeId == "gemma",
+                    isDesktop = false,
+                    isDownloaded = gemmaExists,
+                    downloadTask = gemmaTask,
+                    onDownloadClick = { onDownloadClick(GEMMA_URL, gemmaFilePath, gemmaTask) },
+                    onClick = { onLoadClick(gemmaFilePath) }
+                )
+                CustomModelColumnCard(
+                    imageUrl = CUSTOM_IMAGE,
+                    isActive = activeId == "custom",
+                    isLoading = loadingState == 1 && activeId == "custom",
+                    isDesktop = false,
+                    onClick = onSelectCustomClick
+                )
+            }
+        } else {
+            // Desktop Layout: Flex Row
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppTheme.colors.surface)
+            ) {
+                val interact1 = remember { MutableInteractionSource() }
+                val hover1 by interact1.collectIsHoveredAsState()
+                val w1 by animateFloatAsState(if (hover1) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+                
+                val interact2 = remember { MutableInteractionSource() }
+                val hover2 by interact2.collectIsHoveredAsState()
+                val w2 by animateFloatAsState(if (hover2) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+                
+                val interact3 = remember { MutableInteractionSource() }
+                val hover3 by interact3.collectIsHoveredAsState()
+                val w3 by animateFloatAsState(if (hover3) 1.5f else 1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
 
-            ModelColumnCard(
-                modifier = Modifier.weight(w1),
-                interactionSource = interact1,
-                vendor = "Alibaba",
-                title = "Qwen 4B",
-                desc = stringResource(Res.string.model_qwen4b_desc),
-                contextWindow = "32k",
-                vram = "8GB",
-                imageUrl = QWEN_IMAGE,
-                isActive = activeId == "qwen",
-                isLoading = loadingState == 1 && activeId == "qwen",
-                isDesktop = true,
-                isDownloaded = qwenExists,
-                downloadTask = qwenTask,
-                onDownloadClick = { onDownloadClick(QWEN_URL, qwenFilePath, qwenTask) },
-                onClick = { onLoadClick(qwenFilePath) }
-            )
-            ModelColumnCard(
-                modifier = Modifier.weight(w2),
-                interactionSource = interact2,
-                vendor = "Google",
-                title = "Gemma 3 4B",
-                desc = stringResource(Res.string.model_gemma3_desc),
-                contextWindow = "8k",
-                vram = "8GB",
-                imageUrl = GEMMA_IMAGE,
-                isActive = activeId == "gemma",
-                isLoading = loadingState == 1 && activeId == "gemma",
-                isDesktop = true,
-                isDownloaded = gemmaExists,
-                downloadTask = gemmaTask,
-                onDownloadClick = { onDownloadClick(GEMMA_URL, gemmaFilePath, gemmaTask) },
-                onClick = { onLoadClick(gemmaFilePath) }
-            )
-            CustomModelColumnCard(
-                modifier = Modifier.weight(w3),
-                interactionSource = interact3,
-                imageUrl = CUSTOM_IMAGE,
-                isActive = activeId == "custom",
-                isLoading = loadingState == 1 && activeId == "custom",
-                isDesktop = true,
-                onClick = onSelectCustomClick
-            )
+                ModelColumnCard(
+                    modifier = Modifier.weight(w1),
+                    interactionSource = interact1,
+                    vendor = "Alibaba",
+                    title = "Qwen 4B",
+                    desc = stringResource(Res.string.model_qwen4b_desc),
+                    contextWindow = "32k",
+                    vram = "8GB",
+                    imageUrl = QWEN_IMAGE,
+                    isActive = activeId == "qwen",
+                    isLoading = loadingState == 1 && activeId == "qwen",
+                    isDesktop = true,
+                    isDownloaded = qwenExists,
+                    downloadTask = qwenTask,
+                    onDownloadClick = { onDownloadClick(QWEN_URL, qwenFilePath, qwenTask) },
+                    onClick = { onLoadClick(qwenFilePath) }
+                )
+                ModelColumnCard(
+                    modifier = Modifier.weight(w2),
+                    interactionSource = interact2,
+                    vendor = "Google",
+                    title = "Gemma 3 4B",
+                    desc = stringResource(Res.string.model_gemma3_desc),
+                    contextWindow = "8k",
+                    vram = "8GB",
+                    imageUrl = GEMMA_IMAGE,
+                    isActive = activeId == "gemma",
+                    isLoading = loadingState == 1 && activeId == "gemma",
+                    isDesktop = true,
+                    isDownloaded = gemmaExists,
+                    downloadTask = gemmaTask,
+                    onDownloadClick = { onDownloadClick(GEMMA_URL, gemmaFilePath, gemmaTask) },
+                    onClick = { onLoadClick(gemmaFilePath) }
+                )
+                CustomModelColumnCard(
+                    modifier = Modifier.weight(w3),
+                    interactionSource = interact3,
+                    imageUrl = CUSTOM_IMAGE,
+                    isActive = activeId == "custom",
+                    isLoading = loadingState == 1 && activeId == "custom",
+                    isDesktop = true,
+                    onClick = onSelectCustomClick
+                )
+            }
+        }
+
+        if (loadingState == 1) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.15f))
+                    .pointerInput(Unit) {}
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 400.dp)
+                        .padding(horizontal = 24.dp)
+                        .glassSurface(
+                            shape = AppTheme.shape.xxl,
+                            alpha = 0.85f,
+                            borderAlpha = 0.2f
+                        )
+                        .padding(horizontal = 32.dp, vertical = 40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = AppTheme.colors.primary,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text(
+                            text = stringResource(Res.string.model_loading_title),
+                            style = AppTheme.typography.headlineMedium.copy(
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Light,
+                                color = AppTheme.colors.onSurface
+                            ),
+                            textAlign = TextAlign.Center
+                        )
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Text(
+                            text = stringResource(Res.string.model_loading_subtitle),
+                            style = AppTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Light,
+                                color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.8f)
+                            ),
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        FlowingProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(0.8f)
+                        )
+                    }
+                }
+            }
         }
     }
 }
