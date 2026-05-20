@@ -15,9 +15,15 @@ import kotlinx.serialization.json.Json
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.seconds
 
+import com.onion.network.download.DownloadManager
+import com.onion.network.download.DownloadManagerImpl
+
 val networkModule  = module {
     single {
         getHttpClient()
+    }
+    single<DownloadManager> {
+        DownloadManagerImpl(get())
     }
 }
 
