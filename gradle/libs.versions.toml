@@ -112,6 +112,7 @@ compose-gradlePlugin = { group = "org.jetbrains.compose", name = "compose-gradle
 kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlin-serializationPlugin = { group = "org.jetbrains.kotlin", name = "kotlin-serialization", version.ref = "kotlin" }
 android-desugarJdkLibs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "android-desugar-jdk-libs" }
+compose-rich-editor = { module = "com.mohamedrejeb.richeditor:richeditor-compose", version = "1.0.0-rc14" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

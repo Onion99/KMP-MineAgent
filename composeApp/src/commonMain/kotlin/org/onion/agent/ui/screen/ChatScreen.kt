@@ -1,5 +1,9 @@
+@file:OptIn(ExperimentalRichTextApi::class)
+
 package org.onion.agent.ui.screen
 
+import kotlin.OptIn
+import com.mohamedrejeb.richeditor.annotation.ExperimentalRichTextApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -72,6 +76,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.material3.RichText
 import com.onion.model.ChatMessage
 import com.onion.theme.state.ContentType
 import com.onion.theme.style.MediumOutlinedTextField
@@ -654,8 +660,21 @@ private fun UserMessageContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Text(
-                    text = message,
+                val richTextState = rememberRichTextState()
+                val primaryColor = AppTheme.colors.primary
+                val codeColor = AppTheme.colors.primary
+                val codeBgColor = AppTheme.colors.surfaceVariant.copy(alpha = 0.5f)
+                LaunchedEffect(primaryColor, codeColor, codeBgColor) {
+                    richTextState.config.linkColor = primaryColor
+                    richTextState.config.codeSpanColor = codeColor
+                    richTextState.config.codeSpanBackgroundColor = codeBgColor
+                }
+                LaunchedEffect(message) {
+                    richTextState.setMarkdown(message)
+                }
+
+                RichText(
+                    state = richTextState,
                     style = if (isSingle) AppTheme.typography.bodyMedium else AppTheme.typography.bodyLarge,
                     color = textColor,
                     modifier = Modifier
@@ -781,8 +800,21 @@ private fun AiMessageContent(
                 verticalAlignment = Alignment.Bottom
             ) {
                 val displayText = if (isGenerating) "$message ▌" else message
-                Text(
-                    text = displayText,
+                val richTextState = rememberRichTextState()
+                val primaryColor = AppTheme.colors.primary
+                val codeColor = AppTheme.colors.primary
+                val codeBgColor = AppTheme.colors.surfaceVariant.copy(alpha = 0.5f)
+                LaunchedEffect(primaryColor, codeColor, codeBgColor) {
+                    richTextState.config.linkColor = primaryColor
+                    richTextState.config.codeSpanColor = codeColor
+                    richTextState.config.codeSpanBackgroundColor = codeBgColor
+                }
+                LaunchedEffect(displayText) {
+                    richTextState.setMarkdown(displayText)
+                }
+
+                RichText(
+                    state = richTextState,
                     style = if (isSingle) AppTheme.typography.bodyMedium else AppTheme.typography.bodyLarge,
                     color = AppTheme.colors.onSurface.copy(alpha = 0.9f),
                     modifier = Modifier

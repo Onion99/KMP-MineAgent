@@ -112,6 +112,7 @@ kotlin {
             implementation(projects.uiTheme)
             implementation(projects.dataNetwork)
             implementation(libs.quickjs.kt)
+            implementation(libs.compose.rich.editor)
         }
         commonTest.dependencies {
             implementation(projects.dataNetwork)
