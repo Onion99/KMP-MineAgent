@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,6 +66,13 @@ import mineagent.composeapp.generated.resources.llm_setting_context_shift_desc
 import mineagent.composeapp.generated.resources.llm_setting_system_blueprint
 import mineagent.composeapp.generated.resources.llm_setting_system_blueprint_desc
 import mineagent.composeapp.generated.resources.llm_setting_system_blueprint_placeholder
+import mineagent.composeapp.generated.resources.llm_setting_topk_title
+import mineagent.composeapp.generated.resources.llm_setting_topk_desc
+import mineagent.composeapp.generated.resources.llm_setting_thinking_title
+import mineagent.composeapp.generated.resources.llm_setting_thinking_desc
+import mineagent.composeapp.generated.resources.llm_setting_speculative_title
+import mineagent.composeapp.generated.resources.llm_setting_speculative_desc
+import mineagent.composeapp.generated.resources.llm_setting_cognitive_features
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.onion.agent.viewmodel.ChatViewModel
@@ -79,6 +87,9 @@ fun SettingScreen() {
     val chatViewModel = koinInject<ChatViewModel>()
     val temp by chatViewModel.temperature
     val topPVal by chatViewModel.topP
+    val topKVal by chatViewModel.topK
+    val enableThinking by chatViewModel.enableThinking
+    val enableSpeculativeDecoding by chatViewModel.enableSpeculativeDecoding
     val maxTokens by chatViewModel.lmMaxNumTokens
     val contextShift by chatViewModel.systemContextShift
     val sysPrompt by chatViewModel.systemPrompt
@@ -129,14 +140,16 @@ fun SettingScreen() {
                         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
                     ) {
                         TemperatureCard(chatViewModel, temp)
-                        ContextLimitsCard(chatViewModel, maxTokens, contextShift)
+                        TopPCard(chatViewModel, topPVal)
+                        TopKCard(chatViewModel, topKVal)
                     }
 
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
                     ) {
-                        TopPCard(chatViewModel, topPVal)
+                        ContextLimitsCard(chatViewModel, maxTokens, contextShift)
+                        CognitiveFeaturesCard(chatViewModel, enableThinking, enableSpeculativeDecoding)
                         SystemBlueprintCard(chatViewModel, sysPrompt)
                     }
                 }
@@ -147,7 +160,9 @@ fun SettingScreen() {
                 ) {
                     TemperatureCard(chatViewModel, temp)
                     TopPCard(chatViewModel, topPVal)
+                    TopKCard(chatViewModel, topKVal)
                     ContextLimitsCard(chatViewModel, maxTokens, contextShift)
+                    CognitiveFeaturesCard(chatViewModel, enableThinking, enableSpeculativeDecoding)
                     SystemBlueprintCard(chatViewModel, sysPrompt)
                 }
             }
@@ -173,6 +188,9 @@ fun SettingScreen() {
                     onClick = {
                         chatViewModel.temperature.value = 0.7f
                         chatViewModel.topP.value = 0.9f
+                        chatViewModel.topK.value = 40
+                        chatViewModel.enableThinking.value = false
+                        chatViewModel.enableSpeculativeDecoding.value = false
                         chatViewModel.lmMaxNumTokens.value = 2048
                         chatViewModel.systemContextShift.value = true
                         chatViewModel.systemPrompt.value = "You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone."
@@ -368,6 +386,108 @@ fun TopPCard(chatViewModel: ChatViewModel, topPVal: Float) {
                 text = stringResource(Res.string.llm_setting_topp_open),
                 style = AppTheme.typography.bodySmall,
                 color = AppTheme.colors.tertiary.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+@Composable
+fun TopKCard(chatViewModel: ChatViewModel, topKVal: Int) {
+    SettingCard(
+        accentColor = AppTheme.colors.secondary,
+        icon = Icons.Default.FilterList,
+        title = stringResource(Res.string.llm_setting_topk_title)
+    ) {
+        Text(
+            text = stringResource(Res.string.llm_setting_topk_desc),
+            style = AppTheme.typography.bodyMedium,
+            color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.8f)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Value: $topKVal",
+                style = AppTheme.typography.bodySmall,
+                color = AppTheme.colors.onSurfaceVariant
+            )
+        }
+
+        Slider(
+            value = topKVal.toFloat(),
+            onValueChange = { chatViewModel.topK.value = it.roundToInt() },
+            valueRange = 5f..100f,
+            steps = 95,
+            colors = SliderDefaults.colors(
+                thumbColor = AppTheme.colors.secondary,
+                activeTrackColor = AppTheme.colors.secondary,
+                inactiveTrackColor = AppTheme.colors.surfaceVariant.copy(alpha = 0.5f)
+            )
+        )
+    }
+}
+
+@Composable
+fun CognitiveFeaturesCard(
+    chatViewModel: ChatViewModel,
+    enableThinking: Boolean,
+    enableSpeculativeDecoding: Boolean
+) {
+    SettingCard(
+        accentColor = AppTheme.colors.primary,
+        icon = Icons.Default.Psychology,
+        title = stringResource(Res.string.llm_setting_cognitive_features)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.llm_setting_thinking_title),
+                    style = AppTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = AppTheme.colors.onSurface
+                )
+                Text(
+                    text = stringResource(Res.string.llm_setting_thinking_desc),
+                    style = AppTheme.typography.bodySmall,
+                    color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+
+            EtherealSwitch(
+                checked = enableThinking,
+                onCheckedChange = { chatViewModel.enableThinking.value = it }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(AppTheme.spacing.md))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.llm_setting_speculative_title),
+                    style = AppTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = AppTheme.colors.onSurface
+                )
+                Text(
+                    text = stringResource(Res.string.llm_setting_speculative_desc),
+                    style = AppTheme.typography.bodySmall,
+                    color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+
+            EtherealSwitch(
+                checked = enableSpeculativeDecoding,
+                onCheckedChange = { chatViewModel.enableSpeculativeDecoding.value = it }
             )
         }
     }

@@ -136,4 +136,11 @@
     <string name="llm_setting_system_blueprint">System Blueprint</string>
     <string name="llm_setting_system_blueprint_desc">Define the foundational behavior and persona.</string>
     <string name="llm_setting_system_blueprint_placeholder">You are a helpful, harmless, and honest assistant.</string>
+    <string name="llm_setting_topk_title">Top K</string>
+    <string name="llm_setting_topk_desc">Filters out lower probability tokens by only keeping the top K tokens at each step. Lower values yield more focused responses.</string>
+    <string name="llm_setting_thinking_title">Enable Thinking</string>
+    <string name="llm_setting_thinking_desc">Allows the model to perform raw reasoning or \"thinking\" before answering, returning the contemplation path.</string>
+    <string name="llm_setting_speculative_title">Speculative Decoding</string>
+    <string name="llm_setting_speculative_desc">Accelerates model inference speed by speculatively generating candidate tokens using draft mechanisms.</string>
+    <string name="llm_setting_cognitive_features">Cognitive Features</string>
 </resources>

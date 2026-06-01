@@ -135,4 +135,11 @@
     <string name="llm_setting_system_blueprint">系统蓝图 (System Blueprint)</string>
     <string name="llm_setting_system_blueprint_desc">定义模型的基本行为和角色定位。</string>
     <string name="llm_setting_system_blueprint_placeholder">你是一个乐于助人、无害且诚实的助手。</string>
+    <string name="llm_setting_topk_title">Top K 采样</string>
+    <string name="llm_setting_topk_desc">通过在每一步仅保留前 K 个概率最高的标记来过滤低概率标记。较低的值会使回答更加聚焦。</string>
+    <string name="llm_setting_thinking_title">启用深度思考</string>
+    <string name="llm_setting_thinking_desc">允许模型在回答前进行原生推理（思考），并返回思考路径。</string>
+    <string name="llm_setting_speculative_title">投机性解码</string>
+    <string name="llm_setting_speculative_desc">使用草稿模型进行投机性生成，从而加速主模型的推理速度。</string>
+    <string name="llm_setting_cognitive_features">认知与加速</string>
 </resources>

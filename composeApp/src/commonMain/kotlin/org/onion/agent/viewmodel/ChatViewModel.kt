@@ -131,11 +131,16 @@ class ChatViewModel  : ViewModel() {
     // Model Parameter Adjustments
     var temperature = mutableStateOf(0.7f)
     var topP = mutableStateOf(0.9f)
+    var topK = mutableStateOf(40)
+    var enableThinking = mutableStateOf(false)
+    var enableSpeculativeDecoding = mutableStateOf(false)
     var systemPrompt = mutableStateOf("You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.")
     var systemContextShift = mutableStateOf(true)
 
     private var lmEngine: org.onion.agent.native.llm.LmEngine? = null
     private var lmConversation: org.onion.agent.native.llm.LmConversation? = null
+    private var activeEnableSpeculativeDecoding: Boolean? = null
+    private var activeMaxNumTokens: Int? = null
     private val agentTools = AgentTools()
 
     // ========================================================================================
@@ -253,7 +258,7 @@ class ChatViewModel  : ViewModel() {
                     maxNumImages = lmMaxNumImages.value,
                     cacheDir = FileKit.cacheDir.path ?: "",
                     enableBenchmark = false,
-                    enableSpeculativeDecoding = null,
+                    enableSpeculativeDecoding = enableSpeculativeDecoding.value,
                     mainNpuNativeLibraryDir = "",
                     visionNpuNativeLibraryDir = "",
                     audioNpuNativeLibraryDir = "",
@@ -267,10 +272,13 @@ class ChatViewModel  : ViewModel() {
                     toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
                     samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
                         temperature = temperature.value.toDouble(),
-                        topP = topP.value.toDouble()
+                        topP = topP.value.toDouble(),
+                        topK = topK.value
                     )
                 )
                 activeModelPath = currentLlmPath
+                activeEnableSpeculativeDecoding = enableSpeculativeDecoding.value
+                activeMaxNumTokens = lmMaxNumTokens.value
             } catch (e: Exception) {
                 e.printStackTrace()
                 activeModelPath = null
@@ -283,27 +291,85 @@ class ChatViewModel  : ViewModel() {
     }
 
     fun applyConversationSettings() {
-        val engine = lmEngine ?: return
+        val currentLlmPath = llmPath.value
+        if (currentLlmPath.isBlank()) return
         viewModelScope.launch(Dispatchers.Default) {
+            isLlmModelLoading.value = true
+            loadingModelState.emit(1)
             try {
-                lmConversation?.close()
-                lmConversation = null
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            try {
-                lmConversation = engine.createConversation(
-                    systemInstruction = systemPrompt.value,
-                    toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
-                    samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
-                        temperature = temperature.value.toDouble(),
-                        topP = topP.value.toDouble()
+                if (isGenerating.value) {
+                    stopGeneration()
+                }
+                
+                val needsEngineReinit = lmEngine == null ||
+                        activeModelPath != currentLlmPath ||
+                        activeEnableSpeculativeDecoding != enableSpeculativeDecoding.value ||
+                        activeMaxNumTokens != lmMaxNumTokens.value
+                
+                if (needsEngineReinit) {
+                    try {
+                        lmConversation?.close()
+                        lmConversation = null
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    try {
+                        lmEngine?.close()
+                        lmEngine = null
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    
+                    lmEngine = org.onion.agent.native.llm.LmEngine(
+                        modelPath = currentLlmPath,
+                        backend = lmBackend.value,
+                        visionBackend = lmVisionBackend.value,
+                        audioBackend = lmAudioBackend.value,
+                        maxNumTokens = lmMaxNumTokens.value,
+                        maxNumImages = lmMaxNumImages.value,
+                        cacheDir = FileKit.cacheDir.path ?: "",
+                        enableBenchmark = false,
+                        enableSpeculativeDecoding = enableSpeculativeDecoding.value,
+                        mainNpuNativeLibraryDir = "",
+                        visionNpuNativeLibraryDir = "",
+                        audioNpuNativeLibraryDir = "",
+                        mainBackendNumThreads = lmMainBackendNumThreads.value,
+                        audioBackendNumThreads = lmAudioBackendNumThreads.value
                     )
-                )
+                    lmEngine?.initialize()
+                    activeModelPath = currentLlmPath
+                    activeEnableSpeculativeDecoding = enableSpeculativeDecoding.value
+                    activeMaxNumTokens = lmMaxNumTokens.value
+                } else {
+                    try {
+                        lmConversation?.close()
+                        lmConversation = null
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                
+                val engine = lmEngine
+                if (engine != null) {
+                    lmConversation = engine.createConversation(
+                        systemInstruction = systemPrompt.value,
+                        toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+                        samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                            temperature = temperature.value.toDouble(),
+                            topP = topP.value.toDouble(),
+                            topK = topK.value
+                        )
+                    )
+                }
                 _currentChatMessages.clear()
                 _currentChatMessages.add(ChatMessage("System: Model parameters applied. Conversation restarted.", false))
             } catch (e: Exception) {
                 e.printStackTrace()
+                _currentChatMessages.clear()
+                _currentChatMessages.add(ChatMessage("System Error: Failed to apply parameters. ${e.message}", false))
+            } finally {
+                isLlmModelLoading.value = false
+                loadingModelState.emit(2)
             }
         }
     }
@@ -395,6 +461,7 @@ class ChatViewModel  : ViewModel() {
             val startTime = Clock.System.now().toEpochMilliseconds()
             
             var generatedResult = ""
+            var generatedThought = ""
             var currentMessage = org.onion.agent.native.llm.Message.user(promptContent)
             var keepGoing = true
             var recursionCount = 0
@@ -402,7 +469,8 @@ class ChatViewModel  : ViewModel() {
             while (keepGoing && recursionCount < 10) {
                 var toolCallsReceived: List<ToolCall>? = null
                 
-                lmConversation?.sendMessageAsync(currentMessage)
+                val extraContext = if (enableThinking.value) mapOf("enable_thinking" to "true") else emptyMap()
+                lmConversation?.sendMessageAsync(currentMessage, extraContext)
                     ?.catch { e ->
                         isGenerating.value = false
                         isInferenceOn = false
@@ -426,14 +494,32 @@ class ChatViewModel  : ViewModel() {
                             toolCallsReceived = responseMsg.toolCalls
                         }
                         
+                        val thoughtChunk = responseMsg.channels["thought"] ?: ""
+                        if (thoughtChunk.isNotEmpty()) {
+                            generatedThought += thoughtChunk
+                        }
                         val chunk = responseMsg.contents.toString()
                         if (chunk.isNotEmpty()) {
                             generatedResult += chunk
+                        }
+                        
+                        val fullMessage = buildString {
+                            if (generatedThought.isNotEmpty()) {
+                                append("> *Thinking...*\n")
+                                generatedThought.lineSequence().forEach { line ->
+                                    append("> ").append(line).append("\n")
+                                }
+                                append("\n")
+                            }
+                            append(generatedResult)
+                        }
+                        
+                        if (chunk.isNotEmpty() || thoughtChunk.isNotEmpty()) {
                             if (_currentChatMessages.isNotEmpty()) {
                                 val lastIdx = _currentChatMessages.lastIndex
                                 val msgToUpdate = _currentChatMessages[lastIdx]
                                 val meta = mapOf("is_generating" to "true")
-                                _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
+                                _currentChatMessages[lastIdx] = msgToUpdate.copy(message = fullMessage.trim(), metadata = meta)
                             }
                         }
                     }
