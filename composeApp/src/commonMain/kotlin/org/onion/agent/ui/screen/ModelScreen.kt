@@ -103,23 +103,31 @@ private const val CUSTOM_IMAGE = "https://lh3.googleusercontent.com/aida-public/
 private const val QWEN_URL = "https://huggingface.co/litert-community/Qwen3-4B/resolve/main/qwen3_4b_channelwise_int8_float32kv.litertlm?download=true"
 private const val GEMMA_URL = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true"
 
+@Composable
 private fun formatSpeed(bytesPerSecond: Long): String {
     return when {
-        bytesPerSecond <= 0 -> "0 B/s"
-        bytesPerSecond < 1024 -> "$bytesPerSecond B/s"
-        bytesPerSecond < 1024 * 1024 -> "${(bytesPerSecond / 1024f).toString().take(4)} KB/s"
-        else -> "${(bytesPerSecond / (1024f * 1024f)).toString().take(4)} MB/s"
+        bytesPerSecond <= 0 -> stringResource(Res.string.model_download_speed_bps, "0")
+        bytesPerSecond < 1024 -> stringResource(Res.string.model_download_speed_bps, bytesPerSecond.toString())
+        bytesPerSecond < 1024 * 1024 -> stringResource(
+            Res.string.model_download_speed_kbps,
+            (bytesPerSecond / 1024f).toString().take(4)
+        )
+        else -> stringResource(
+            Res.string.model_download_speed_mbps,
+            (bytesPerSecond / (1024f * 1024f)).toString().take(4)
+        )
     }
 }
 
+@Composable
 private fun formatEta(seconds: Long): String {
-    if (seconds < 0) return "EST: --"
+    if (seconds < 0) return stringResource(Res.string.model_download_eta_unknown)
     val m = seconds / 60
     val s = seconds % 60
     return if (m > 0) {
-        "EST: ${m}M ${s}S REMAINING"
+        stringResource(Res.string.model_download_eta_min_sec, m.toString(), s.toString())
     } else {
-        "EST: ${s}S REMAINING"
+        stringResource(Res.string.model_download_eta_sec, s.toString())
     }
 }
 
@@ -714,10 +722,13 @@ private fun ModelColumnCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val statusText = when (downloadTask.status) {
-                                DownloadStatus.QUEUED -> "Queued..."
-                                DownloadStatus.PAUSED -> "Paused"
-                                DownloadStatus.FAILED -> "Failed: ${downloadTask.errorMessage?.take(40) ?: "Unknown error"}"
-                                else -> "Downloading..."
+                                DownloadStatus.QUEUED -> stringResource(Res.string.model_download_queued)
+                                DownloadStatus.PAUSED -> stringResource(Res.string.model_download_paused)
+                                DownloadStatus.FAILED -> stringResource(
+                                    Res.string.model_download_failed,
+                                    downloadTask.errorMessage?.take(40) ?: stringResource(Res.string.unknown_error)
+                                )
+                                else -> stringResource(Res.string.model_download_downloading)
                             }
                             val textColor = if (downloadTask.status == DownloadStatus.FAILED) {
                                 AppTheme.colors.error
@@ -774,7 +785,7 @@ private fun ModelColumnCard(
                         ) {
                             if (downloadTask.status == DownloadStatus.FAILED) {
                                 Text(
-                                    text = "TAP CARD TO RETRY",
+                                    text = stringResource(Res.string.model_download_retry),
                                     style = AppTheme.typography.bodySmall.copy(fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold),
                                     color = AppTheme.colors.error
                                 )
@@ -996,7 +1007,7 @@ private fun CustomModelColumnCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = stringResource(Res.string.model_custom_tagline) + " (.litertlm)",
+                text = stringResource(Res.string.model_custom_tagline_format, stringResource(Res.string.model_custom_tagline)),
                 style = AppTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
                 color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.widthIn(max = 180.dp),

@@ -48,8 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import mineagent.composeapp.generated.resources.Res
-import mineagent.composeapp.generated.resources.llm_settings_title
-import mineagent.composeapp.generated.resources.llm_settings_subtitle
+import mineagent.composeapp.generated.resources.*
 import mineagent.composeapp.generated.resources.llm_setting_temp_title
 import mineagent.composeapp.generated.resources.llm_setting_temp_desc
 import mineagent.composeapp.generated.resources.llm_setting_temp_precise
@@ -189,14 +188,7 @@ fun SettingScreen() {
             ) {
                 OutlinedButton(
                     onClick = {
-                        chatViewModel.temperature.value = 0.7f
-                        chatViewModel.topP.value = 0.9f
-                        chatViewModel.topK.value = 40
-                        chatViewModel.enableThinking.value = false
-                        chatViewModel.enableSpeculativeDecoding.value = false
-                        chatViewModel.lmMaxNumTokens.value = 2048
-                        chatViewModel.systemContextShift.value = true
-                        chatViewModel.systemPrompt.value = "You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone."
+                        chatViewModel.resetSettings()
                     },
                     modifier = if (isSingle) Modifier.weight(1f) else Modifier,
                     shape = AppTheme.shape.full,
@@ -309,7 +301,7 @@ fun TemperatureCard(chatViewModel: ChatViewModel, temp: Float) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Value: ${((temp * 10).roundToInt() / 10.0)}",
+                text = stringResource(Res.string.llm_setting_value_label, ((temp * 10).roundToInt() / 10.0).toString()),
                 style = AppTheme.typography.bodySmall,
                 color = AppTheme.colors.onSurfaceVariant
             )
@@ -364,7 +356,7 @@ fun TopPCard(chatViewModel: ChatViewModel, topPVal: Float) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Value: ${((topPVal * 100).roundToInt() / 100.0)}",
+                text = stringResource(Res.string.llm_setting_value_label, ((topPVal * 100).roundToInt() / 100.0).toString()),
                 style = AppTheme.typography.bodySmall,
                 color = AppTheme.colors.onSurfaceVariant
             )
@@ -419,7 +411,7 @@ fun TopKCard(chatViewModel: ChatViewModel, topKVal: Int) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Value: $topKVal",
+                text = stringResource(Res.string.llm_setting_value_label, topKVal.toString()),
                 style = AppTheme.typography.bodySmall,
                 color = AppTheme.colors.onSurfaceVariant
             )

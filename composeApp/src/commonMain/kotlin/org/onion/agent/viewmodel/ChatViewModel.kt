@@ -24,6 +24,9 @@ import org.onion.agent.getPlatform
 import org.onion.agent.native.llm.AgentTools
 import org.onion.agent.native.llm.ToolCall
 import org.onion.agent.native.llm.ToolResponse
+import mineagent.composeapp.generated.resources.Res
+import mineagent.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.getString
 
 class ChatViewModel  : ViewModel() {
 
@@ -136,6 +139,33 @@ class ChatViewModel  : ViewModel() {
     var enableSpeculativeDecoding = mutableStateOf(false)
     var systemPrompt = mutableStateOf("You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.")
     var systemContextShift = mutableStateOf(true)
+
+    init {
+        viewModelScope.launch {
+            try {
+                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun resetSettings() {
+        viewModelScope.launch {
+            temperature.value = 0.7f
+            topP.value = 0.9f
+            topK.value = 40
+            enableThinking.value = false
+            enableSpeculativeDecoding.value = false
+            lmMaxNumTokens.value = 2048
+            systemContextShift.value = true
+            try {
+                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default)
+            } catch (e: Exception) {
+                systemPrompt.value = "You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone."
+            }
+        }
+    }
 
     private var lmEngine: org.onion.agent.native.llm.LmEngine? = null
     private var lmConversation: org.onion.agent.native.llm.LmConversation? = null
@@ -362,11 +392,11 @@ class ChatViewModel  : ViewModel() {
                     )
                 }
                 _currentChatMessages.clear()
-                _currentChatMessages.add(ChatMessage("System: Model parameters applied. Conversation restarted.", false))
+                _currentChatMessages.add(ChatMessage(getString(Res.string.chat_system_parameters_applied), false))
             } catch (e: Exception) {
                 e.printStackTrace()
                 _currentChatMessages.clear()
-                _currentChatMessages.add(ChatMessage("System Error: Failed to apply parameters. ${e.message}", false))
+                _currentChatMessages.add(ChatMessage(getString(Res.string.chat_system_parameters_apply_failed, e.message ?: ""), false))
             } finally {
                 isLlmModelLoading.value = false
                 loadingModelState.emit(2)
@@ -443,13 +473,15 @@ class ChatViewModel  : ViewModel() {
         if (lmConversation == null) {
             isGenerating.value = false
             isInferenceOn = false
-            if (_currentChatMessages.isNotEmpty()) {
-                val lastIdx = _currentChatMessages.lastIndex
-                val meta = mapOf("is_generating" to "false")
-                _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
-                    message = "System: LM Engine not initialized or model not loaded yet. Please wait or check the model path.",
-                    metadata = meta
-                )
+            viewModelScope.launch {
+                if (_currentChatMessages.isNotEmpty()) {
+                    val lastIdx = _currentChatMessages.lastIndex
+                    val meta = mapOf("is_generating" to "false")
+                    _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
+                        message = getString(Res.string.chat_system_engine_not_initialized),
+                        metadata = meta
+                    )
+                }
             }
             onError(IllegalStateException("LM Engine not initialized"))
             return
@@ -481,8 +513,9 @@ class ChatViewModel  : ViewModel() {
                             if (_currentChatMessages.isNotEmpty()) {
                                 val lastIdx = _currentChatMessages.lastIndex
                                 val meta = mapOf("is_generating" to "false")
+                                val errMsg = e.message ?: getString(Res.string.unknown_error)
                                 _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
-                                    message = "Error: ${e.message ?: "Unknown error"}",
+                                    message = getString(Res.string.chat_system_error_prefix, errMsg),
                                     metadata = meta
                                 )
                             }
@@ -503,9 +536,10 @@ class ChatViewModel  : ViewModel() {
                             generatedResult += chunk
                         }
                         
+                        val thinkingPrefix = if (generatedThought.isNotEmpty()) getString(Res.string.chat_thinking_prefix) else ""
                         val fullMessage = buildString {
-                            if (generatedThought.isNotEmpty()) {
-                                append("> *Thinking...*\n")
+                            if (thinkingPrefix.isNotEmpty()) {
+                                append(thinkingPrefix)
                                 generatedThought.lineSequence().forEach { line ->
                                     append("> ").append(line).append("\n")
                                 }
@@ -532,7 +566,7 @@ class ChatViewModel  : ViewModel() {
                     for (toolCall in toolCalls) {
                         println("ChatViewModel: Executing tool '${toolCall.name}' with args: ${toolCall.arguments}")
                         
-                        val toolLog = "\n`[Running tool: ${toolCall.name}...]`\n"
+                        val toolLog = getString(Res.string.chat_running_tool, toolCall.name)
                         generatedResult += toolLog
                         if (_currentChatMessages.isNotEmpty()) {
                             val lastIdx = _currentChatMessages.lastIndex
@@ -543,7 +577,7 @@ class ChatViewModel  : ViewModel() {
                         
                         val resultStr = agentTools.execute(toolCall.name, toolCall.arguments)
                         
-                        val toolDoneLog = "\n`[Tool '${toolCall.name}' completed]`\n"
+                        val toolDoneLog = getString(Res.string.chat_tool_completed, toolCall.name)
                         generatedResult += toolDoneLog
                         if (_currentChatMessages.isNotEmpty()) {
                             val lastIdx = _currentChatMessages.lastIndex

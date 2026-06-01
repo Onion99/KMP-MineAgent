@@ -144,4 +144,26 @@
     <string name="llm_setting_cognitive_features">认知与加速</string>
     <string name="llm_setting_btn_reset">恢复默认</string>
     <string name="llm_setting_btn_apply">应用参数</string>
+    <string name="llm_setting_value_label">当前值: %s</string>
+    <string name="llm_setting_system_prompt_default">你是一个善于分析和精准的本地人工智能。优先考虑事实的准确性和简洁的格式。保持冷静、中立的语气。</string>
+    <string name="model_download_queued">排队中...</string>
+    <string name="model_download_paused">已暂停</string>
+    <string name="model_download_failed">下载失败: %s</string>
+    <string name="model_download_downloading">下载中...</string>
+    <string name="model_download_retry">轻触卡片以重试</string>
+    <string name="unknown_error">未知错误</string>
+    <string name="model_download_speed_bps">%s B/s</string>
+    <string name="model_download_speed_kbps">%s KB/s</string>
+    <string name="model_download_speed_mbps">%s MB/s</string>
+    <string name="model_download_eta_unknown">预计时间: --</string>
+    <string name="model_download_eta_min_sec">预计剩余时间: %1$s分 %2$s秒</string>
+    <string name="model_download_eta_sec">预计剩余时间: %1$s秒</string>
+    <string name="model_custom_tagline_format">%s (.litertlm)</string>
+    <string name="chat_system_parameters_applied">系统：模型参数已应用。对话已重新启动。</string>
+    <string name="chat_system_parameters_apply_failed">系统错误：应用参数失败。%s</string>
+    <string name="chat_system_engine_not_initialized">系统：神经网络引擎未初始化或模型尚未加载。请稍候或检查模型路径。</string>
+    <string name="chat_system_error_prefix">错误：%s</string>
+    <string name="chat_thinking_prefix">> *正在思考...*\n</string>
+    <string name="chat_running_tool">\n`[正在运行工具: %s...]`\n</string>
+    <string name="chat_tool_completed">\n`[工具 \'%s\' 已完成]`\n</string>
 </resources>
