@@ -143,4 +143,6 @@
     <string name="llm_setting_speculative_title">Speculative Decoding</string>
     <string name="llm_setting_speculative_desc">Accelerates model inference speed by speculatively generating candidate tokens using draft mechanisms.</string>
     <string name="llm_setting_cognitive_features">Cognitive Features</string>
+    <string name="llm_setting_btn_reset">Reset Defaults</string>
+    <string name="llm_setting_btn_apply">Apply Parameters</string>
 </resources>

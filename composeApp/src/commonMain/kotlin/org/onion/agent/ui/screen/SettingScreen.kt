@@ -80,6 +80,8 @@ import ui.theme.AppTheme
 import com.onion.theme.state.ContentType
 import com.onion.theme.style.glassSurface
 import com.onion.theme.style.watercolorGradient
+import mineagent.composeapp.generated.resources.llm_setting_btn_apply
+import mineagent.composeapp.generated.resources.llm_setting_btn_reset
 import kotlin.math.roundToInt
 
 @Composable
@@ -204,8 +206,9 @@ fun SettingScreen() {
                     )
                 ) {
                     Text(
-                        text = "Reset to Defaults",
-                        style = AppTheme.typography.labelMedium
+                        text = stringResource(Res.string.llm_setting_btn_reset),
+                        style = AppTheme.typography.labelMedium,
+                        maxLines = 1
                     )
                 }
 
@@ -225,8 +228,9 @@ fun SettingScreen() {
                     )
                 ) {
                     Text(
-                        text = "Apply Parameters",
-                        style = AppTheme.typography.labelMedium
+                        text = stringResource(Res.string.llm_setting_btn_apply),
+                        style = AppTheme.typography.labelMedium,
+                        maxLines = 1
                     )
                 }
             }
