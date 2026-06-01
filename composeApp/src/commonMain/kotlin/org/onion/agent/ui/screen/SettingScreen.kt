@@ -179,9 +179,10 @@ fun SettingScreen() {
 
             Spacer(modifier = Modifier.height(AppTheme.spacing.lg))
 
+            val isSingle = AppTheme.contentType == ContentType.Single
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = if (isSingle) Arrangement.spacedBy(AppTheme.spacing.md) else Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
@@ -195,6 +196,7 @@ fun SettingScreen() {
                         chatViewModel.systemContextShift.value = true
                         chatViewModel.systemPrompt.value = "You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone."
                     },
+                    modifier = if (isSingle) Modifier.weight(1f) else Modifier,
                     shape = AppTheme.shape.full,
                     border = BorderStroke(1.dp, AppTheme.colors.outline.copy(alpha = 0.4f)),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -207,12 +209,15 @@ fun SettingScreen() {
                     )
                 }
 
-                Spacer(modifier = Modifier.width(AppTheme.spacing.md))
+                if (!isSingle) {
+                    Spacer(modifier = Modifier.width(AppTheme.spacing.md))
+                }
 
                 Button(
                     onClick = {
                         chatViewModel.applyConversationSettings()
                     },
+                    modifier = if (isSingle) Modifier.weight(1f) else Modifier,
                     shape = AppTheme.shape.full,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AppTheme.colors.primary,
