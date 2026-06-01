@@ -116,4 +116,24 @@
     <string name="chat_disclaimer">Aura weaves responses from probability. Seek truth with gentle scrutiny.</string>
     <string name="model_loading_title">Initializing Model</string>
     <string name="model_loading_subtitle">Configuring weights and preparing the local engine...</string>
+
+    <!-- LLM Settings Screen -->
+    <string name="llm_settings_title">Model Parameters</string>
+    <string name="llm_settings_subtitle">Fine-tune the cognitive behavior and physical boundaries of the local intelligence model.</string>
+    <string name="llm_setting_temp_title">Temperature</string>
+    <string name="llm_setting_temp_desc">Dictates the creative randomness of responses. Lower values produce focused, deterministic outputs. Higher values encourage diversity.</string>
+    <string name="llm_setting_temp_precise">Precise</string>
+    <string name="llm_setting_temp_creative">Creative</string>
+    <string name="llm_setting_topp_title">Top P (Nucleus)</string>
+    <string name="llm_setting_topp_desc">Filters out lower probability tokens. A value of 0.9 means only tokens comprising the top 90% probability mass are considered.</string>
+    <string name="llm_setting_topp_restrictive">Restrictive</string>
+    <string name="llm_setting_topp_open">Open</string>
+    <string name="llm_setting_context_limits">Context Limits</string>
+    <string name="llm_setting_max_tokens">Max Output Tokens</string>
+    <string name="llm_setting_max_tokens_hint">Up to 8192</string>
+    <string name="llm_setting_context_shift">System Context Shift</string>
+    <string name="llm_setting_context_shift_desc">Keep system prompt loaded in active VRAM</string>
+    <string name="llm_setting_system_blueprint">System Blueprint</string>
+    <string name="llm_setting_system_blueprint_desc">Define the foundational behavior and persona.</string>
+    <string name="llm_setting_system_blueprint_placeholder">You are a helpful, harmless, and honest assistant.</string>
 </resources>

@@ -115,4 +115,24 @@
     <string name="chat_disclaimer">Aura 基于概率编织回应，请以温和的审视探寻真相。</string>
     <string name="model_loading_title">模型初始化中</string>
     <string name="model_loading_subtitle">正在配置权重并准备本地神经网络引擎...</string>
+
+    <!-- LLM Settings Screen -->
+    <string name="llm_settings_title">模型参数</string>
+    <string name="llm_settings_subtitle">微调本地智能模型的认知行为和物理边界。</string>
+    <string name="llm_setting_temp_title">温度 (Temperature)</string>
+    <string name="llm_setting_temp_desc">决定回答的创造性随机度。较低的值会产生更聚焦、确定性的输出；较高的值则鼓励多样性。</string>
+    <string name="llm_setting_temp_precise">精准</string>
+    <string name="llm_setting_temp_creative">创意</string>
+    <string name="llm_setting_topp_title">核采样 (Top P)</string>
+    <string name="llm_setting_topp_desc">过滤掉低概率标记。值为 0.9 意味着只考虑组成前 90% 概率质量的标记。</string>
+    <string name="llm_setting_topp_restrictive">收敛</string>
+    <string name="llm_setting_topp_open">开放</string>
+    <string name="llm_setting_context_limits">上下文限制</string>
+    <string name="llm_setting_max_tokens">最大输出标记数</string>
+    <string name="llm_setting_max_tokens_hint">最高达 8192</string>
+    <string name="llm_setting_context_shift">系统上下文缓存</string>
+    <string name="llm_setting_context_shift_desc">保持系统提示词加载在活跃显存 (VRAM) 中</string>
+    <string name="llm_setting_system_blueprint">系统蓝图 (System Blueprint)</string>
+    <string name="llm_setting_system_blueprint_desc">定义模型的基本行为和角色定位。</string>
+    <string name="llm_setting_system_blueprint_placeholder">你是一个乐于助人、无害且诚实的助手。</string>
 </resources>

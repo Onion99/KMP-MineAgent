@@ -5,6 +5,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.buildJsonArray
 
+import com.google.ai.edge.litertlm.SamplerConfig
+
 class LmEngine(
     val modelPath: String,
     val backend: String = "cpu",
@@ -60,7 +62,8 @@ class LmEngine(
         systemInstruction: String? = null,
         initialMessages: List<Message> = emptyList(),
         toolsDescriptionJsonString: String = "[]",
-        enableConversationConstrainedDecoding: Boolean = false
+        enableConversationConstrainedDecoding: Boolean = false,
+        samplerConfig: SamplerConfig? = null
     ): LmConversation {
         mutex.withLock {
             checkInitialized()
@@ -78,7 +81,7 @@ class LmEngine(
 
             val ptr = LiteRtLmJni.createLmConversation(
                 enginePointer = handle!!,
-                samplerConfig = null,
+                samplerConfig = samplerConfig,
                 messageJsonString = messageJsonString,
                 toolsDescriptionJsonString = toolsDescriptionJsonString,
                 channelsJsonString = null,

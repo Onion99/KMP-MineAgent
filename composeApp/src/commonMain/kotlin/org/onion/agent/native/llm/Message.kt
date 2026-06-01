@@ -19,12 +19,22 @@ class Message internal constructor(
     val role: Role,
     val contents: Contents = Contents.empty(),
     val toolCalls: List<ToolCall> = emptyList(),
+    val toolResponses: List<ToolResponse> = emptyList(),
     val channels: Map<String, String> = emptyMap()
 ) {
     internal fun toJson(): JsonObject = buildJsonObject {
         put("role", role.value)
-        if (contents.contents.isNotEmpty()) {
-            put("content", contents.toJson())
+        if (role == Role.TOOL) {
+            val toolResponsesJson = buildJsonArray {
+                for (toolResponse in toolResponses) {
+                    add(toolResponse.toJson())
+                }
+            }
+            put("content", toolResponsesJson)
+        } else {
+            if (contents.contents.isNotEmpty()) {
+                put("content", contents.toJson())
+            }
         }
         if (toolCalls.isNotEmpty()) {
             val toolCallsJson = buildJsonArray {
@@ -56,7 +66,8 @@ class Message internal constructor(
             contents: Contents = Contents.empty(),
             toolCalls: List<ToolCall> = emptyList(),
             channels: Map<String, String> = emptyMap()
-        ) = Message(Role.MODEL, contents, toolCalls, channels)
+        ) = Message(Role.MODEL, contents, toolCalls, emptyList(), channels)
+        fun tool(toolResponses: List<ToolResponse>) = Message(Role.TOOL, toolResponses = toolResponses)
         fun tool(contents: Contents) = Message(Role.TOOL, contents)
     }
 }
@@ -86,6 +97,14 @@ data class ToolCall(val name: String, val arguments: JsonObject) {
             put("arguments", arguments)
         }
         put("function", functionObj)
+    }
+}
+
+data class ToolResponse(val name: String, val response: String) {
+    internal fun toJson() = buildJsonObject {
+        put("type", "tool_response")
+        put("name", name)
+        put("response", response)
     }
 }
 

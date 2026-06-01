@@ -21,6 +21,9 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.math.roundToInt
 import org.onion.agent.getPlatform
+import org.onion.agent.native.llm.AgentTools
+import org.onion.agent.native.llm.ToolCall
+import org.onion.agent.native.llm.ToolResponse
 
 class ChatViewModel  : ViewModel() {
 
@@ -120,13 +123,20 @@ class ChatViewModel  : ViewModel() {
     var lmBackend = mutableStateOf("GPU")//NPU,CPU,GPU
     var lmVisionBackend = mutableStateOf("")
     var lmAudioBackend = mutableStateOf("")
-    var lmMaxNumTokens = mutableStateOf(-1)
+    var lmMaxNumTokens = mutableStateOf(2048)
     var lmMaxNumImages = mutableStateOf(-1)
     var lmMainBackendNumThreads = mutableStateOf(2)
     var lmAudioBackendNumThreads = mutableStateOf(-1)
 
+    // Model Parameter Adjustments
+    var temperature = mutableStateOf(0.7f)
+    var topP = mutableStateOf(0.9f)
+    var systemPrompt = mutableStateOf("You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.")
+    var systemContextShift = mutableStateOf(true)
+
     private var lmEngine: org.onion.agent.native.llm.LmEngine? = null
     private var lmConversation: org.onion.agent.native.llm.LmConversation? = null
+    private val agentTools = AgentTools()
 
     // ========================================================================================
     //                              LoRA Settings
@@ -253,7 +263,12 @@ class ChatViewModel  : ViewModel() {
                 lmEngine?.initialize()
 
                 lmConversation = lmEngine?.createConversation(
-                    systemInstruction = "You are a helpful assistant."
+                    systemInstruction = systemPrompt.value,
+                    toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+                    samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                        temperature = temperature.value.toDouble(),
+                        topP = topP.value.toDouble()
+                    )
                 )
                 activeModelPath = currentLlmPath
             } catch (e: Exception) {
@@ -264,6 +279,32 @@ class ChatViewModel  : ViewModel() {
                 isLlmModelLoading.value = false
             }
             loadingModelState.emit(2)
+        }
+    }
+
+    fun applyConversationSettings() {
+        val engine = lmEngine ?: return
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                lmConversation?.close()
+                lmConversation = null
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            try {
+                lmConversation = engine.createConversation(
+                    systemInstruction = systemPrompt.value,
+                    toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+                    samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                        temperature = temperature.value.toDouble(),
+                        topP = topP.value.toDouble()
+                    )
+                )
+                _currentChatMessages.clear()
+                _currentChatMessages.add(ChatMessage("System: Model parameters applied. Conversation restarted.", false))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -354,37 +395,85 @@ class ChatViewModel  : ViewModel() {
             val startTime = Clock.System.now().toEpochMilliseconds()
             
             var generatedResult = ""
+            var currentMessage = org.onion.agent.native.llm.Message.user(promptContent)
+            var keepGoing = true
+            var recursionCount = 0
             
-            lmConversation?.sendMessageAsync(org.onion.agent.native.llm.Message.user(promptContent))
-                ?.catch { e ->
-                    isGenerating.value = false
-                    isInferenceOn = false
-                    if (e is CancellationException) {
-                        onCancelled()
-                    } else {
+            while (keepGoing && recursionCount < 10) {
+                var toolCallsReceived: List<ToolCall>? = null
+                
+                lmConversation?.sendMessageAsync(currentMessage)
+                    ?.catch { e ->
+                        isGenerating.value = false
+                        isInferenceOn = false
+                        keepGoing = false
+                        if (e is CancellationException) {
+                            onCancelled()
+                        } else {
+                            if (_currentChatMessages.isNotEmpty()) {
+                                val lastIdx = _currentChatMessages.lastIndex
+                                val meta = mapOf("is_generating" to "false")
+                                _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
+                                    message = "Error: ${e.message ?: "Unknown error"}",
+                                    metadata = meta
+                                )
+                            }
+                            onError(e)
+                        }
+                    }
+                    ?.collect { responseMsg ->
+                        if (responseMsg.toolCalls.isNotEmpty()) {
+                            toolCallsReceived = responseMsg.toolCalls
+                        }
+                        
+                        val chunk = responseMsg.contents.toString()
+                        if (chunk.isNotEmpty()) {
+                            generatedResult += chunk
+                            if (_currentChatMessages.isNotEmpty()) {
+                                val lastIdx = _currentChatMessages.lastIndex
+                                val msgToUpdate = _currentChatMessages[lastIdx]
+                                val meta = mapOf("is_generating" to "true")
+                                _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
+                            }
+                        }
+                    }
+                
+                val toolCalls = toolCallsReceived
+                if (toolCalls != null && toolCalls.isNotEmpty()) {
+                    recursionCount++
+                    val responses = mutableListOf<ToolResponse>()
+                    
+                    for (toolCall in toolCalls) {
+                        println("ChatViewModel: Executing tool '${toolCall.name}' with args: ${toolCall.arguments}")
+                        
+                        val toolLog = "\n`[Running tool: ${toolCall.name}...]`\n"
+                        generatedResult += toolLog
                         if (_currentChatMessages.isNotEmpty()) {
                             val lastIdx = _currentChatMessages.lastIndex
-                            val meta = mapOf("is_generating" to "false")
-                            _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
-                                message = "Error: ${e.message ?: "Unknown error"}",
-                                metadata = meta
-                            )
+                            val msgToUpdate = _currentChatMessages[lastIdx]
+                            val meta = mapOf("is_generating" to "true")
+                            _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
                         }
-                        onError(e)
+                        
+                        val resultStr = agentTools.execute(toolCall.name, toolCall.arguments)
+                        
+                        val toolDoneLog = "\n`[Tool '${toolCall.name}' completed]`\n"
+                        generatedResult += toolDoneLog
+                        if (_currentChatMessages.isNotEmpty()) {
+                            val lastIdx = _currentChatMessages.lastIndex
+                            val msgToUpdate = _currentChatMessages[lastIdx]
+                            val meta = mapOf("is_generating" to "true")
+                            _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
+                        }
+                        
+                        responses.add(ToolResponse(toolCall.name, resultStr))
                     }
+                    
+                    currentMessage = org.onion.agent.native.llm.Message.tool(responses)
+                } else {
+                    keepGoing = false
                 }
-                ?.collect { responseMsg ->
-                    val chunk = responseMsg.contents.toString()
-                    println("ChatViewModel: collect received chunk: '$chunk'")
-                    generatedResult += chunk
-                    println("ChatViewModel: generatedResult is now: '$generatedResult'")
-                    if (_currentChatMessages.isNotEmpty()) {
-                        val lastIdx = _currentChatMessages.lastIndex
-                        val msgToUpdate = _currentChatMessages[lastIdx]
-                        val meta = mapOf("is_generating" to "true")
-                        _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
-                    }
-                }
+            }
             
             println("ChatViewModel: collect finished!")
             val generationDuration = Clock.System.now().toEpochMilliseconds() - startTime
