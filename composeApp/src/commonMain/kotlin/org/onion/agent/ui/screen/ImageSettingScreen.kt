@@ -791,7 +791,7 @@ private fun LoraItemRow(
             if (loraConfig.isEnabled) {
                 Spacer(modifier = Modifier.height(8.dp))
                 SliderSetting(
-                    label = stringResource(Res.string.settings_lora_strength).replace("%s", ""),
+                    label = stringResource(Res.string.settings_lora_strength).replace("%1\$s", "").replace("%s", ""),
                     value = loraConfig.strength,
                     valueRange = 0f..2f,
                     steps = 0,
