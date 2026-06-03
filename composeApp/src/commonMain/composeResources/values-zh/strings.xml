@@ -166,4 +166,24 @@
     <string name="chat_thinking_prefix">> *正在思考...*\n</string>
     <string name="chat_running_tool">\n`[正在运行工具: %1$s...]`\n</string>
     <string name="chat_tool_completed">\n`[工具 \'%1$s\' 已完成]`\n</string>
+
+    <!-- Library Screen -->
+    <string name="library_title">空灵资源库</string>
+    <string name="library_desc">精心策展的智力容器集合。获取精炼的技能、专业知识库以及深度概念工具。</string>
+    <string name="library_living_memory">活跃记忆</string>
+    <string name="library_status_active">活跃</string>
+    <string name="library_memory_desc">重拾您最错综复杂的思维脉络...</string>
+    <string name="library_time_10m">10分钟前</string>
+    <string name="library_time_2h">2小时前</string>
+    <string name="library_time_yesterday">昨天</string>
+    <string name="library_thread_1">Gris 调色板与情感化 UI 的融合</string>
+    <string name="library_thread_2">诗歌中的量子纠缠隐喻</string>
+    <string name="library_thread_3">优化水彩扩散算法</string>
+    <string name="library_logic_vessel">逻辑容器</string>
+    <string name="library_logic_desc">强类型结构与语义化代码生成。</string>
+    <string name="library_creative_nebula">创意星云</string>
+    <string name="library_creative_desc">开阔、无拘无束的散文与艺术构思。</string>
+    <string name="library_data_crystal">数据水晶</string>
+    <string name="library_data_desc">分形分析与硬模式识别。</string>
+    <string name="library_forge_vessel">锻造新容器</string>
 </resources>

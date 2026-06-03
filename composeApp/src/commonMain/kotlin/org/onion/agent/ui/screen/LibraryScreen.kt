@@ -1,47 +1,651 @@
 package org.onion.agent.ui.screen
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocalLibrary
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AllInclusive
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import mineagent.composeapp.generated.resources.Res
-import mineagent.composeapp.generated.resources.library
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.onion.theme.state.ContentType
+import com.onion.theme.style.glassSurface
+import mineagent.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import ui.theme.AppTheme
 
-
 @Composable
 fun LibraryScreen() {
+    val isDesktop = AppTheme.contentType == ContentType.Dual
+    val containerPadding = if (isDesktop) AppTheme.spacing.containerPaddingDesktop else AppTheme.spacing.containerPaddingMobile
+    
+    val primaryColor = AppTheme.colors.primary
+    val secondaryColor = AppTheme.colors.secondary
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(AppTheme.spacing.lg),
+            .background(AppTheme.colors.surface)
+            .drawBehind {
+                // Top left watercolor blob (Sage Green)
+                val radius1 = minOf(size.width, size.height) * 0.45f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(primaryColor.copy(alpha = 0.08f), Color.Transparent),
+                        center = Offset(size.width * 0.15f, size.height * 0.2f),
+                        radius = radius1
+                    ),
+                    radius = radius1,
+                    center = Offset(size.width * 0.15f, size.height * 0.2f)
+                )
+
+                // Bottom right watercolor blob (Dusty Blue)
+                val radius2 = minOf(size.width, size.height) * 0.55f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(secondaryColor.copy(alpha = 0.07f), Color.Transparent),
+                        center = Offset(size.width * 0.85f, size.height * 0.8f),
+                        radius = radius2
+                    ),
+                    radius = radius2,
+                    center = Offset(size.width * 0.85f, size.height * 0.8f)
+                )
+            }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = containerPadding)
+                .padding(top = containerPadding, bottom = containerPadding + 16.dp),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xl)
+        ) {
+            // Header Section
+            Column(
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+            ) {
+                Text(
+                    text = stringResource(Res.string.library_title),
+                    style = if (isDesktop) AppTheme.typography.headlineLarge else AppTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Light,
+                    color = AppTheme.colors.primary
+                )
+                Text(
+                    text = stringResource(Res.string.library_desc),
+                    style = if (isDesktop) AppTheme.typography.bodyLarge else AppTheme.typography.bodyMedium,
+                    color = AppTheme.colors.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(AppTheme.spacing.md))
+                // Ink Line Separator
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    AppTheme.colors.primary.copy(alpha = 0.25f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+            }
+
+            // Bento Grid Layout
+            if (isDesktop) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
+                ) {
+                    LivingMemoryCard(
+                        modifier = Modifier
+                            .weight(2f)
+                            .height(424.dp)
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
+                    ) {
+                        LogicVesselCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                        )
+                        CreativeNebulaCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
+                    ) {
+                        DataCrystalCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                        )
+                        ForgeNewVesselCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+                ) {
+                    LivingMemoryCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(340.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+                    ) {
+                        LogicVesselCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(180.dp)
+                        )
+                        CreativeNebulaCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(180.dp)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+                    ) {
+                        DataCrystalCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(180.dp)
+                        )
+                        ForgeNewVesselCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(180.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BentoCard(
+    modifier: Modifier = Modifier,
+    backgroundColorBlob: Color = Color.Transparent,
+    blobCenter: (width: Float, height: Float) -> Offset = { w, h -> Offset(w, h) },
+    blobRadiusDp: Float = 100f,
+    blobHoverRadiusDp: Float = 150f,
+    blobAlpha: Float = 0.15f,
+    blobHoverAlpha: Float = 0.25f,
+    onClick: () -> Unit = {},
+    content: @Composable BoxScope.(isHovered: Boolean) -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    val translationY by animateDpAsState(
+        targetValue = if (isHovered) (-4).dp else 0.dp,
+        animationSpec = tween(durationMillis = 300)
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered) 1.01f else 1.0f,
+        animationSpec = tween(durationMillis = 300)
+    )
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isHovered) 0.35f else AppTheme.elevation.glassBorderAlpha,
+        animationSpec = tween(durationMillis = 300)
+    )
+    val glassAlpha by animateFloatAsState(
+        targetValue = if (isHovered) 0.8f else AppTheme.elevation.glassSurfaceAlpha,
+        animationSpec = tween(durationMillis = 300)
+    )
+    val animatedRadius by animateFloatAsState(
+        targetValue = if (isHovered) blobHoverRadiusDp else blobRadiusDp,
+        animationSpec = tween(durationMillis = 500)
+    )
+    val animatedAlpha by animateFloatAsState(
+        targetValue = if (isHovered) blobHoverAlpha else blobAlpha,
+        animationSpec = tween(durationMillis = 500)
+    )
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                this.translationY = translationY.toPx()
+                this.scaleX = scale
+                this.scaleY = scale
+            }
+            .glassSurface(
+                shape = AppTheme.shape.xxl,
+                alpha = glassAlpha,
+                borderAlpha = borderAlpha
+            )
+            .hoverable(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        if (backgroundColorBlob != Color.Transparent) {
+            val density = LocalDensity.current
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val r = with(density) { animatedRadius.dp.toPx() }
+                val centerOffset = blobCenter(size.width, size.height)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(backgroundColorBlob.copy(alpha = animatedAlpha), Color.Transparent),
+                        center = centerOffset,
+                        radius = r
+                    ),
+                    radius = r,
+                    center = centerOffset
+                )
+            }
+        }
+        content(isHovered)
+    }
+}
+
+@Composable
+fun LivingMemoryCard(
+    modifier: Modifier = Modifier
+) {
+    BentoCard(
+        modifier = modifier,
+        backgroundColorBlob = AppTheme.colors.primaryFixedDim,
+        blobCenter = { w, _ -> Offset(w + 40.dp.value, -40.dp.value) },
+        blobRadiusDp = 200f,
+        blobHoverRadiusDp = 260f,
+        blobAlpha = 0.18f,
+        blobHoverAlpha = 0.28f,
+        onClick = {}
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(AppTheme.spacing.lg)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                color = AppTheme.colors.primaryContainer.copy(alpha = 0.2f),
+                                shape = AppTheme.shape.full
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AllInclusive,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = AppTheme.colors.primary
+                        )
+                    }
+                    Text(
+                        text = stringResource(Res.string.library_living_memory),
+                        style = AppTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AppTheme.colors.primary
+                    )
+                }
+                
+                // Active badge
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
+                            shape = AppTheme.shape.full
+                        )
+                        .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.xs)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(
+                                    color = AppTheme.colors.primary,
+                                    shape = AppTheme.shape.full
+                                )
+                        )
+                        Text(
+                            text = stringResource(Res.string.library_status_active),
+                            style = AppTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = AppTheme.colors.primary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(AppTheme.spacing.md))
+
+            Text(
+                text = stringResource(Res.string.library_memory_desc),
+                style = AppTheme.typography.bodyMedium,
+                color = AppTheme.colors.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(AppTheme.spacing.lg))
+
+            // Thread list
+            Column(
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
+                modifier = Modifier.weight(1f)
+            ) {
+                val threads = listOf(
+                    Pair(Res.string.library_time_10m, Res.string.library_thread_1),
+                    Pair(Res.string.library_time_2h, Res.string.library_thread_2),
+                    Pair(Res.string.library_time_yesterday, Res.string.library_thread_3)
+                )
+
+                threads.forEach { thread ->
+                    val time = stringResource(thread.first)
+                    val title = stringResource(thread.second)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppTheme.shape.md)
+                            .background(AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.4f))
+                            .border(
+                                width = 0.5.dp,
+                                color = AppTheme.colors.outline.copy(alpha = 0.08f),
+                                shape = AppTheme.shape.md
+                            )
+                            .clickable { /* action */ }
+                            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = time,
+                            style = AppTheme.typography.bodySmall,
+                            color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            text = title,
+                            style = AppTheme.typography.bodyMedium,
+                            color = AppTheme.colors.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = AppTheme.spacing.md)
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = AppTheme.colors.outline.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LogicVesselCard(
+    modifier: Modifier = Modifier
+) {
+    ThemedBentoCard(
+        modifier = modifier,
+        title = stringResource(Res.string.library_logic_vessel),
+        desc = stringResource(Res.string.library_logic_desc),
+        icon = Icons.Filled.DataObject,
+        backgroundColorBlob = AppTheme.colors.secondary,
+        blobCenter = { _, h -> Offset(-20.dp.value, h + 20.dp.value) }
+    )
+}
+
+@Composable
+fun CreativeNebulaCard(
+    modifier: Modifier = Modifier
+) {
+    ThemedBentoCard(
+        modifier = modifier,
+        title = stringResource(Res.string.library_creative_nebula),
+        desc = stringResource(Res.string.library_creative_desc),
+        icon = Icons.Filled.Brush,
+        backgroundColorBlob = AppTheme.colors.tertiary,
+        blobCenter = { w, _ -> Offset(w + 20.dp.value, -20.dp.value) }
+    )
+}
+
+@Composable
+fun DataCrystalCard(
+    modifier: Modifier = Modifier
+) {
+    ThemedBentoCard(
+        modifier = modifier,
+        title = stringResource(Res.string.library_data_crystal),
+        desc = stringResource(Res.string.library_data_desc),
+        icon = Icons.Filled.Analytics,
+        backgroundColorBlob = AppTheme.colors.primary,
+        blobCenter = { w, h -> Offset(w / 2f, h / 2f) }
+    )
+}
+
+@Composable
+fun ThemedBentoCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    desc: String,
+    icon: ImageVector,
+    backgroundColorBlob: Color,
+    blobCenter: (width: Float, height: Float) -> Offset,
+    onClick: () -> Unit = {}
+) {
+    BentoCard(
+        modifier = modifier,
+        backgroundColorBlob = backgroundColorBlob,
+        blobCenter = blobCenter,
+        blobRadiusDp = 100f,
+        blobHoverRadiusDp = 150f,
+        blobAlpha = 0.16f,
+        blobHoverAlpha = 0.28f,
+        onClick = onClick
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(AppTheme.spacing.md),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = backgroundColorBlob.copy(alpha = 0.15f),
+                            shape = AppTheme.shape.full
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = backgroundColorBlob
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = AppTheme.colors.outline.copy(alpha = 0.3f)
+                )
+            }
+
+            Column {
+                Text(
+                    text = title,
+                    style = AppTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppTheme.colors.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = desc,
+                    style = AppTheme.typography.bodySmall,
+                    color = AppTheme.colors.onSurfaceVariant,
+                    lineHeight = AppTheme.typography.bodySmall.lineHeight * 1.2f
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ForgeNewVesselCard(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    val translationY by animateDpAsState(
+        targetValue = if (isHovered) (-4).dp else 0.dp,
+        animationSpec = tween(durationMillis = 300)
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered) 1.01f else 1.0f,
+        animationSpec = tween(durationMillis = 300)
+    )
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isHovered) 0.6f else 0.25f,
+        animationSpec = tween(durationMillis = 300)
+    )
+    val glassAlpha by animateFloatAsState(
+        targetValue = if (isHovered) 0.7f else 0.4f,
+        animationSpec = tween(durationMillis = 300)
+    )
+
+    val density = LocalDensity.current
+    val outlineColor = if (isHovered) AppTheme.colors.primary else AppTheme.colors.outline
+    val cornerRadius = with(density) { 32.dp.toPx() } // Shape.xxl round corner size (32.dp)
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                this.translationY = translationY.toPx()
+                this.scaleX = scale
+                this.scaleY = scale
+            }
+            .clip(AppTheme.shape.xxl)
+            .background(AppTheme.colors.surfaceContainerLow.copy(alpha = glassAlpha))
+            .drawBehind {
+                val stroke = Stroke(
+                    width = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f)
+                )
+                drawRoundRect(
+                    color = outlineColor.copy(alpha = borderAlpha),
+                    style = stroke,
+                    cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+                )
+            }
+            .hoverable(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
         ) {
-            Icon(
-                imageVector = Icons.Filled.LocalLibrary,
-                contentDescription = stringResource(Res.string.library),
-                modifier = Modifier.size(AppTheme.size.avatarLarge),
-                tint = AppTheme.colors.secondary.copy(alpha = 0.4f)
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = if (isHovered) AppTheme.colors.primary.copy(alpha = 0.15f) else AppTheme.colors.outline.copy(alpha = 0.1f),
+                        shape = AppTheme.shape.full
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (isHovered) AppTheme.colors.primary else AppTheme.colors.onSurfaceVariant
+                )
+            }
             Text(
-                text = stringResource(Res.string.library),
-                style = AppTheme.typography.headlineSmall,
-                color = AppTheme.colors.onSurface.copy(alpha = 0.6f)
+                text = stringResource(Res.string.library_forge_vessel),
+                style = AppTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isHovered) AppTheme.colors.primary else AppTheme.colors.onSurfaceVariant
             )
         }
     }
 }
+
