@@ -165,8 +165,6 @@
     <string name="chat_system_engine_not_initialized">System: LM Engine not initialized or model not loaded yet. Please wait or check the model path.</string>
     <string name="chat_system_error_prefix">Error: %1$s</string>
     <string name="chat_thinking_prefix">> *Thinking...*\n</string>
-    <string name="chat_running_tool">\n`[Running tool: %s...]`\n</string>
-    <string name="chat_tool_completed">\n`[Tool \'%s\' completed]`\n</string>
 
     <!-- Library Screen -->
     <string name="library_title">Ethereal Library</string>
