@@ -1,12 +1,9 @@
 package org.onion.agent.native.llm
 
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+
 
 enum class Role(val value: String) {
     SYSTEM("system"),
@@ -167,3 +164,57 @@ sealed class Content {
         }
     }
 }
+
+private fun sanitizeString(input: String): String {
+    val sb = StringBuilder(input.length)
+    var i = 0
+    while (i < input.length) {
+        val c = input[i]
+        if (c.isHighSurrogate()) {
+            sb.append("[SpecialChar]")
+            if (i + 1 < input.length && input[i + 1].isLowSurrogate()) {
+                i++
+            }
+        } else if (c.isLowSurrogate()) {
+            // Ignore orphaned low surrogates
+        } else {
+            val code = c.code
+            if (code < 32 && code != 9 && code != 10 && code != 13) {
+                // Skip control characters except tab (9), LF (10), CR (13)
+            } else if (code == 127) {
+                // Skip DEL
+            } else {
+                sb.append(c)
+            }
+        }
+        i++
+    }
+    return sb.toString()
+}
+
+fun JsonElement.sanitizeForLmLite(): JsonElement {
+    return when (this) {
+        is JsonObject -> {
+            buildJsonObject {
+                for ((k, v) in this@sanitizeForLmLite) {
+                    put(k, v.sanitizeForLmLite())
+                }
+            }
+        }
+        is JsonArray -> {
+            buildJsonArray {
+                for (item in this@sanitizeForLmLite) {
+                    add(item.sanitizeForLmLite())
+                }
+            }
+        }
+        is JsonPrimitive -> {
+            if (this.isString) {
+                JsonPrimitive(sanitizeString(this.content))
+            } else {
+                this
+            }
+        }
+    }
+}
+

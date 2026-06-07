@@ -26,10 +26,13 @@ class LmConversation(
             }
         }
 
+        val sanitizedMessageJson = message.toJson().sanitizeForLmLite()
+        val sanitizedExtraContextJson = extraContextObj.sanitizeForLmLite()
+
         LiteRtLmJni.sendLmMessageAsync(
             conversationPointer = handle,
-            messageJsonString = message.toJson().toString(),
-            extraContextJsonString = extraContextObj.toString(),
+            messageJsonString = sanitizedMessageJson.toString(),
+            extraContextJsonString = sanitizedExtraContextJson.toString(),
             onMessage = { messageJsonString ->
                 println("LmConversation: onMessage received: $messageJsonString")
                 try {
