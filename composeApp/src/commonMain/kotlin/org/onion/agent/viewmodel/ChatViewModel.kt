@@ -513,9 +513,17 @@ class ChatViewModel  : ViewModel() {
                             if (_currentChatMessages.isNotEmpty()) {
                                 val lastIdx = _currentChatMessages.lastIndex
                                 val meta = mapOf("is_generating" to "false")
-                                val errMsg = e.message ?: getString(Res.string.unknown_error)
+                                val errMsg = e.message ?: ""
+                                val isTokenLimit = errMsg.contains("too long", ignoreCase = true) ||
+                                        errMsg.contains("exceeding", ignoreCase = true) ||
+                                        errMsg.contains("token", ignoreCase = true)
+                                val displayMsg = if (isTokenLimit) {
+                                    getString(Res.string.chat_system_error_token_limit_exceeded)
+                                } else {
+                                    getString(Res.string.chat_system_error_prefix, errMsg.ifEmpty { getString(Res.string.unknown_error) })
+                                }
                                 _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
-                                    message = getString(Res.string.chat_system_error_prefix, errMsg),
+                                    message = displayMsg,
                                     metadata = meta
                                 )
                             }
