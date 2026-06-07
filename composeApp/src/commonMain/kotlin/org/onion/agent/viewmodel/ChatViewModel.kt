@@ -126,7 +126,7 @@ class ChatViewModel  : ViewModel() {
     var lmBackend = mutableStateOf("GPU")//NPU,CPU,GPU
     var lmVisionBackend = mutableStateOf("")
     var lmAudioBackend = mutableStateOf("")
-    var lmMaxNumTokens = mutableStateOf(2048)
+    var lmMaxNumTokens = mutableStateOf(4096)
     var lmMaxNumImages = mutableStateOf(-1)
     var lmMainBackendNumThreads = mutableStateOf(2)
     var lmAudioBackendNumThreads = mutableStateOf(-1)
@@ -157,7 +157,7 @@ class ChatViewModel  : ViewModel() {
             topK.value = 40
             enableThinking.value = false
             enableSpeculativeDecoding.value = false
-            lmMaxNumTokens.value = 2048
+            lmMaxNumTokens.value = 4096
             systemContextShift.value = true
             try {
                 systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default)
