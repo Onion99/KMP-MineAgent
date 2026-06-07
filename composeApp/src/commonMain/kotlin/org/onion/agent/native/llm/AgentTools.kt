@@ -236,55 +236,6 @@ class AgentTools : KoinComponent {
         return url.trim()
     }
 
-    private fun rewriteGithubUrl(urlString: String): String {
-        var url = urlString.trim()
-        if (url.endsWith(".git")) {
-            url = url.substring(0, url.length - 4)
-        }
-
-        // Pattern 1: https://github.com/owner/repo/blob/branch/path/to/file
-        val blobRegex = Regex("^https?://(?:www\\.)?github\\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)$", RegexOption.IGNORE_CASE)
-        val blobMatch = blobRegex.find(url)
-        if (blobMatch != null) {
-            val owner = blobMatch.groupValues[1]
-            val repo = blobMatch.groupValues[2]
-            val branch = blobMatch.groupValues[3]
-            val path = blobMatch.groupValues[4]
-            return "https://raw.githubusercontent.com/$owner/$repo/$branch/$path"
-        }
-
-        // Pattern 2: https://github.com/owner/repo/tree/branch/path/to/dir
-        val treeRegex = Regex("^https?://(?:www\\.)?github\\.com/([^/]+)/([^/]+)/tree/([^/]+)/(.+)$", RegexOption.IGNORE_CASE)
-        val treeMatch = treeRegex.find(url)
-        if (treeMatch != null) {
-            val owner = treeMatch.groupValues[1]
-            val repo = treeMatch.groupValues[2]
-            val branch = treeMatch.groupValues[3]
-            val path = treeMatch.groupValues[4]
-            return "https://api.github.com/repos/$owner/$repo/contents/$path?ref=$branch"
-        }
-
-        // Pattern 3: https://github.com/owner/repo/tree/branch (no path)
-        val treeRootRegex = Regex("^https?://(?:www\\.)?github\\.com/([^/]+)/([^/]+)/tree/([^/]+)/?$", RegexOption.IGNORE_CASE)
-        val treeRootMatch = treeRootRegex.find(url)
-        if (treeRootMatch != null) {
-            val owner = treeRootMatch.groupValues[1]
-            val repo = treeRootMatch.groupValues[2]
-            val branch = treeRootMatch.groupValues[3]
-            return "https://api.github.com/repos/$owner/$repo/contents/?ref=$branch"
-        }
-
-        // Pattern 4: https://github.com/owner/repo (root)
-        val rootRegex = Regex("^https?://(?:www\\.)?github\\.com/([^/]+)/([^/]+)/?$", RegexOption.IGNORE_CASE)
-        val rootMatch = rootRegex.find(url)
-        if (rootMatch != null) {
-            val owner = rootMatch.groupValues[1]
-            val repo = rootMatch.groupValues[2]
-            return "https://raw.githubusercontent.com/$owner/$repo/main/README.md"
-        }
-
-        return url
-    }
 
     private fun cleanHtml(html: String): String {
         var text = html.replace(Regex("<script[^>]*?>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
@@ -331,20 +282,13 @@ class AgentTools : KoinComponent {
         return try {
             val startTime = Clock.System.now().toEpochMilliseconds()
             val sanitizedUrlString = sanitizeUrl(urlString)
-            val originalUrlObj = try {
+            val targetUrlObj = try {
                 Url(sanitizedUrlString)
             } catch (e: Exception) {
                 return buildJsonObject {
                     put("success", false)
                     put("error", "Invalid URL: ${e.message} (original input was: $urlString)")
                 }.toString()
-            }
-
-            val targetUrlString = rewriteGithubUrl(sanitizedUrlString)
-            var targetUrlObj = try {
-                Url(targetUrlString)
-            } catch (e: Exception) {
-                originalUrlObj
             }
 
             val method = when (methodStr?.uppercase()) {
@@ -374,28 +318,10 @@ class AgentTools : KoinComponent {
                 parsedHeaders["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
 
-            var response: HttpResponse = try {
+            val response: HttpResponse = try {
                 executeRequest(targetUrlObj, method, parsedHeaders, bodyStr)
             } catch (e: Exception) {
                 throw e
-            }
-
-            // Fallback for Github README: if main branch returned 404, try master branch
-            if (response.status == HttpStatusCode.NotFound &&
-                targetUrlString.contains("raw.githubusercontent.com") &&
-                targetUrlString.endsWith("/main/README.md")
-            ) {
-                val fallbackUrlString = targetUrlString.replace("/main/README.md", "/master/README.md")
-                try {
-                    val fallbackUrlObj = Url(fallbackUrlString)
-                    val fallbackResponse = executeRequest(fallbackUrlObj, method, parsedHeaders, bodyStr)
-                    if (fallbackResponse.status == HttpStatusCode.OK) {
-                        response = fallbackResponse
-                        targetUrlObj = fallbackUrlObj
-                    }
-                } catch (e: Exception) {
-                    // stick with original response
-                }
             }
 
             val endTime = Clock.System.now().toEpochMilliseconds()
