@@ -23,7 +23,7 @@ trigger: always_on
 - **`data-network`**：网络层。包含 Ktor 客户端配置 (`NetworkModule.kt`)、API 服务。
 - **`data-model`**：领域对象和数据类。
 - **`shared`**：共享核心逻辑（如果使用）。
-- **`cpp`**：原生 C++ 实现（Stable Diffusion）。
+- **`cpp`**：原生 C++ 实现（LiteRT-LM）。
 
 ## 3. 架构与模式
 ### 实现架构 - MVVM
