@@ -30,19 +30,5 @@
     - `docs/agents/ui-theme.md`：Ethereal Minimalism 设计系统、色彩渐变、毛玻璃效果、圆角与间距 Token 细则。
     - `docs/agents/native-cpp.md`：Gemma/LiteRT JNI 的面向对象调用、C++ 底层内存与指针生命周期管理。
     - `docs/agents/i18n-guide.md`：多语言资源键名规范与 Compose 引用方式。
-    - `docs/agents/network-data.md`：Ktor 客户端配置、 Sandwich 响应处理与序列化规则。
-
-
-```
-.
-├── AGENTS.md                       # [NEW] 根目录总入口，只保留最核心的构建命令与导航指针
-└── docs/
-    ├── harness-engineering-spec.md # [NEW] 本规范文档
-    ├── code-style-guide.md        # [NEW] 编码与 UI 设计系统规范 (Ethereal Minimalism)
-    └── agents/                     # 分域 Agent 上下文目录
-        ├── ui-theme.md             # 详细的主题、动效及毛玻璃实现规范
-        ├── jni-llm.md              # LiteRT-LM C++ 绑定与 JNI 调用规约
-        └── data-network.md         # Ktor 与 Koin 依赖注入配置细则
-```
 
 > 按需加载（On-demand Loading）**：Agent 在执行特定任务时，必须通过查看目录结构，主动且仅加载与当前任务相关的细则文档（例如，只有在修改 UI 时才加载 `ui-theme.md`）。**严禁**一次性将所有文档读入上下文。
