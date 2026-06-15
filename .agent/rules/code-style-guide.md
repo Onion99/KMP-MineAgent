@@ -4,7 +4,7 @@ trigger: always_on
 
 # Kotlin Multiplatform 项目编码规范
 
-当前状态：2026-05-17
+当前状态：2026-06-15
 
 
 ## 1. 技术栈概览
@@ -50,33 +50,55 @@ trigger: always_on
     - **UI 中使用**：在 Composables 中使用 `stringResource(Res.string.key_name)`，**切勿**硬编码字符串。
     - **命名约定**：使用描述性、层级化的键名（例如 `settings_advanced_title`, `settings_flash_attn_desc`）。
 
-### 原生集成
 
-- **JNI (大模型文本)**：对于部署端侧大语言模型（如 Gemma），使用基于 Google LiteRT LM 封装的面向对象架构（位于 `native/llm/`）。
-    - **核心类**：`LmEngine` 负责引擎初始化及指针管理，`LmConversation` 桥接异步消息流。
-    - **消息传递**：使用 `Message`, `Content`, `ToolCall` 等封装类，基于 `kotlinx.serialization.json` 进行 JSON 解析与构建，并使用 `Flow` 接收异步流式响应，避免直接管理裸指针和原生 JSON 字符串。
+## 5. 智能体工作流程
 
-## 5. 开发工作流
-1.  **新功能**：
-    - 一切逻辑代码,力求简洁,高效,优雅
-    - 在 `data-model` 中定义数据模型。
-    - 如果需要，在 `data-network` 中创建/更新 API。
-    - 在 `composeApp/.../viewmodel` 中创建 ViewModel 并在 `ViewModelModule.kt` 中注册。
-    - 在 `ui/screen` 中创建`Screen`并在 `ui/navigation` 中添加路由。
-2.  **新页面**：
-    - 一切UI布局,力求美观,动效,富有创造力,向乔布斯学习
-    - 在 `ui/screen` 中创建屏幕，并在 `ui/navigation` 中添加路由
-    - 根据**适配策略**：使用 `AppTheme.contentType` 创建不同`ContentType`类型的Compose布局。
-        - `ContentType.Single`（移动端）：使用垂直布局（Column）防止过度拥挤。
-        - `ContentType.Dual`（桌面端）：使用水平布局（Row）最大化屏幕利用率。 
+**新功能开发流程**：
 
+```
+1. 人类：描述需求 + 指定目标模块
+2. 智能体：
+   a. 读取 code-style-guide.md（自动加载）
+   b. 按需读取 harness-engineering-spec.md
+   c. 在 data-model 定义数据模型
+   d. 在 data-network 创建 API（如需要）
+   e. 在 viewmodel/ 创建 ViewModel + 注册到 ViewModelModule.kt
+   f. 在 ui/screen/ 创建 Screen + 注册路由
+   g. 在 strings.xml 添加国际化字符串
+   h. 自我验证：编译通过 + 设计 token 正确
+3. 人类：审查 + 验证 + 反馈
+```
 
-## 6. 性能编码约束
+**新页面开发流程**：
 
-### 时间复杂度：
-1. 算法复杂度必须最优（目标 O(n) 或更优）
-2. 禁止在大数据量（>500）下使用 O(n²)
+```
+1. 人类：描述页面功能 + UI 需求
+2. 智能体：
+   a. 检查 ContentType 适配需求（Single / Dual）
+   b. 使用 AppTheme.* token 构建 UI
+   c. 使用 Modifier.glassSurface() / watercolorGradient() 实现毛玻璃美学
+   d. 国际化所有用户可见文本
+   e. 响应式布局：Mobile = Column，Desktop = Row
+3. 人类：视觉审查 + 交互验证
+```
 
-### 循环与计算：
-1. 禁止在循环内重复计算
-2. 禁止嵌套循环（无必要时）
+## 6. Agent 开发核心约束
+
+### 架构与技术栈约束
+- **核心框架**：Kotlin Multiplatform + Compose Multiplatform
+- **注入与路由**：使用 Koin (v4.1.1) 进行依赖注入，使用 Jetpack Navigation Compose (v2.9.0-beta04) 实现类型安全路由。
+- **MVVM 规约**：视图层（Composables）严禁编写复杂的业务和网络调用逻辑，必须委派给 ViewModel 处理。所有的 ViewModel 应注册在 `ViewModelModule.kt`。
+
+### UI 样式规约 (Ethereal Minimalism)
+- **零硬编码**：禁止使用 `Color(0xFF...)` 或硬编码圆角大小。必须引用 `AppTheme.colors.*` 等系统 Token。
+- **毛玻璃与渐变**：
+    - 玻璃卡片统一使用 `Modifier.glassSurface()` 扩展函数。
+    - 水彩背景统一使用 `Modifier.watercolorGradient()`。
+- **布局适配**：
+    - 必须使用 `AppTheme.contentType` 适配单栏（Mobile, `ContentType.Single`）和双栏（Desktop/Tablet, `ContentType.Dual`）布局。
+
+### 性能约束
+- 对于数据量大于 500 的集合，算法复杂度必须在 $O(n)$ 或以内，禁止双重循环。
+- 禁止在 `for`/`forEach` 循环内进行重复计算或高开销的操作（如重复解析 JSON、重复格式化日期）
+- Compose 重组域中禁止重复进行未缓存的高开销计算，重组期间的高开销操作必须使用 `remember` 进行包裹。
+
