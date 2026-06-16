@@ -14,7 +14,7 @@
 1. 一切架构决策、设计取舍必须以 Markdown 提交到 `docs/`和所有的 API 设计、数据库 Scheme 变更、重构方案必须沉淀到 `docs/` 目录下（如 `docs/specs/`, `docs/designs/`）
 2. 黄金规则代码化：代码规范不应仅仅是一份说明，必须转译为 `.editorconfig`, `detekt.yml` 或自定义 Lint 规则
 3. 实施路径双向同步：Agent 的每一次架构修改，必须伴随对应设计文档的更新
-4. 变更有迹可循, [CHANGELOG.md](../CHANGELOG.md) 记录每个版本的重要变更
+4. 变更有迹可循, [CHANGELOG.md](../../CHANGELOG.md) 记录每个版本的重要变更
 
 
 ### 2. 渐进式上下文管理 (Progressive Context Management)
