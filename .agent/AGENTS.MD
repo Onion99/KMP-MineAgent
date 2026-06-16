@@ -34,6 +34,7 @@
     └── agents/                     # 分域 Agent 上下文目录
         ├── ui-theme.md             # Ethereal Minimalism 设计系统、色彩渐变、毛玻璃效果、圆角与间距 Token 细则
         ├── i18n-guide.md           # 多语言资源键名规范与 Compose 引用方式
+        ├── data-model.md           # 定义系统的数据载体
         └── native-cpp.md           # Gemma/LiteRT JNI 的面向对象调用、C++ 底层内存与指针生命周期管理
 ```
 
