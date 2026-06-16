@@ -1,5 +1,6 @@
 package org.onion.agent.native.llm
 
+import com.fleeksoft.ksoup.Ksoup
 import kotlinx.serialization.json.*
 import com.dokar.quickjs.quickJs
 import io.ktor.client.HttpClient
@@ -11,6 +12,11 @@ import org.koin.core.component.get
 import kotlin.time.Clock
 
 class AgentTools : KoinComponent {
+
+    private companion object {
+        const val DEFAULT_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
     private val httpClient: HttpClient by lazy {
         try {
@@ -144,6 +150,36 @@ class AgentTools : KoinComponent {
                     })
                 })
             })
+            // searchWeb
+            add(buildJsonObject {
+                put("type", "function")
+                put("function", buildJsonObject {
+                    put("name", "searchWeb")
+                    put("description", "Searches the latest web content with Bing and returns structured, indexable results.")
+                    put("parameters", buildJsonObject {
+                        put("type", "object")
+                        put("properties", buildJsonObject {
+                            put("query", buildJsonObject {
+                                put("type", "string")
+                                put("description", "The search query.")
+                            })
+                            put("count", buildJsonObject {
+                                put("type", "integer")
+                                put("description", "Number of search results to return. Default is 5, maximum is 10.")
+                            })
+                            put("includeContent", buildJsonObject {
+                                put("type", "boolean")
+                                put("description", "Whether to fetch each result page and include cleaned text for indexing. Default is false.")
+                            })
+                            put("maxContentChars", buildJsonObject {
+                                put("type", "integer")
+                                put("description", "Maximum cleaned text characters per fetched page when includeContent is true. Default is 4000.")
+                            })
+                        })
+                        put("required", buildJsonArray { add("query") })
+                    })
+                })
+            })
         }.toString()
     }
 
@@ -178,6 +214,13 @@ class AgentTools : KoinComponent {
                 val headers = arguments["headers"]?.jsonPrimitive?.contentOrNull
                 val body = arguments["body"]?.jsonPrimitive?.contentOrNull
                 analyzeUrl(urlObj, method, headers, body)
+            }
+            "searchWeb" -> {
+                val query = arguments["query"]?.jsonPrimitive?.contentOrNull ?: ""
+                val count = arguments["count"]?.jsonPrimitive?.intOrNull
+                val includeContent = arguments["includeContent"]?.jsonPrimitive?.booleanOrNull
+                val maxContentChars = arguments["maxContentChars"]?.jsonPrimitive?.intOrNull
+                searchWeb(query, count, includeContent, maxContentChars)
             }
             else -> "Error: Tool '$name' not found."
         }
@@ -237,22 +280,45 @@ class AgentTools : KoinComponent {
     }
 
 
-    private fun cleanHtml(html: String): String {
-        var text = html.replace(Regex("<script[^>]*?>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
-        text = text.replace(Regex("<style[^>]*?>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
-        text = text.replace(Regex("<svg[^>]*?>[\\s\\S]*?</svg>", RegexOption.IGNORE_CASE), "")
-        text = text.replace(Regex("<!--[\\s\\S]*?-->"), "")
-        text = text.replace(Regex("</?(?:p|div|h1|h2|h3|h4|h5|h6|li|tr|section|article|header|footer)[^>]*?>", RegexOption.IGNORE_CASE), "\n")
-        text = text.replace(Regex("<[^>]*?>"), "")
-        text = text.replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .replace("&quot;", "\"")
-            .replace("&apos;", "'")
-        text = text.replace(Regex("\n\\s*\n"), "\n")
-        text = text.replace(Regex(" +"), " ")
-        return text.trim()
+    private fun cleanHtml(html: String, baseUri: String = ""): String {
+        return try {
+            val document = Ksoup.parse(html = html, baseUri = baseUri)
+            document.select("script, style, svg, noscript, iframe, nav, footer, form").remove()
+            document.body().text().normalizeWhitespace()
+        } catch (e: Exception) {
+            html.replace(Regex("<script[^>]*?>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("<style[^>]*?>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("<[^>]*?>"), " ")
+                .normalizeWhitespace()
+        }
+    }
+
+    private fun String.normalizeWhitespace(): String {
+        return replace(Regex("\\s+"), " ").trim()
+    }
+
+    private fun String.truncateForTool(maxChars: Int): String {
+        val boundedMax = maxChars.coerceIn(200, 20_000)
+        return if (length > boundedMax) {
+            substring(0, boundedMax) + "... [truncated]"
+        } else {
+            this
+        }
+    }
+
+    private fun applyBrowserHeaders(headers: MutableMap<String, String>) {
+        val hasUserAgent = headers.keys.any { it.equals("User-Agent", ignoreCase = true) }
+        if (!hasUserAgent) {
+            headers["User-Agent"] = DEFAULT_USER_AGENT
+        }
+        val hasAccept = headers.keys.any { it.equals("Accept", ignoreCase = true) }
+        if (!hasAccept) {
+            headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+        val hasAcceptLanguage = headers.keys.any { it.equals("Accept-Language", ignoreCase = true) }
+        if (!hasAcceptLanguage) {
+            headers["Accept-Language"] = "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7"
+        }
     }
 
     private suspend fun executeRequest(
@@ -269,6 +335,137 @@ class AgentTools : KoinComponent {
             if (!bodyStr.isNullOrBlank()) {
                 setBody(bodyStr)
             }
+        }
+    }
+
+    private fun buildBingSearchUrl(query: String, count: Int): Url {
+        return URLBuilder("https://www.bing.com/search").apply {
+            parameters.append("q", query)
+            parameters.append("count", count.toString())
+            parameters.append("mkt", "en-US")
+        }.build()
+    }
+
+    private fun resolveSearchResultUrl(rawUrl: String): String {
+        val href = rawUrl.trim()
+        return when {
+            href.startsWith("http://") || href.startsWith("https://") -> href
+            href.startsWith("//") -> "https:$href"
+            href.startsWith("/") -> "https://www.bing.com$href"
+            else -> href
+        }
+    }
+
+    private suspend fun fetchSearchResultContent(url: String, maxContentChars: Int): JsonObject {
+        return try {
+            val targetUrl = Url(sanitizeUrl(url))
+            val headers = mutableMapOf<String, String>()
+            applyBrowserHeaders(headers)
+            val response = executeRequest(targetUrl, HttpMethod.Get, headers, null)
+            val contentType = response.headers["Content-Type"] ?: ""
+            val rawBody = response.bodyAsText()
+            val cleanedBody = if (contentType.contains("html", ignoreCase = true)) {
+                cleanHtml(rawBody, targetUrl.toString())
+            } else {
+                rawBody.normalizeWhitespace()
+            }
+            buildJsonObject {
+                put("contentFetched", true)
+                put("statusCode", response.status.value)
+                put("contentType", contentType)
+                put("content", cleanedBody.truncateForTool(maxContentChars))
+            }
+        } catch (e: Exception) {
+            buildJsonObject {
+                put("contentFetched", false)
+                put("contentError", e.message ?: "Unable to fetch result content.")
+            }
+        }
+    }
+
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    private suspend fun searchWeb(
+        query: String,
+        count: Int?,
+        includeContent: Boolean?,
+        maxContentChars: Int?
+    ): String {
+        return try {
+            val normalizedQuery = query.trim()
+            if (normalizedQuery.isBlank()) {
+                return buildJsonObject {
+                    put("success", false)
+                    put("error", "Search query cannot be blank.")
+                }.toString()
+            }
+
+            val resultLimit = (count ?: 5).coerceIn(1, 10)
+            val shouldFetchContent = includeContent ?: false
+            val contentLimit = (maxContentChars ?: 4000).coerceIn(500, 20_000)
+            val startedAt = Clock.System.now().toString()
+            val searchUrl = buildBingSearchUrl(normalizedQuery, resultLimit)
+            val headers = mutableMapOf<String, String>()
+            applyBrowserHeaders(headers)
+
+            val response = executeRequest(searchUrl, HttpMethod.Get, headers, null)
+            val html = response.bodyAsText()
+            val document = Ksoup.parse(html = html, baseUri = "https://www.bing.com")
+            val resultItems = document.select("li.b_algo")
+            val parsedResults = mutableListOf<JsonObject>()
+
+            for (item in resultItems) {
+                if (parsedResults.size >= resultLimit) break
+
+                val link = item.select("h2 a").first() ?: continue
+                val rawUrl = link.absUrl("href").ifBlank { link.attr("href") }
+                val url = resolveSearchResultUrl(rawUrl)
+                if (url.isBlank()) continue
+
+                val title = link.text().normalizeWhitespace()
+                val snippet = (item.select(".b_caption p").first() ?: item.select("p").first())
+                    ?.text()
+                    ?.normalizeWhitespace()
+                    .orEmpty()
+                val displayUrl = item.select("cite").first()?.text()?.normalizeWhitespace().orEmpty()
+
+                val pageContent = if (shouldFetchContent) {
+                    fetchSearchResultContent(url, contentLimit)
+                } else {
+                    buildJsonObject { put("contentFetched", false) }
+                }
+
+                parsedResults += buildJsonObject {
+                    put("rank", parsedResults.size + 1)
+                    put("title", title)
+                    put("url", url)
+                    put("displayUrl", displayUrl)
+                    put("snippet", snippet)
+                    pageContent.forEach { (key, value) -> put(key, value) }
+                }
+            }
+
+            buildJsonObject {
+                put("success", true)
+                put("provider", "bing")
+                put("query", normalizedQuery)
+                put("requestedCount", resultLimit)
+                put("resultCount", parsedResults.size)
+                put("fetchedAt", startedAt)
+                put("searchUrl", searchUrl.toString())
+                put("results", buildJsonArray {
+                    parsedResults.forEach { add(it) }
+                })
+                if (parsedResults.isEmpty()) {
+                    put("warning", "No standard Bing search results were parsed from the response.")
+                }
+            }.toString()
+        } catch (e: Exception) {
+            buildJsonObject {
+                put("success", false)
+                put("provider", "bing")
+                put("query", query)
+                put("error", "Search failed: ${e.message}")
+            }.toString()
         }
     }
 
@@ -313,10 +510,7 @@ class AgentTools : KoinComponent {
                 }
             }
 
-            val hasUserAgent = parsedHeaders.keys.any { it.equals("User-Agent", ignoreCase = true) }
-            if (!hasUserAgent) {
-                parsedHeaders["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
+            applyBrowserHeaders(parsedHeaders)
 
             val response: HttpResponse = try {
                 executeRequest(targetUrlObj, method, parsedHeaders, bodyStr)
@@ -337,7 +531,7 @@ class AgentTools : KoinComponent {
             }
 
             val cleanedBody = if (isHtml) {
-                cleanHtml(rawBody)
+                cleanHtml(rawBody, targetUrlObj.toString())
             } else {
                 rawBody
             }
@@ -383,11 +577,7 @@ class AgentTools : KoinComponent {
                     put("isHtmlCleaned", isHtml)
                     put("contentLength", response.contentLength() ?: cleanedBody.length.toLong())
                     
-                    val preview = if (cleanedBody.length > 2000) {
-                        cleanedBody.substring(0, 2000) + "... [truncated]"
-                    } else {
-                        cleanedBody
-                    }
+                    val preview = cleanedBody.truncateForTool(2000)
                     put("contentPreview", preview)
                 })
             }.toString()

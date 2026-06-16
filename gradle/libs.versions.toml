@@ -24,6 +24,7 @@ kotlinx-serialization = "1.8.0"
 koin = "4.1.1"
 lottieVersion = "2.0.0-rc04"
 quickjs = "1.0.0-alpha13"
+ksoup = "0.2.6"
 sandwich = "2.1.2"
 logback = "1.5.18"
 compose-adaptive = "1.1.2"
@@ -73,6 +74,8 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "kotlinx-serialization" }
 #=== JS
 quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
+#=== HTML/XML Parser
+ksoup = { module = "com.fleeksoft.ksoup:ksoup", version.ref = "ksoup" }
 #=== JNA
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 #=== Koin
