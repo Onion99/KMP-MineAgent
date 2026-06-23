@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachFile
@@ -212,7 +214,10 @@ fun ChatScreen(
                     ) {
                         IconButton(
                             onClick = {
-                                chatViewModel.currentChatMessages.clear()
+                                chatViewModel.startNewConversation()
+                                text = ""
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
                             },
                             modifier = Modifier.size(40.dp).background(AppTheme.colors.primaryContainer.copy(alpha = 0.2f), CircleShape)
                         ) {
@@ -277,6 +282,12 @@ fun ChatScreen(
                             focusManager.clearFocus()
                         }
                     }
+                },
+                onNewConversationClick = {
+                    chatViewModel.startNewConversation()
+                    text = ""
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
                 },
                 onTextChange = { text = it }
             )
@@ -845,6 +856,7 @@ fun InputArea(
     isGenerating: Boolean,
     onAttachClick: () -> Unit,
     onSendClick: () -> Unit,
+    onNewConversationClick: () -> Unit,
     onTextChange: (String) -> Unit
 ) {
     val isSingle = AppTheme.contentType == ContentType.Single
@@ -959,96 +971,134 @@ fun InputArea(
                 }
             } else {
                 // Desktop Input Area
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .glassSurface(
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp),
-                                alpha = AppTheme.elevation.glassSurfaceAlpha,
-                                borderAlpha = AppTheme.elevation.glassBorderAlpha
-                            )
+                            .align(Alignment.TopStart)
+                            .offset(y = (-48).dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onNewConversationClick)
                             .background(
-                                color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.6f),
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
+                                color = AppTheme.colors.surfaceContainerLow.copy(alpha = 0.6f),
+                                shape = CircleShape
                             )
                             .border(
                                 width = 1.dp,
-                                color = AppTheme.colors.outlineVariant.copy(alpha = 0.4f),
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
+                                color = AppTheme.colors.outlineVariant.copy(alpha = 0.2f),
+                                shape = CircleShape
                             )
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        //horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IconButton(
-                            onClick = onAttachClick,
-                            modifier = Modifier.size(40.dp).align(Alignment.CenterVertically)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.AttachFile,
-                                contentDescription = stringResource(Res.string.attachment),
-                                tint = AppTheme.colors.outline,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 30.dp, max = 150.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (text.isEmpty()) {
-                                Text(
-                                    text = stringResource(Res.string.chat_input_hint_desktop),
-                                    style = AppTheme.typography.bodyMedium,
-                                    color = AppTheme.colors.outline.copy(alpha = 0.5f)
-                                )
-                            }
-                            MediumOutlinedTextField(
-                                value = text,
-                                onValueChange = onTextChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp),
-                                singleLine = false,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedContainerColor = Color.Transparent
-                                ),
-                                style = AppTheme.typography.bodyMedium.copy(color = AppTheme.colors.onSurface)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = onSendClick,
-                            modifier = Modifier
-                                .background(
-                                    color = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
-                                    shape = CircleShape
-                                ).align(Alignment.CenterVertically).size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isGenerating) Icons.Filled.Stop else Icons.Filled.ArrowUpward,
-                                contentDescription = if (isGenerating) stringResource(Res.string.stop_generation) else stringResource(Res.string.send_message),
-                                tint = AppTheme.colors.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = stringResource(Res.string.new_chat),
+                            tint = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = stringResource(Res.string.new_chat).uppercase(),
+                            style = AppTheme.typography.labelMedium.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.4.sp
+                            ),
+                            color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
                     }
 
-                    Text(
-                        text = stringResource(Res.string.chat_disclaimer),
-                        style = AppTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = AppTheme.colors.outline.copy(alpha = 0.6f),
-                        letterSpacing = 0.5.sp
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .glassSurface(
+                                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp),
+                                    alpha = AppTheme.elevation.glassSurfaceAlpha,
+                                    borderAlpha = AppTheme.elevation.glassBorderAlpha
+                                )
+                                .background(
+                                    color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = AppTheme.colors.outlineVariant.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.Bottom,
+                            //horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            IconButton(
+                                onClick = onAttachClick,
+                                modifier = Modifier.size(40.dp).align(Alignment.CenterVertically)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AttachFile,
+                                    contentDescription = stringResource(Res.string.attachment),
+                                    tint = AppTheme.colors.outline,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 30.dp, max = 150.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (text.isEmpty()) {
+                                    Text(
+                                        text = stringResource(Res.string.chat_input_hint_desktop),
+                                        style = AppTheme.typography.bodyMedium,
+                                        color = AppTheme.colors.outline.copy(alpha = 0.5f)
+                                    )
+                                }
+                                MediumOutlinedTextField(
+                                    value = text,
+                                    onValueChange = onTextChange,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(20.dp),
+                                    singleLine = false,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedContainerColor = Color.Transparent
+                                    ),
+                                    style = AppTheme.typography.bodyMedium.copy(color = AppTheme.colors.onSurface)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = onSendClick,
+                                modifier = Modifier
+                                    .background(
+                                        color = AppTheme.colors.primaryContainer.copy(alpha = 0.3f),
+                                        shape = CircleShape
+                                    ).align(Alignment.CenterVertically).size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isGenerating) Icons.Filled.Stop else Icons.Filled.ArrowUpward,
+                                    contentDescription = if (isGenerating) stringResource(Res.string.stop_generation) else stringResource(Res.string.send_message),
+                                    tint = AppTheme.colors.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = stringResource(Res.string.chat_disclaimer),
+                            style = AppTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = AppTheme.colors.outline.copy(alpha = 0.6f),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                 }
             }
         }

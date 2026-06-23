@@ -31,11 +31,8 @@ apply: always
    它是一个“地图”。它负责告诉 Agent 项目的基本技术栈（KMP、Compose、Koin、Ktor、Sandwich、LiteRT），并引导 Agent 去哪里寻找详细规范。
 2. **细分领域手册：`docs/agents/` 目录**
 ```
-├── .agent/
-│   └── rules/
-│       └── AGENTS.md       ← [always_on] 根目录总入口，只保留最核心的构建命令与导航指针
 └── docs/
-    ├── code-style-guide.md        # [always_on] 编码规范
+    ├── code-style-guide.md        # [always_on] 必须加载的编码规范
     └── agents/                     # 分域 Agent 上下文目录
         ├── ui-theme.md             # Ethereal Minimalism 设计系统、色彩渐变、毛玻璃效果、圆角与间距 Token 细则
         ├── i18n-guide.md           # 多语言资源键名规范与 Compose 引用方式

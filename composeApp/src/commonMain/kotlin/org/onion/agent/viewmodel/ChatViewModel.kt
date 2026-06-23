@@ -432,6 +432,37 @@ class ChatViewModel  : ViewModel() {
     /** Flag indicating if response generation is in progress */
     val isGenerating = mutableStateOf(false)
 
+    fun startNewConversation() {
+        viewModelScope.launch {
+            if (isGenerating.value) {
+                stopGeneration()
+            }
+
+            _currentChatMessages.clear()
+
+            try {
+                lmConversation?.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            lmConversation = try {
+                lmEngine?.createConversation(
+                    systemInstruction = systemPrompt.value,
+                    toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+                    samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                        temperature = temperature.value.toDouble(),
+                        topP = topP.value.toDouble(),
+                        topK = topK.value
+                    )
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
     // region Message Handling & Generation
     // ========================================================================================
     //                          Public Message Methods
