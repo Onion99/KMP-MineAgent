@@ -38,7 +38,7 @@ trigger: always_on
 1. 人类：描述需求 + 指定目标模块
 2. 智能体：
    a. 读取 code-style-guide.md（自动加载）
-   b. 按需读取 harness-engineering-spec.md
+   b. 按需读取 about.md文件
    c. 在 data-model 定义数据模型
    d. 在 data-network 创建 API（如需要）
    e. 在 viewmodel/ 创建 ViewModel + 注册到 ViewModelModule.kt
