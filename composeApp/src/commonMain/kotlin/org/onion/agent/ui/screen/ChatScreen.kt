@@ -194,7 +194,7 @@ fun ChatScreen(
         ) {
             // Mobile Top Header
             if (AppTheme.contentType == ContentType.Single) {
-                Row(
+                /*Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(AppTheme.colors.surface.copy(alpha = 0.8f))
@@ -244,7 +244,7 @@ fun ChatScreen(
                             )
                         }
                     }
-                }
+                }*/
             }
 
             // Chat History Scrollable Area
