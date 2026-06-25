@@ -194,57 +194,7 @@ fun ChatScreen(
         ) {
             // Mobile Top Header
             if (AppTheme.contentType == ContentType.Single) {
-                /*Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(AppTheme.colors.surface.copy(alpha = 0.8f))
-                        .padding(horizontal = AppTheme.spacing.containerPaddingMobile, vertical = 16.dp)
-                        .zIndex(30f),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(Res.string.brand_short),
-                        style = AppTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, letterSpacing = 2.sp),
-                        color = AppTheme.colors.primary
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                chatViewModel.startNewConversation()
-                                text = ""
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
-                            },
-                            modifier = Modifier.size(40.dp).background(AppTheme.colors.primaryContainer.copy(alpha = 0.2f), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.AddCircle,
-                                contentDescription = stringResource(Res.string.new_chat),
-                                tint = AppTheme.colors.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar(getString(Res.string.feature_not_available))
-                                }
-                            },
-                            modifier = Modifier.size(40.dp).background(AppTheme.colors.primaryContainer.copy(alpha = 0.2f), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.History,
-                                contentDescription = stringResource(Res.string.history),
-                                tint = AppTheme.colors.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                }*/
+                //...
             }
 
             // Chat History Scrollable Area
@@ -282,6 +232,12 @@ fun ChatScreen(
                             focusManager.clearFocus()
                         }
                     }
+                },
+                onNewChatClick = {
+                    chatViewModel.startNewConversation()
+                    text = ""
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
                 },
                 onNewConversationClick = {
                     chatViewModel.startNewConversation()
@@ -856,7 +812,7 @@ fun InputArea(
     isGenerating: Boolean,
     onAttachClick: () -> Unit,
     onSendClick: () -> Unit,
-    onNewConversationClick: () -> Unit,
+    onNewChatClick: () -> Unit,
     onTextChange: (String) -> Unit
 ) {
     val isSingle = AppTheme.contentType == ContentType.Single
@@ -886,7 +842,14 @@ fun InputArea(
         ) {
             if (isSingle) {
                 // Mobile Input Area
-                Row(
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    NewConversationAction(onClick = onNewChatClick)
+
+                    Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
@@ -969,82 +932,51 @@ fun InputArea(
                         )
                     }
                 }
+                }
             } else {
                 // Desktop Input Area
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    NewConversationAction(
+                        onClick = onNewChatClick,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+
                     Row(
                         modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset(y = (-48).dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onNewConversationClick)
+                            .fillMaxWidth()
+                            .glassSurface(
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp),
+                                alpha = AppTheme.elevation.glassSurfaceAlpha,
+                                borderAlpha = AppTheme.elevation.glassBorderAlpha
+                            )
                             .background(
-                                color = AppTheme.colors.surfaceContainerLow.copy(alpha = 0.6f),
-                                shape = CircleShape
+                                color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
                             )
                             .border(
                                 width = 1.dp,
-                                color = AppTheme.colors.outlineVariant.copy(alpha = 0.2f),
-                                shape = CircleShape
+                                color = AppTheme.colors.outlineVariant.copy(alpha = 0.4f),
+                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
                             )
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        //horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = stringResource(Res.string.new_chat),
-                            tint = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = stringResource(Res.string.new_chat).uppercase(),
-                            style = AppTheme.typography.labelMedium.copy(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 1.4.sp
-                            ),
-                            color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .glassSurface(
-                                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp),
-                                    alpha = AppTheme.elevation.glassSurfaceAlpha,
-                                    borderAlpha = AppTheme.elevation.glassBorderAlpha
-                                )
-                                .background(
-                                    color = AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.6f),
-                                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = AppTheme.colors.outlineVariant.copy(alpha = 0.4f),
-                                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 0.dp)
-                                )
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.Bottom,
-                            //horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        IconButton(
+                            onClick = onAttachClick,
+                            modifier = Modifier.size(40.dp).align(Alignment.CenterVertically)
                         ) {
-                            IconButton(
-                                onClick = onAttachClick,
-                                modifier = Modifier.size(40.dp).align(Alignment.CenterVertically)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.AttachFile,
-                                    contentDescription = stringResource(Res.string.attachment),
-                                    tint = AppTheme.colors.outline,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.AttachFile,
+                                contentDescription = stringResource(Res.string.attachment),
+                                tint = AppTheme.colors.outline,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
 
                             Box(
                                 modifier = Modifier
@@ -1102,5 +1034,46 @@ fun InputArea(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NewConversationAction(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(AppTheme.shape.full)
+            .glassSurface(
+                shape = AppTheme.shape.full,
+                alpha = AppTheme.elevation.glassSurfaceAlpha,
+                borderAlpha = AppTheme.elevation.glassBorderAlpha
+            )
+            .background(
+                color = AppTheme.colors.surfaceContainerLow.copy(alpha = 0.6f),
+                shape = AppTheme.shape.full
+            )
+            .border(
+                width = 1.dp,
+                color = AppTheme.colors.outlineVariant.copy(alpha = 0.2f),
+                shape = AppTheme.shape.full
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.AddCircle,
+            contentDescription = stringResource(Res.string.new_chat),
+            tint = AppTheme.colors.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = stringResource(Res.string.new_chat),
+            style = AppTheme.typography.labelMedium.copy(fontSize = 11.sp, letterSpacing = 1.2.sp),
+            color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.8f)
+        )
     }
 }

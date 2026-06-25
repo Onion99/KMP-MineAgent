@@ -487,6 +487,33 @@ class ChatViewModel  : ViewModel() {
         val negativePrompt = message.metadata?.get("negative_prompt") ?: ""
     }
 
+    fun startNewConversation() {
+        viewModelScope.launch(Dispatchers.Default) {
+            if (isGenerating.value) {
+                stopGeneration()
+            }
+            try {
+                lmConversation?.close()
+                lmConversation = lmEngine?.createConversation(
+                    systemInstruction = systemPrompt.value,
+                    toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+                    samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                        temperature = temperature.value.toDouble(),
+                        topP = topP.value.toDouble(),
+                        topK = topK.value
+                    )
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                lmConversation = null
+            } finally {
+                _currentChatMessages.clear()
+                isGenerating.value = false
+                isInferenceOn = false
+            }
+        }
+    }
+
     fun stopGeneration() {
         isGenerating.value = false
         if (lmConversation != null && llmPath.value.isNotBlank()) {
