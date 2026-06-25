@@ -44,7 +44,8 @@ trigger: always_on
    e. 在 viewmodel/ 创建 ViewModel + 注册到 ViewModelModule.kt
    f. 在 ui/screen/ 创建 Screen + 注册路由
    g. 在 strings.xml 添加国际化字符串
-   h. 自我验证：编译通过 + 设计 token 正确
+   h. 编写或更新设计/说明文档于 docs/，并更新 CHANGELOG.md（遵循 AGENTS.md 的 DoD 标准）
+   i. 自我验证：编译通过 + 设计 token 正确
 3. 人类：审查 + 验证 + 反馈
 ```
 
@@ -58,6 +59,7 @@ trigger: always_on
    c. 使用 Modifier.glassSurface() / watercolorGradient() 实现毛玻璃美学
    d. 国际化所有用户可见文本
    e. 响应式布局：Mobile = Column，Desktop = Row
+   f. 更新 CHANGELOG.md 并同步 docs/ 下的 UI/页面说明文档
 3. 人类：视觉审查 + 交互验证
 ```
 
