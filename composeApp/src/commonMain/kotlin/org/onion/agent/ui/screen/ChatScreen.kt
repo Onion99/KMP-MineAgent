@@ -422,11 +422,6 @@ private fun ChatHistoryPanel(
                     style = AppTheme.typography.headlineMedium,
                     color = AppTheme.colors.primary
                 )
-                Text(
-                    text = "${sessions.size}",
-                    style = AppTheme.typography.bodySmall,
-                    color = AppTheme.colors.onSurfaceVariant
-                )
             }
             IconButton(onClick = onClose) {
                 Icon(
