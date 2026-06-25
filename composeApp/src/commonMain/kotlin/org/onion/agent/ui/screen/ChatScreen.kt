@@ -239,12 +239,6 @@ fun ChatScreen(
                     keyboardController?.hide()
                     focusManager.clearFocus()
                 },
-                onNewConversationClick = {
-                    chatViewModel.startNewConversation()
-                    text = ""
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                },
                 onTextChange = { text = it }
             )
         }
