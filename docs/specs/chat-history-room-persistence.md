@@ -1,0 +1,76 @@
+# Chat 会话持久化与历史记录
+
+> 日期: 2026-06-25
+> 范围: `composeApp` Chat/Library 会话历史能力
+
+## 1. 目标
+
+补齐 Chat 会话的长期保存能力，替代仅存在内存中的 `currentChatMessages`，并让 Chat 页和 Library 页共享同一份历史记录。
+
+## 2. 技术方案
+
+采用 KMP Room 作为跨端持久化层。
+
+- Room/KMP 配置依据 Android 官方 Room KMP 文档: https://developer.android.com/kotlin/multiplatform/room
+- 数据库定义位于 commonMain: `org.onion.agent.database.AgentDatabase`
+- 平台差异仅保留 database builder:
+  - Android: `AndroidAgentDatabase.kt`
+  - Desktop: `DesktopAgentDatabase.kt`
+  - iOS: `IosAgentDatabase.kt`
+- 使用 `BundledSQLiteDriver`，避免各平台系统 SQLite 版本差异。
+
+## 3. Schema
+
+### `chat_sessions`
+
+保存会话索引。
+
+- `id`: 会话主键。
+- `title`: 会话标题，默认由首条消息截断生成。
+- `created_at_millis`: 创建时间。
+- `updated_at_millis`: 更新时间。
+- `message_count`: 消息数量。
+- `last_message_preview`: 最近消息摘要，用于列表与搜索。
+
+### `chat_messages`
+
+保存消息实体。
+
+- `id`: 消息主键，对应运行时 `ChatMessage.id`。
+- `session_id`: 所属会话。
+- `role`: `system`、`user`、`assistant`、`tool`。
+- `content`: 消息正文。
+- `tool_calls`: 工具调用 JSON。
+- `tool_responses`: 工具响应 JSON。
+- `metadata`: 消息元数据 JSON。
+- `created_at_millis`: 消息创建时间。
+
+### `chat_tool_logs`
+
+保存工具调用审计日志，并通过 `message_id` 关联到助手消息。
+
+- `id`: 工具日志主键。
+- `session_id`: 所属会话。
+- `message_id`: 关联的助手消息。
+- `tool_name`: 工具名称。
+- `arguments`: 工具参数 JSON。
+- `response`: 工具返回文本。
+- `status`: `running` / `completed`。
+- `started_at_millis`: 开始时间。
+- `completed_at_millis`: 完成时间。
+
+## 4. 行为
+
+- 应用启动后，`ChatViewModel` 自动加载最近更新的会话并恢复消息列表。
+- 发送消息前若无活跃会话，则自动创建新会话。
+- 用户消息立即写入 Room。
+- 助手消息先写入占位记录，生成完成或错误时覆盖同一条消息。
+- 工具调用开始和完成时写入 `chat_tool_logs`，并在最终助手消息中保存 `tool_calls` 与 `tool_responses`。
+- Chat 页历史面板支持搜索、打开、重命名、删除、导出。
+- Library 页 Living Memory 卡片展示最近会话，点击后打开该会话并跳转 Chat。
+
+## 5. 当前限制
+
+- 导出当前实现为 Markdown 文本复制到剪贴板，尚未接入跨端文件保存流程。
+- 应用重启后会恢复历史消息 UI；本地 LLM 原生会话上下文会重新创建，尚未将历史消息重放进模型上下文。
+- Windows 环境已验证 Desktop 与 Android Kotlin 编译；iOS target 在当前机器被 Gradle 禁用，未做本机编译验证。

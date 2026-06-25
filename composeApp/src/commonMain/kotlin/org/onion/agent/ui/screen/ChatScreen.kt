@@ -40,11 +40,17 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DriveFileRenameOutline
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,6 +60,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -98,20 +105,29 @@ import mineagent.composeapp.generated.resources.chat_input_hint_desktop
 import mineagent.composeapp.generated.resources.chat_input_hint_mobile
 import mineagent.composeapp.generated.resources.copy
 import mineagent.composeapp.generated.resources.creating
+import mineagent.composeapp.generated.resources.delete
 import mineagent.composeapp.generated.resources.error_no_interrupt_api
+import mineagent.composeapp.generated.resources.export
+import mineagent.composeapp.generated.resources.history_empty
+import mineagent.composeapp.generated.resources.history_exported
 import mineagent.composeapp.generated.resources.feature_not_available
 import mineagent.composeapp.generated.resources.history
+import mineagent.composeapp.generated.resources.history_search_hint
 import mineagent.composeapp.generated.resources.new_chat
+import mineagent.composeapp.generated.resources.rename
 import mineagent.composeapp.generated.resources.regenerate
 import mineagent.composeapp.generated.resources.save_image
+import mineagent.composeapp.generated.resources.save
 import mineagent.composeapp.generated.resources.scroll_to_bottom
 import mineagent.composeapp.generated.resources.send_message
+import mineagent.composeapp.generated.resources.settings_back
 import mineagent.composeapp.generated.resources.stop_generation
 import mineagent.composeapp.generated.resources.text_copied
 import mineagent.composeapp.generated.resources.user_image
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import org.onion.agent.database.ChatSessionEntity
 import org.onion.agent.utils.Animations
 import org.onion.agent.viewmodel.ChatViewModel
 import ui.theme.AppTheme
@@ -134,6 +150,7 @@ fun ChatScreen(
         var text by remember { mutableStateOf("") }
         val keyboardController = LocalSoftwareKeyboardController.current
         val focusManager = LocalFocusManager.current
+        val clipboardManager = LocalClipboardManager.current
         val snackbarHostState = remember { SnackbarHostState() }
         val coroutineScope = rememberCoroutineScope()
 
@@ -243,6 +260,60 @@ fun ChatScreen(
             )
         }
 
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(AppTheme.spacing.lg)
+                .zIndex(40f)
+                .glassSurface(
+                    shape = AppTheme.shape.full,
+                    alpha = AppTheme.elevation.glassSurfaceAlpha,
+                    borderAlpha = AppTheme.elevation.glassBorderAlpha
+                )
+                .padding(horizontal = AppTheme.spacing.xs, vertical = AppTheme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = { chatViewModel.setHistoryVisible(true) },
+                modifier = Modifier.size(AppTheme.size.iconButton)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.History,
+                    contentDescription = stringResource(Res.string.history),
+                    tint = AppTheme.colors.primary,
+                    modifier = Modifier.size(AppTheme.size.icon)
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = chatViewModel.isHistoryVisible.value,
+            enter = Animations.slideFadeIn(),
+            exit = Animations.slideFadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .fillMaxHeight()
+                .zIndex(45f)
+        ) {
+            ChatHistoryPanel(
+                sessions = chatViewModel.chatSessions,
+                activeSessionId = chatViewModel.activeSessionId.value,
+                searchQuery = chatViewModel.historySearchQuery.value,
+                onSearchChange = chatViewModel::setHistorySearchQuery,
+                onClose = { chatViewModel.setHistoryVisible(false) },
+                onOpen = chatViewModel::openSession,
+                onRename = chatViewModel::renameSession,
+                onDelete = chatViewModel::deleteSession,
+                onExport = { sessionId ->
+                    coroutineScope.launch {
+                        val exported = chatViewModel.exportSession(sessionId)
+                        clipboardManager.setText(AnnotatedString(exported))
+                        snackbarHostState.showSnackbar(getString(Res.string.history_exported))
+                    }
+                }
+            )
+        }
+
         // Snackbar Host
         SnackbarHost(
             hostState = snackbarHostState,
@@ -264,6 +335,266 @@ fun ChatScreen(
                 )
             }
         )
+    }
+}
+
+@Composable
+private fun ChatHistoryPanel(
+    sessions: List<ChatSessionEntity>,
+    activeSessionId: String?,
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onOpen: (String) -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onExport: (String) -> Unit
+) {
+    var renamingSession by remember { mutableStateOf<ChatSessionEntity?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    val isSingle = AppTheme.contentType == ContentType.Single
+
+    if (renamingSession != null) {
+        AlertDialog(
+            onDismissRequest = { renamingSession = null },
+            title = {
+                Text(
+                    text = stringResource(Res.string.rename),
+                    style = AppTheme.typography.headlineMedium,
+                    color = AppTheme.colors.onSurface
+                )
+            },
+            text = {
+                MediumOutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = AppTheme.shape.lg,
+                    style = AppTheme.typography.bodyMedium.copy(color = AppTheme.colors.onSurface)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        renamingSession?.let { onRename(it.id, renameText) }
+                        renamingSession = null
+                    }
+                ) {
+                    Text(text = stringResource(Res.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renamingSession = null }) {
+                    Text(text = stringResource(Res.string.settings_back))
+                }
+            },
+            containerColor = AppTheme.colors.surface,
+            shape = AppTheme.shape.xxl
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .widthIn(min = if (isSingle) 0.dp else 360.dp, max = if (isSingle) 420.dp else 420.dp)
+            .padding(AppTheme.spacing.md)
+            .glassSurface(
+                shape = AppTheme.shape.xxl,
+                alpha = AppTheme.elevation.glassSurfaceAlpha,
+                borderAlpha = AppTheme.elevation.glassBorderAlpha
+            )
+            .background(
+                color = AppTheme.colors.surface.copy(alpha = 0.82f),
+                shape = AppTheme.shape.xxl
+            )
+            .padding(AppTheme.spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = stringResource(Res.string.history),
+                    style = AppTheme.typography.headlineMedium,
+                    color = AppTheme.colors.primary
+                )
+                Text(
+                    text = "${sessions.size}",
+                    style = AppTheme.typography.bodySmall,
+                    color = AppTheme.colors.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = null,
+                    tint = AppTheme.colors.onSurfaceVariant
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AppTheme.colors.surfaceVariant.copy(alpha = 0.24f), AppTheme.shape.full)
+                .padding(horizontal = AppTheme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                tint = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(AppTheme.size.icon)
+            )
+            MediumOutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                shape = AppTheme.shape.full,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent
+                ),
+                style = AppTheme.typography.bodyMedium.copy(color = AppTheme.colors.onSurface)
+            )
+            if (searchQuery.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.history_search_hint),
+                    style = AppTheme.typography.bodySmall,
+                    color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.45f)
+                )
+            }
+        }
+
+        if (sessions.isEmpty()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = stringResource(Res.string.history_empty),
+                    style = AppTheme.typography.bodyMedium,
+                    color = AppTheme.colors.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            ) {
+                items(sessions, key = { it.id }) { session ->
+                    ChatHistoryRow(
+                        session = session,
+                        selected = session.id == activeSessionId,
+                        onOpen = { onOpen(session.id) },
+                        onRename = {
+                            renamingSession = session
+                            renameText = session.title
+                        },
+                        onDelete = { onDelete(session.id) },
+                        onExport = { onExport(session.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatHistoryRow(
+    session: ChatSessionEntity,
+    selected: Boolean,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onExport: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(AppTheme.shape.lg)
+            .background(
+                color = if (selected) AppTheme.colors.primaryContainer.copy(alpha = 0.24f)
+                else AppTheme.colors.surfaceContainerLowest.copy(alpha = 0.48f),
+                shape = AppTheme.shape.lg
+            )
+            .border(
+                width = AppTheme.size.borderWidthThin,
+                color = if (selected) AppTheme.colors.primary.copy(alpha = 0.28f)
+                else AppTheme.colors.outlineVariant.copy(alpha = 0.18f),
+                shape = AppTheme.shape.lg
+            )
+            .clickable(onClick = onOpen)
+            .padding(AppTheme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+    ) {
+        Text(
+            text = session.title,
+            style = AppTheme.typography.labelMedium,
+            color = if (selected) AppTheme.colors.primary else AppTheme.colors.onSurface,
+            maxLines = 1
+        )
+        if (session.lastMessagePreview.isNotBlank()) {
+            Text(
+                text = session.lastMessagePreview,
+                style = AppTheme.typography.bodySmall,
+                color = AppTheme.colors.onSurfaceVariant,
+                maxLines = 2
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "${session.messageCount} · ${formatHistoryTime(session.updatedAtMillis)}",
+                style = AppTheme.typography.bodySmall,
+                color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.62f)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
+                HistoryActionIcon(Icons.Filled.DriveFileRenameOutline, stringResource(Res.string.rename), onRename)
+                HistoryActionIcon(Icons.Filled.FileDownload, stringResource(Res.string.export), onExport)
+                HistoryActionIcon(Icons.Filled.Delete, stringResource(Res.string.delete), onDelete)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryActionIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(AppTheme.size.iconButtonSmall)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = AppTheme.colors.onSurfaceVariant,
+            modifier = Modifier.size(AppTheme.size.iconSmall)
+        )
+    }
+}
+
+@OptIn(ExperimentalTime::class)
+private fun formatHistoryTime(updatedAtMillis: Long): String {
+    val diff = (Clock.System.now().toEpochMilliseconds() - updatedAtMillis).coerceAtLeast(0)
+    val minute = 60_000L
+    val hour = 60L * minute
+    val day = 24L * hour
+    return when {
+        diff < minute -> "now"
+        diff < hour -> "${diff / minute}m"
+        diff < day -> "${diff / hour}h"
+        else -> "${diff / day}d"
     }
 }
 

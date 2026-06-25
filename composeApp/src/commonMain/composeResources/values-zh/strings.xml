@@ -15,6 +15,10 @@
     <string name="ask_anything_placeholder">请输入你的提示词,格式:提示词|负向提示词</string>
     <string name="attachment">附件</string>
     <string name="clear">清除</string>
+    <string name="delete">删除</string>
+    <string name="rename">重命名</string>
+    <string name="export">导出</string>
+    <string name="save">保存</string>
     <string name="copy">复制</string>
     <string name="text_copied">已复制</string>
     <string name="stop_generation">停止生成</string>
@@ -108,6 +112,9 @@
     <string name="brand_short">Aura</string>
     <string name="new_chat">新对话</string>
     <string name="history">历史记录</string>
+    <string name="history_search_hint">搜索历史记录</string>
+    <string name="history_empty">暂无已保存会话</string>
+    <string name="history_exported">会话已导出到剪贴板</string>
     <string name="chat_date_mobile">今天，清晨如水</string>
     <string name="chat_date_desktop">今天，清晨如水</string>
     <string name="chat_input_hint_mobile">分享你的想法...</string>

@@ -118,7 +118,11 @@ fun MainContent(
                         }
 
                         is MainRoute.LibraryRoute -> NavEntry(key) {
-                            LibraryScreen()
+                            LibraryScreen(
+                                onOpenChat = {
+                                    mainNavActions.popAndNavigation(MainRoute.ChatRoute)
+                                }
+                            )
                         }
 
                         is MainRoute.SettingRoute -> NavEntry(key) {

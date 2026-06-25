@@ -6,11 +6,15 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onion.model.ChatMessage
+import com.onion.model.ChatRole
 import com.onion.model.LoraConfig
+import com.onion.model.PersistentToolCall
+import com.onion.model.PersistentToolResponse
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.google.ai.edge.litertlm.LiteRtLmJni
 import io.github.vinceglb.filekit.FileKit
@@ -27,8 +31,13 @@ import org.onion.agent.native.llm.ToolResponse
 import mineagent.composeapp.generated.resources.Res
 import mineagent.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+import org.onion.agent.database.ChatHistoryRepository
+import org.onion.agent.database.ChatSessionEntity
+import org.onion.agent.database.ChatToolLogEntity
 
-class ChatViewModel  : ViewModel() {
+class ChatViewModel(
+    private val chatHistoryRepository: ChatHistoryRepository
+) : ViewModel() {
 
     /** Format milliseconds into human-readable duration: "0.85s" / "12.3s" / "2m 15s" */
     private fun formatDuration(millis: Long): String {
@@ -140,15 +149,7 @@ class ChatViewModel  : ViewModel() {
     var systemPrompt = mutableStateOf("You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.")
     var systemContextShift = mutableStateOf(true)
 
-    init {
-        viewModelScope.launch {
-            try {
-                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
+
 
     fun resetSettings() {
         viewModelScope.launch {
@@ -392,11 +393,21 @@ class ChatViewModel  : ViewModel() {
                     )
                 }
                 _currentChatMessages.clear()
-                _currentChatMessages.add(ChatMessage(getString(Res.string.chat_system_parameters_applied), false))
+                val text = getString(Res.string.chat_system_parameters_applied)
+                val sessionId = ensureActiveSession(text)
+                chatHistoryRepository.clearSessionMessages(sessionId)
+                val message = ChatMessage(text, false, role = ChatRole.SYSTEM)
+                _currentChatMessages.add(message)
+                chatHistoryRepository.saveMessage(sessionId, message)
             } catch (e: Exception) {
                 e.printStackTrace()
                 _currentChatMessages.clear()
-                _currentChatMessages.add(ChatMessage(getString(Res.string.chat_system_parameters_apply_failed, e.message ?: ""), false))
+                val text = getString(Res.string.chat_system_parameters_apply_failed, e.message ?: "")
+                val sessionId = ensureActiveSession(text)
+                chatHistoryRepository.clearSessionMessages(sessionId)
+                val message = ChatMessage(text, false, role = ChatRole.SYSTEM)
+                _currentChatMessages.add(message)
+                chatHistoryRepository.saveMessage(sessionId, message)
             } finally {
                 isLlmModelLoading.value = false
                 loadingModelState.emit(2)
@@ -429,6 +440,13 @@ class ChatViewModel  : ViewModel() {
     private val _currentChatMessages = mutableStateListOf<ChatMessage>()
     val currentChatMessages: SnapshotStateList<ChatMessage> = _currentChatMessages
 
+    private val _chatSessions = mutableStateListOf<ChatSessionEntity>()
+    val chatSessions: SnapshotStateList<ChatSessionEntity> = _chatSessions
+    val activeSessionId = mutableStateOf<String?>(null)
+    val historySearchQuery = mutableStateOf("")
+    val isHistoryVisible = mutableStateOf(false)
+    private var sessionCollectionJob: Job? = null
+
     /** Flag indicating if response generation is in progress */
     val isGenerating = mutableStateOf(false)
 
@@ -436,13 +454,59 @@ class ChatViewModel  : ViewModel() {
     // ========================================================================================
     //                          Public Message Methods
     // ========================================================================================
+    fun setHistoryVisible(visible: Boolean) {
+        isHistoryVisible.value = visible
+    }
+
+    fun setHistorySearchQuery(query: String) {
+        historySearchQuery.value = query
+        observeChatSessions(query)
+    }
+
+    fun openSession(sessionId: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            if (isGenerating.value) stopGeneration()
+            activeSessionId.value = sessionId
+            _currentChatMessages.clear()
+            _currentChatMessages.addAll(chatHistoryRepository.loadMessages(sessionId))
+            recreateLmConversation()
+            isHistoryVisible.value = false
+        }
+    }
+
+    fun renameSession(sessionId: String, title: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            chatHistoryRepository.renameSession(sessionId, title)
+        }
+    }
+
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            chatHistoryRepository.deleteSession(sessionId)
+            if (activeSessionId.value == sessionId) {
+                activeSessionId.value = null
+                _currentChatMessages.clear()
+                restoreMostRecentSession()
+            }
+        }
+    }
+
+    suspend fun exportSession(sessionId: String): String {
+        return chatHistoryRepository.exportSessionMarkdown(sessionId)
+    }
+
     fun sendMessage(message: String, isUser: Boolean = true) {
         viewModelScope.launch {
             if(isGenerating.value) stopGeneration()
             if(message.isBlank()) return@launch
-            _currentChatMessages.add(ChatMessage(message, isUser))
+            val sessionId = ensureActiveSession(message)
+            val userMessage = ChatMessage(message, isUser, role = if (isUser) ChatRole.USER else ChatRole.ASSISTANT)
+            _currentChatMessages.add(userMessage)
+            chatHistoryRepository.saveMessage(sessionId, userMessage)
             val meta = mapOf("is_generating" to "true")
-            _currentChatMessages.add(ChatMessage("", false, metadata = meta))
+            val assistantMessage = ChatMessage("", false, role = ChatRole.ASSISTANT, metadata = meta)
+            _currentChatMessages.add(assistantMessage)
+            chatHistoryRepository.saveMessage(sessionId, assistantMessage)
             isGenerating.value = true
             getTextTalkerResponse(message, {}, {
                 println(it.message)
@@ -462,16 +526,8 @@ class ChatViewModel  : ViewModel() {
                 stopGeneration()
             }
             try {
-                lmConversation?.close()
-                lmConversation = lmEngine?.createConversation(
-                    systemInstruction = systemPrompt.value,
-                    toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
-                    samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
-                        temperature = temperature.value.toDouble(),
-                        topP = topP.value.toDouble(),
-                        topK = topK.value
-                    )
-                )
+                recreateLmConversation()
+                activeSessionId.value = chatHistoryRepository.createSession()
             } catch (e: Exception) {
                 e.printStackTrace()
                 lmConversation = null
@@ -494,6 +550,45 @@ class ChatViewModel  : ViewModel() {
             _currentChatMessages.removeAt(lastIndex)
         }
     }
+
+    private fun observeChatSessions(query: String = historySearchQuery.value) {
+        sessionCollectionJob?.cancel()
+        sessionCollectionJob = viewModelScope.launch(Dispatchers.Default) {
+            chatHistoryRepository.observeSessions(query).collectLatest { sessions ->
+                _chatSessions.clear()
+                _chatSessions.addAll(sessions)
+            }
+        }
+    }
+
+    private fun restoreMostRecentSession() {
+        viewModelScope.launch(Dispatchers.Default) {
+            val session = chatHistoryRepository.getMostRecentSession() ?: return@launch
+            activeSessionId.value = session.id
+            _currentChatMessages.clear()
+            _currentChatMessages.addAll(chatHistoryRepository.loadMessages(session.id))
+        }
+    }
+
+    private suspend fun ensureActiveSession(firstMessage: String): String {
+        activeSessionId.value?.let { return it }
+        return chatHistoryRepository.createSession(firstMessage.take(36)).also {
+            activeSessionId.value = it
+        }
+    }
+
+    private suspend fun recreateLmConversation() {
+        lmConversation?.close()
+        lmConversation = lmEngine?.createConversation(
+            systemInstruction = systemPrompt.value,
+            toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+            samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
+                temperature = temperature.value.toDouble(),
+                topP = topP.value.toDouble(),
+                topK = topK.value
+            )
+        )
+    }
     
     @OptIn(ExperimentalTime::class)
     fun getTextTalkerResponse(query: String, onCancelled: () -> Unit, onError: (Throwable) -> Unit) {
@@ -504,10 +599,12 @@ class ChatViewModel  : ViewModel() {
                 if (_currentChatMessages.isNotEmpty()) {
                     val lastIdx = _currentChatMessages.lastIndex
                     val meta = mapOf("is_generating" to "false")
-                    _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
+                    val updated = _currentChatMessages[lastIdx].copy(
                         message = getString(Res.string.chat_system_engine_not_initialized),
                         metadata = meta
                     )
+                    _currentChatMessages[lastIdx] = updated
+                    activeSessionId.value?.let { chatHistoryRepository.saveMessage(it, updated) }
                 }
             }
             onError(IllegalStateException("LM Engine not initialized"))
@@ -521,6 +618,10 @@ class ChatViewModel  : ViewModel() {
             
             var generatedResult = ""
             var generatedThought = ""
+            val persistentToolCalls = mutableListOf<PersistentToolCall>()
+            val persistentToolResponses = mutableListOf<PersistentToolResponse>()
+            val sessionId = activeSessionId.value
+            val assistantMessageId = _currentChatMessages.lastOrNull()?.id?.toString().orEmpty()
             var currentMessage = org.onion.agent.native.llm.Message.user(promptContent)
             var keepGoing = true
             var recursionCount = 0
@@ -549,10 +650,12 @@ class ChatViewModel  : ViewModel() {
                                 } else {
                                     getString(Res.string.chat_system_error_prefix, errMsg.ifEmpty { getString(Res.string.unknown_error) })
                                 }
-                                _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(
+                                val updated = _currentChatMessages[lastIdx].copy(
                                     message = displayMsg,
                                     metadata = meta
                                 )
+                                _currentChatMessages[lastIdx] = updated
+                                sessionId?.let { chatHistoryRepository.saveMessage(it, updated) }
                             }
                             onError(e)
                         }
@@ -600,6 +703,31 @@ class ChatViewModel  : ViewModel() {
                     
                     for (toolCall in toolCalls) {
                         println("ChatViewModel: Executing tool '${toolCall.name}' with args: ${toolCall.arguments}")
+                        val toolStartedAt = Clock.System.now().toEpochMilliseconds()
+                        val toolLogId = ChatHistoryRepository.newId("tool")
+                        val toolArguments = toolCall.arguments.toString()
+                        persistentToolCalls.add(
+                            PersistentToolCall(
+                                name = toolCall.name,
+                                arguments = toolArguments,
+                                createdAtMillis = toolStartedAt
+                            )
+                        )
+                        if (sessionId != null && assistantMessageId.isNotBlank()) {
+                            chatHistoryRepository.upsertToolLog(
+                                ChatToolLogEntity(
+                                    id = toolLogId,
+                                    sessionId = sessionId,
+                                    messageId = assistantMessageId,
+                                    toolName = toolCall.name,
+                                    arguments = toolArguments,
+                                    response = "",
+                                    status = "running",
+                                    startedAtMillis = toolStartedAt,
+                                    completedAtMillis = null
+                                )
+                            )
+                        }
                         
                         val toolLog = getString(Res.string.chat_running_tool, toolCall.name)
                         generatedResult += toolLog
@@ -611,6 +739,29 @@ class ChatViewModel  : ViewModel() {
                         }
                         
                         val resultStr = agentTools.execute(toolCall.name, toolCall.arguments)
+                        val toolCompletedAt = Clock.System.now().toEpochMilliseconds()
+                        persistentToolResponses.add(
+                            PersistentToolResponse(
+                                name = toolCall.name,
+                                response = resultStr,
+                                createdAtMillis = toolCompletedAt
+                            )
+                        )
+                        if (sessionId != null && assistantMessageId.isNotBlank()) {
+                            chatHistoryRepository.upsertToolLog(
+                                ChatToolLogEntity(
+                                    id = toolLogId,
+                                    sessionId = sessionId,
+                                    messageId = assistantMessageId,
+                                    toolName = toolCall.name,
+                                    arguments = toolArguments,
+                                    response = resultStr,
+                                    status = "completed",
+                                    startedAtMillis = toolStartedAt,
+                                    completedAtMillis = toolCompletedAt
+                                )
+                            )
+                        }
                         
                         val toolDoneLog = getString(Res.string.chat_tool_completed, toolCall.name)
                         generatedResult += toolDoneLog
@@ -639,11 +790,29 @@ class ChatViewModel  : ViewModel() {
                     "time_taken" to formatDuration(generationDuration),
                     "is_generating" to "false"
                 )
-                _currentChatMessages[lastIdx] = _currentChatMessages[lastIdx].copy(metadata = meta)
+                val updated = _currentChatMessages[lastIdx].copy(
+                    metadata = meta,
+                    toolCalls = persistentToolCalls,
+                    toolResponses = persistentToolResponses
+                )
+                _currentChatMessages[lastIdx] = updated
+                sessionId?.let { chatHistoryRepository.saveMessage(it, updated) }
             }
             
             isGenerating.value = false
             isInferenceOn = false
         }
+    }
+
+    init {
+        viewModelScope.launch {
+            try {
+                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        observeChatSessions()
+        restoreMostRecentSession()
     }
 }

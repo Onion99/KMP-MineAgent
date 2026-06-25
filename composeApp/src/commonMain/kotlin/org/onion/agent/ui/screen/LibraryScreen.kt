@@ -45,12 +45,20 @@ import com.onion.theme.state.ContentType
 import com.onion.theme.style.glassSurface
 import mineagent.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import org.onion.agent.database.ChatSessionEntity
+import org.onion.agent.viewmodel.ChatViewModel
 import ui.theme.AppTheme
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 @Composable
-fun LibraryScreen() {
+fun LibraryScreen(
+    onOpenChat: () -> Unit = {}
+) {
     val isDesktop = AppTheme.contentType == ContentType.Dual
     val containerPadding = if (isDesktop) AppTheme.spacing.containerPaddingDesktop else AppTheme.spacing.containerPaddingMobile
+    val chatViewModel = koinInject<ChatViewModel>()
     
     val primaryColor = AppTheme.colors.primary
     val secondaryColor = AppTheme.colors.secondary
@@ -133,6 +141,11 @@ fun LibraryScreen() {
                     horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
                 ) {
                     LivingMemoryCard(
+                        sessions = chatViewModel.chatSessions.take(4),
+                        onSessionClick = { sessionId ->
+                            chatViewModel.openSession(sessionId)
+                            onOpenChat()
+                        },
                         modifier = Modifier
                             .weight(2f)
                             .height(424.dp)
@@ -174,6 +187,11 @@ fun LibraryScreen() {
                     verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
                 ) {
                     LivingMemoryCard(
+                        sessions = chatViewModel.chatSessions.take(4),
+                        onSessionClick = { sessionId ->
+                            chatViewModel.openSession(sessionId)
+                            onOpenChat()
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(340.dp)
@@ -295,6 +313,8 @@ fun BentoCard(
 
 @Composable
 fun LivingMemoryCard(
+    sessions: List<ChatSessionEntity> = emptyList(),
+    onSessionClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BentoCard(
@@ -391,16 +411,19 @@ fun LivingMemoryCard(
                 verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
                 modifier = Modifier.weight(1f)
             ) {
-                val threads = listOf(
-                    Pair(Res.string.library_time_10m, Res.string.library_thread_1),
-                    Pair(Res.string.library_time_2h, Res.string.library_thread_2),
-                    Pair(Res.string.library_time_yesterday, Res.string.library_thread_3)
-                )
-
-                threads.forEach { thread ->
-                    val time = stringResource(thread.first)
-                    val title = stringResource(thread.second)
-
+                if (sessions.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.history_empty),
+                            style = AppTheme.typography.bodyMedium,
+                            color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                } else {
+                    sessions.forEach { session ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -411,17 +434,17 @@ fun LivingMemoryCard(
                                 color = AppTheme.colors.outline.copy(alpha = 0.08f),
                                 shape = AppTheme.shape.md
                             )
-                            .clickable { /* action */ }
+                            .clickable { onSessionClick(session.id) }
                             .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = time,
+                            text = formatLibraryHistoryTime(session.updatedAtMillis),
                             style = AppTheme.typography.bodySmall,
                             color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                         Text(
-                            text = title,
+                            text = session.title,
                             style = AppTheme.typography.bodyMedium,
                             color = AppTheme.colors.onSurface,
                             maxLines = 1,
@@ -437,9 +460,24 @@ fun LivingMemoryCard(
                             tint = AppTheme.colors.outline.copy(alpha = 0.5f)
                         )
                     }
+                    }
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalTime::class)
+private fun formatLibraryHistoryTime(updatedAtMillis: Long): String {
+    val diff = (Clock.System.now().toEpochMilliseconds() - updatedAtMillis).coerceAtLeast(0)
+    val minute = 60_000L
+    val hour = 60L * minute
+    val day = 24L * hour
+    return when {
+        diff < minute -> "now"
+        diff < hour -> "${diff / minute}m"
+        diff < day -> "${diff / hour}h"
+        else -> "${diff / day}d"
     }
 }
 
