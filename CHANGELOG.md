@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-01] - Bazel Android NDK UTF-8 参数修复
+- [修复] 调整 `.bazelrc.user`，移除全局 `build --copt=/utf-8` 与 `build --cxxopt=/utf-8`，避免 Android NDK `clang.exe` 将 MSVC 风格 `/utf-8` 解析为输入文件。
+- [修改] 为 Windows desktop Bazel 构建新增显式 `--config=msvc_target_utf8`，并保留 `--config=win_host` 下的 host-only UTF-8 参数，确保 MSVC host 工具链仍按 UTF-8 编译。
+- [文档] 新增 `docs/specs/bazel-windows-android-rc.md`，记录 Windows host、Windows target 与 Android target 的 Bazel RC 参数边界及验证方式。
+
 ## [2026-06-25] - Chat 会话持久化与历史记录
 - [新增] 引入 KMP Room、KSP 与 bundled SQLite，新增 `AgentDatabase`、`ChatHistoryDao`、`ChatHistoryRepository` 及 Android/Desktop/iOS 数据库 builder，实现跨端会话持久化。
 - [新增] 新增 `chat_sessions`、`chat_messages`、`chat_tool_logs` 三张表，持久化会话标题、创建/更新时间、消息 role/content/tool_calls/tool_responses/metadata 及工具调用日志关联。

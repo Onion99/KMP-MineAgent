@@ -482,6 +482,7 @@ desktopPlatforms.forEach { platform ->
         // 平台特定的额外 Bazel 参数
         val extraArgs = when(platform) {
             "windows" -> listOf(
+                "--config=msvc_target_utf8",
                 "--features=static_link_msvcrt",
                 "--host_features=static_link_msvcrt",
                 "--copt=/MT",
