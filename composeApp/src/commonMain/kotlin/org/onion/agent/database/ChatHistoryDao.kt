@@ -1,9 +1,8 @@
 package org.onion.agent.database
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -33,13 +32,13 @@ interface ChatHistoryDao {
     @Query("SELECT * FROM chat_tool_logs WHERE session_id = :sessionId ORDER BY started_at_millis ASC")
     suspend fun getToolLogs(sessionId: String): List<ChatToolLogEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertSession(session: ChatSessionEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertMessage(message: ChatMessageEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertToolLog(toolLog: ChatToolLogEntity)
 
     @Query("DELETE FROM chat_sessions WHERE id = :sessionId")
@@ -56,4 +55,7 @@ interface ChatHistoryDao {
 
     @Query("SELECT content FROM chat_messages WHERE session_id = :sessionId ORDER BY created_at_millis DESC LIMIT 1")
     suspend fun getLastMessagePreview(sessionId: String): String?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM chat_messages WHERE id = :messageId AND session_id = :sessionId)")
+    suspend fun messageExists(sessionId: String, messageId: String): Boolean
 }

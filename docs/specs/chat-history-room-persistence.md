@@ -74,3 +74,19 @@
 - 导出当前实现为 Markdown 文本复制到剪贴板，尚未接入跨端文件保存流程。
 - 应用重启后会恢复历史消息 UI；本地 LLM 原生会话上下文会重新创建，尚未将历史消息重放进模型上下文。
 - Windows 环境已验证 Desktop 与 Android Kotlin 编译；iOS target 在当前机器被 Gradle 禁用，未做本机编译验证。
+## 2026-07-10 写入语义修复
+
+`chat_sessions`、`chat_messages`、`chat_tool_logs` 的 DAO 写入必须使用 Room `@Upsert`，不能使用 `@Insert(onConflict = OnConflictStrategy.REPLACE)`。
+
+原因:
+
+- SQLite `REPLACE` 实际语义是删除旧行再插入新行。
+- `chat_messages.session_id` 外键引用 `chat_sessions.id`，`chat_tool_logs.message_id` 外键引用 `chat_messages.id`。
+- 如果更新 session 摘要时使用 `REPLACE`，会先删除 session 行，从而通过 `ON DELETE CASCADE` 删除其 messages 和 tool logs。
+- 如果更新 assistant message 时使用 `REPLACE`，会先删除 message 行，从而级联删除该 message 下的 tool logs。
+- Agent 工具执行期间随后写入 `chat_tool_logs` 时，就可能引用已经被级联删除的 assistant message，触发 `FOREIGN KEY constraint failed`。
+
+当前修复:
+
+- `ChatHistoryDao.upsertSession()`、`upsertMessage()`、`upsertToolLog()` 改为 `@Upsert`。
+- `ChatHistoryRepository.upsertToolLog()` 在写入前检查父 message 是否仍存在；如果用户在生成中删除会话或切换状态导致父记录消失，则跳过该审计日志，避免后台生成协程崩溃。

@@ -10,13 +10,13 @@ import kotlinx.coroutines.launch
 
 class LmConversation(
     private val handle: Long
-) : AutoCloseable {
+) : AutoCloseable, LmChatSession {
 
     private var isAlive = true
 
-    fun sendMessageAsync(
+    override fun sendMessageAsync(
         message: Message,
-        extraContext: Map<String, String> = emptyMap()
+        extraContext: Map<String, String>
     ): Flow<Message> = callbackFlow {
         checkIsAlive()
         
@@ -73,7 +73,7 @@ class LmConversation(
         }
     }
 
-    fun cancelProcess() {
+    override fun cancelProcess() {
         checkIsAlive()
         LiteRtLmJni.cancelLmConversation(handle)
     }

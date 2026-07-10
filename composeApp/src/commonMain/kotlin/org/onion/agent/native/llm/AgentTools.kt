@@ -1,21 +1,41 @@
 package org.onion.agent.native.llm
 
-import com.fleeksoft.ksoup.Ksoup
-import kotlinx.serialization.json.*
 import com.dokar.quickjs.quickJs
+import com.fleeksoft.ksoup.Ksoup
 import io.ktor.client.HttpClient
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
+import io.ktor.client.request.header
+import io.ktor.client.request.request
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpMethod
+import io.ktor.http.URLBuilder
+import io.ktor.http.Url
+import io.ktor.http.contentLength
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
-class AgentTools : KoinComponent {
+class AgentTools : KoinComponent, AgentToolExecutor {
 
     private companion object {
         const val DEFAULT_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        const val MAX_JS_CHARS = 20_000
     }
 
     private val httpClient: HttpClient by lazy {
@@ -26,227 +46,248 @@ class AgentTools : KoinComponent {
         }
     }
 
+    private val tools: Map<String, AgentTool> by lazy {
+        listOf(
+            LocalJsTool(),
+            AnalyzeUrlTool(),
+            SearchWebTool()
+        ).associateBy { it.definition.name }
+    }
+
     /**
      * Returns a JSON array of all tool definitions for the LiteRT LM model.
-     * This follows the schema expected by the C++ native layer (OpenAPI structure).
+     * The schema and execution registry share the same source of truth.
      */
     fun getToolsDescriptionJson(): String {
         return buildJsonArray {
-            // loadSkill
-            add(buildJsonObject {
-                put("type", "function")
-                put("function", buildJsonObject {
-                    put("name", "loadSkill")
-                    put("description", "Loads a skill's instruction content by name.")
-                    put("parameters", buildJsonObject {
-                        put("type", "object")
-                        put("properties", buildJsonObject {
-                            put("skillName", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The name of the skill to load.")
-                            })
-                        })
-                        put("required", buildJsonArray { add("skillName") })
-                    })
-                })
-            })
-            // runMcpTool
-            add(buildJsonObject {
-                put("type", "function")
-                put("function", buildJsonObject {
-                    put("name", "runMcpTool")
-                    put("description", "Runs an MCP tool with name and JSON input arguments.")
-                    put("parameters", buildJsonObject {
-                        put("type", "object")
-                        put("properties", buildJsonObject {
-                            put("toolName", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The name of the MCP tool to run.")
-                            })
-                            put("input", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The parameters passed to the tool as a JSON string.")
-                            })
-                        })
-                        put("required", buildJsonArray { add("toolName"); add("input") })
-                    })
-                })
-            })
-            // runJs
-            add(buildJsonObject {
-                put("type", "function")
-                put("function", buildJsonObject {
-                    put("name", "runJs")
-                    put("description", "Runs a JS script using the local QuickJS engine.")
-                    put("parameters", buildJsonObject {
-                        put("type", "object")
-                        put("properties", buildJsonObject {
-                            put("skillName", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The name of the skill/namespace.")
-                            })
-                            put("scriptName", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The script name to run (e.g. index.js).")
-                            })
-                            put("data", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The input data or JavaScript code to execute.")
-                            })
-                        })
-                        put("required", buildJsonArray { add("skillName"); add("scriptName"); add("data") })
-                    })
-                })
-            })
-            // runIntent
-            add(buildJsonObject {
-                put("type", "function")
-                put("function", buildJsonObject {
-                    put("name", "runIntent")
-                    put("description", "Runs a platform intent or action with parameters.")
-                    put("parameters", buildJsonObject {
-                        put("type", "object")
-                        put("properties", buildJsonObject {
-                            put("intent", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The intent/action to execute.")
-                            })
-                            put("parameters", buildJsonObject {
-                                put("type", "string")
-                                put("description", "A JSON string containing the parameters for the intent.")
-                            })
-                        })
-                        put("required", buildJsonArray { add("intent"); add("parameters") })
-                    })
-                })
-            })
-            // analyzeUrl
-            add(buildJsonObject {
-                put("type", "function")
-                put("function", buildJsonObject {
-                    put("name", "analyzeUrl")
-                    put("description", "Performs a network request and analyzes the address/response.")
-                    put("parameters", buildJsonObject {
-                        put("type", "object")
-                        put("properties", buildJsonObject {
-                            put("url", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The URL/address to request and analyze (e.g. https://example.com/api).")
-                            })
-                            put("method", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The HTTP method to use (GET, POST, PUT, DELETE, HEAD). Default is GET.")
-                            })
-                            put("headers", buildJsonObject {
-                                put("type", "string")
-                                put("description", "Optional JSON string containing request headers as key-value pairs.")
-                            })
-                            put("body", buildJsonObject {
-                                put("type", "string")
-                                put("description", "Optional request body string.")
-                            })
-                        })
-                        put("required", buildJsonArray { add("url") })
-                    })
-                })
-            })
-            // searchWeb
-            add(buildJsonObject {
-                put("type", "function")
-                put("function", buildJsonObject {
-                    put("name", "searchWeb")
-                    put("description", "Searches the latest web content with Bing and returns structured, indexable results.")
-                    put("parameters", buildJsonObject {
-                        put("type", "object")
-                        put("properties", buildJsonObject {
-                            put("query", buildJsonObject {
-                                put("type", "string")
-                                put("description", "The search query.")
-                            })
-                            put("count", buildJsonObject {
-                                put("type", "integer")
-                                put("description", "Number of search results to return. Default is 5, maximum is 10.")
-                            })
-                            put("includeContent", buildJsonObject {
-                                put("type", "boolean")
-                                put("description", "Whether to fetch each result page and include cleaned text for indexing. Default is false.")
-                            })
-                            put("maxContentChars", buildJsonObject {
-                                put("type", "integer")
-                                put("description", "Maximum cleaned text characters per fetched page when includeContent is true. Default is 4000.")
-                            })
-                        })
-                        put("required", buildJsonArray { add("query") })
-                    })
-                })
-            })
+            tools.values.forEach { add(it.definition.toJson()) }
         }.toString()
     }
 
     /**
-     * Executes the specified tool by name with arguments and returns the output as a String.
+     * Backward-compatible string result used by Message.tool responses.
      */
     suspend fun execute(name: String, arguments: JsonObject): String {
-        return when (name) {
-            "loadSkill" -> {
-                val skillName = arguments["skillName"]?.jsonPrimitive?.contentOrNull ?: ""
-                loadSkill(skillName)
-            }
-            "runMcpTool" -> {
-                val toolName = arguments["toolName"]?.jsonPrimitive?.contentOrNull ?: ""
-                val input = arguments["input"]?.jsonPrimitive?.contentOrNull ?: ""
-                runMcpTool(toolName, input)
-            }
-            "runJs" -> {
-                val skillName = arguments["skillName"]?.jsonPrimitive?.contentOrNull ?: ""
-                val scriptName = arguments["scriptName"]?.jsonPrimitive?.contentOrNull ?: ""
-                val data = arguments["data"]?.jsonPrimitive?.contentOrNull ?: ""
-                runJs(skillName, scriptName, data)
-            }
-            "runIntent" -> {
-                val intent = arguments["intent"]?.jsonPrimitive?.contentOrNull ?: ""
-                val parameters = arguments["parameters"]?.jsonPrimitive?.contentOrNull ?: ""
-                runIntent(intent, parameters)
-            }
-            "analyzeUrl" -> {
-                val urlObj = arguments["url"]?.jsonPrimitive?.contentOrNull ?: ""
-                val method = arguments["method"]?.jsonPrimitive?.contentOrNull
-                val headers = arguments["headers"]?.jsonPrimitive?.contentOrNull
-                val body = arguments["body"]?.jsonPrimitive?.contentOrNull
-                analyzeUrl(urlObj, method, headers, body)
-            }
-            "searchWeb" -> {
-                val query = arguments["query"]?.jsonPrimitive?.contentOrNull ?: ""
-                val count = arguments["count"]?.jsonPrimitive?.intOrNull
-                val includeContent = arguments["includeContent"]?.jsonPrimitive?.booleanOrNull
-                val maxContentChars = arguments["maxContentChars"]?.jsonPrimitive?.intOrNull
-                searchWeb(query, count, includeContent, maxContentChars)
-            }
-            else -> "Error: Tool '$name' not found."
+        return executeTool(name, arguments).toJsonString()
+    }
+
+    @OptIn(ExperimentalTime::class)
+    override suspend fun executeTool(name: String, arguments: JsonObject): ToolExecutionResult {
+        val tool = tools[name]
+        if (tool == null) {
+            val now = Clock.System.now().toEpochMilliseconds()
+            return ToolExecutionResult(
+                toolName = name,
+                success = false,
+                data = JsonNull,
+                error = "Tool '$name' is not registered or is disabled.",
+                startedAtMillis = now,
+                completedAtMillis = now
+            )
         }
-    }
 
-    private fun loadSkill(skillName: String): String {
-        return "Skill '$skillName' loaded successfully. Follow standard instructions for this skill."
-    }
-
-    private fun runMcpTool(toolName: String, input: String): String {
-        return "MCP tool '$toolName' executed successfully with input: $input. Status: succeeded."
-    }
-
-    private suspend fun runJs(skillName: String, scriptName: String, data: String): String {
         return try {
-            val result = quickJs {
-                evaluate<Any?>(data)
-            }
-            "JS executed successfully. Result: ${result?.toString() ?: "null"}"
+            tool.execute(arguments)
         } catch (e: Exception) {
-            "Error executing JS: ${e.message}"
+            val now = Clock.System.now().toEpochMilliseconds()
+            ToolExecutionResult(
+                toolName = name,
+                success = false,
+                data = JsonNull,
+                error = e.message ?: "Tool execution failed.",
+                startedAtMillis = now,
+                completedAtMillis = now
+            )
         }
     }
 
-    private fun runIntent(intent: String, parameters: String): String {
-        return "Intent '$intent' executed successfully with parameters: $parameters."
+    private inner class LocalJsTool : AgentTool {
+        override val definition = AgentToolDefinition(
+            name = "runJs",
+            description = "Runs a small JavaScript expression using the local QuickJS engine.",
+            parameters = objectSchema(
+                required = listOf("data"),
+                properties = mapOf(
+                    "data" to stringSchema(
+                        "The JavaScript source to execute. Keep it deterministic and self-contained."
+                    )
+                )
+            ),
+            concurrencySafe = false
+        )
+
+        override suspend fun execute(arguments: JsonObject): ToolExecutionResult {
+            return runMeasured(definition.name) {
+                val data = arguments.stringArgument("data")
+                if (data.isBlank()) {
+                    return@runMeasured buildJsonObject {
+                        put("success", false)
+                        put("error", "JavaScript source cannot be blank.")
+                    }
+                }
+                if (data.length > MAX_JS_CHARS) {
+                    return@runMeasured buildJsonObject {
+                        put("success", false)
+                        put("error", "JavaScript source exceeds $MAX_JS_CHARS characters.")
+                    }
+                }
+
+                val result = quickJs {
+                    evaluate<Any?>(data)
+                }
+                buildJsonObject {
+                    put("success", true)
+                    put("result", result?.toString() ?: "null")
+                }
+            }
+        }
+    }
+
+    private inner class AnalyzeUrlTool : AgentTool {
+        override val definition = AgentToolDefinition(
+            name = "analyzeUrl",
+            description = "Performs an HTTP request and returns structured URL, request, response, and content preview data.",
+            parameters = objectSchema(
+                required = listOf("url"),
+                properties = mapOf(
+                    "url" to stringSchema("The HTTP or HTTPS URL to request and analyze."),
+                    "method" to stringSchema("The HTTP method to use: GET, POST, PUT, DELETE, or HEAD. Default is GET."),
+                    "headers" to stringSchema("Optional JSON object string containing request headers."),
+                    "body" to stringSchema("Optional request body string.")
+                )
+            ),
+            concurrencySafe = true
+        )
+
+        override suspend fun execute(arguments: JsonObject): ToolExecutionResult {
+            return runMeasured(definition.name) {
+                analyzeUrl(
+                    urlString = arguments.stringArgument("url"),
+                    methodStr = arguments.stringArgumentOrNull("method"),
+                    headersJson = arguments.stringArgumentOrNull("headers"),
+                    bodyStr = arguments.stringArgumentOrNull("body")
+                )
+            }
+        }
+    }
+
+    private inner class SearchWebTool : AgentTool {
+        override val definition = AgentToolDefinition(
+            name = "searchWeb",
+            description = "Searches current web content with Bing and returns structured, indexable results.",
+            parameters = objectSchema(
+                required = listOf("query"),
+                properties = mapOf(
+                    "query" to stringSchema("The search query."),
+                    "count" to integerSchema("Number of search results to return. Default is 5, maximum is 10."),
+                    "includeContent" to booleanSchema("Whether to fetch each result page and include cleaned text. Default is false."),
+                    "maxContentChars" to integerSchema("Maximum cleaned text characters per fetched page. Default is 4000.")
+                )
+            ),
+            concurrencySafe = true
+        )
+
+        override suspend fun execute(arguments: JsonObject): ToolExecutionResult {
+            return runMeasured(definition.name) {
+                searchWeb(
+                    query = arguments.stringArgument("query"),
+                    count = arguments.intArgument("count"),
+                    includeContent = arguments.booleanArgument("includeContent"),
+                    maxContentChars = arguments.intArgument("maxContentChars")
+                )
+            }
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    private suspend fun runMeasured(
+        toolName: String,
+        block: suspend () -> JsonElement
+    ): ToolExecutionResult {
+        val startedAt = Clock.System.now().toEpochMilliseconds()
+        val data = try {
+            block()
+        } catch (e: Exception) {
+            val completedAt = Clock.System.now().toEpochMilliseconds()
+            return ToolExecutionResult(
+                toolName = toolName,
+                success = false,
+                data = JsonNull,
+                error = e.message ?: "Tool execution failed.",
+                startedAtMillis = startedAt,
+                completedAtMillis = completedAt
+            )
+        }
+        val completedAt = Clock.System.now().toEpochMilliseconds()
+        val success = data.successFlagOrDefault(default = true)
+        val error = if (success) null else data.errorMessageOrNull()
+        return ToolExecutionResult(
+            toolName = toolName,
+            success = success,
+            data = data,
+            error = error,
+            startedAtMillis = startedAt,
+            completedAtMillis = completedAt
+        )
+    }
+
+    private fun objectSchema(
+        required: List<String>,
+        properties: Map<String, JsonObject>
+    ): JsonObject = buildJsonObject {
+        put("type", "object")
+        put("properties", buildJsonObject {
+            properties.forEach { (name, schema) -> put(name, schema) }
+        })
+        put("required", buildJsonArray {
+            required.forEach { add(JsonPrimitive(it)) }
+        })
+    }
+
+    private fun stringSchema(description: String): JsonObject = buildJsonObject {
+        put("type", "string")
+        put("description", description)
+    }
+
+    private fun integerSchema(description: String): JsonObject = buildJsonObject {
+        put("type", "integer")
+        put("description", description)
+    }
+
+    private fun booleanSchema(description: String): JsonObject = buildJsonObject {
+        put("type", "boolean")
+        put("description", description)
+    }
+
+    private fun JsonObject.stringArgument(name: String): String {
+        return stringArgumentOrNull(name).orEmpty()
+    }
+
+    private fun JsonObject.stringArgumentOrNull(name: String): String? {
+        return (this[name] as? JsonPrimitive)?.contentOrNull
+    }
+
+    private fun JsonObject.intArgument(name: String): Int? {
+        return (this[name] as? JsonPrimitive)?.intOrNull
+    }
+
+    private fun JsonObject.booleanArgument(name: String): Boolean? {
+        return (this[name] as? JsonPrimitive)?.booleanOrNull
+    }
+
+    private fun JsonElement.successFlagOrDefault(default: Boolean): Boolean {
+        return (this as? JsonObject)
+            ?.get("success")
+            ?.jsonPrimitive
+            ?.booleanOrNull
+            ?: default
+    }
+
+    private fun JsonElement.errorMessageOrNull(): String? {
+        return (this as? JsonObject)
+            ?.get("error")
+            ?.jsonPrimitive
+            ?.contentOrNull
     }
 
     private fun sanitizeUrl(urlString: String): String {
@@ -268,17 +309,16 @@ class AgentTools : KoinComponent {
         }
         url = url.trim()
         url = url.replace("<|\\\"|>", "")
-                 .replace("<|'|>", "")
-                 .replace("<|", "")
-                 .replace("|>", "")
-                 .replace("\\\"", "")
-                 .replace("\\'", "")
-                 .replace("\"", "")
-                 .replace("'", "")
-                 .replace("`", "")
+            .replace("<|'|>", "")
+            .replace("<|", "")
+            .replace("|>", "")
+            .replace("\\\"", "")
+            .replace("\\'", "")
+            .replace("\"", "")
+            .replace("'", "")
+            .replace("`", "")
         return url.trim()
     }
-
 
     private fun cleanHtml(html: String, baseUri: String = ""): String {
         return try {
@@ -383,20 +423,20 @@ class AgentTools : KoinComponent {
         }
     }
 
-    @OptIn(kotlin.time.ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class)
     private suspend fun searchWeb(
         query: String,
         count: Int?,
         includeContent: Boolean?,
         maxContentChars: Int?
-    ): String {
+    ): JsonObject {
         return try {
             val normalizedQuery = query.trim()
             if (normalizedQuery.isBlank()) {
                 return buildJsonObject {
                     put("success", false)
                     put("error", "Search query cannot be blank.")
-                }.toString()
+                }
             }
 
             val resultLimit = (count ?: 5).coerceIn(1, 10)
@@ -458,24 +498,24 @@ class AgentTools : KoinComponent {
                 if (parsedResults.isEmpty()) {
                     put("warning", "No standard Bing search results were parsed from the response.")
                 }
-            }.toString()
+            }
         } catch (e: Exception) {
             buildJsonObject {
                 put("success", false)
                 put("provider", "bing")
                 put("query", query)
                 put("error", "Search failed: ${e.message}")
-            }.toString()
+            }
         }
     }
 
-    @OptIn(kotlin.time.ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class)
     private suspend fun analyzeUrl(
         urlString: String,
         methodStr: String?,
         headersJson: String?,
         bodyStr: String?
-    ): String {
+    ): JsonObject {
         return try {
             val startTime = Clock.System.now().toEpochMilliseconds()
             val sanitizedUrlString = sanitizeUrl(urlString)
@@ -485,7 +525,14 @@ class AgentTools : KoinComponent {
                 return buildJsonObject {
                     put("success", false)
                     put("error", "Invalid URL: ${e.message} (original input was: $urlString)")
-                }.toString()
+                }
+            }
+
+            if (targetUrlObj.protocol.name !in setOf("http", "https")) {
+                return buildJsonObject {
+                    put("success", false)
+                    put("error", "Only HTTP and HTTPS URLs are supported.")
+                }
             }
 
             val method = when (methodStr?.uppercase()) {
@@ -506,18 +553,16 @@ class AgentTools : KoinComponent {
                         }
                     }
                 } catch (e: Exception) {
-                    // ignore
+                    return buildJsonObject {
+                        put("success", false)
+                        put("error", "Invalid headers JSON: ${e.message}")
+                    }
                 }
             }
 
             applyBrowserHeaders(parsedHeaders)
 
-            val response: HttpResponse = try {
-                executeRequest(targetUrlObj, method, parsedHeaders, bodyStr)
-            } catch (e: Exception) {
-                throw e
-            }
-
+            val response = executeRequest(targetUrlObj, method, parsedHeaders, bodyStr)
             val endTime = Clock.System.now().toEpochMilliseconds()
             val latency = endTime - startTime
 
@@ -542,10 +587,6 @@ class AgentTools : KoinComponent {
                 }
             }
 
-            val host = targetUrlObj.host
-            val port = targetUrlObj.port
-            val protocol = targetUrlObj.protocol.name
-            val path = targetUrlObj.encodedPath
             val queryParams = buildJsonObject {
                 targetUrlObj.parameters.entries().forEach { entry ->
                     put(entry.key, entry.value.joinToString(","))
@@ -557,16 +598,16 @@ class AgentTools : KoinComponent {
                 put("urlAnalysis", buildJsonObject {
                     put("originalUrl", urlString)
                     put("requestedUrl", targetUrlObj.toString())
-                    put("protocol", protocol)
-                    put("host", host)
-                    put("port", port)
-                    put("path", path)
+                    put("protocol", targetUrlObj.protocol.name)
+                    put("host", targetUrlObj.host)
+                    put("port", targetUrlObj.port)
+                    put("path", targetUrlObj.encodedPath)
                     put("queryParameters", queryParams)
                 })
                 put("request", buildJsonObject {
                     put("method", method.value)
                     put("headers", buildJsonObject {
-                        parsedHeaders.forEach { (k, v) -> put(k, v) }
+                        parsedHeaders.forEach { (key, value) -> put(key, value) }
                     })
                 })
                 put("response", buildJsonObject {
@@ -576,16 +617,14 @@ class AgentTools : KoinComponent {
                     put("responseTimeMs", latency)
                     put("isHtmlCleaned", isHtml)
                     put("contentLength", response.contentLength() ?: cleanedBody.length.toLong())
-                    
-                    val preview = cleanedBody.truncateForTool(2000)
-                    put("contentPreview", preview)
+                    put("contentPreview", cleanedBody.truncateForTool(2000))
                 })
-            }.toString()
+            }
         } catch (e: Exception) {
             buildJsonObject {
                 put("success", false)
                 put("error", "Request failed: ${e.message}")
-            }.toString()
+            }
         }
     }
 }

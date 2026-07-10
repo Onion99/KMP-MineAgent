@@ -25,9 +25,10 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.math.roundToInt
 import org.onion.agent.getPlatform
+import org.onion.agent.native.llm.AgentLoopConfig
+import org.onion.agent.native.llm.AgentLoopEvent
+import org.onion.agent.native.llm.AgentLoopRunner
 import org.onion.agent.native.llm.AgentTools
-import org.onion.agent.native.llm.ToolCall
-import org.onion.agent.native.llm.ToolResponse
 import mineagent.composeapp.generated.resources.Res
 import mineagent.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
@@ -592,7 +593,8 @@ class ChatViewModel(
     
     @OptIn(ExperimentalTime::class)
     fun getTextTalkerResponse(query: String, onCancelled: () -> Unit, onError: (Throwable) -> Unit) {
-        if (lmConversation == null) {
+        val activeConversation = lmConversation
+        if (activeConversation == null) {
             isGenerating.value = false
             isInferenceOn = false
             viewModelScope.launch {
@@ -622,104 +624,113 @@ class ChatViewModel(
             val persistentToolResponses = mutableListOf<PersistentToolResponse>()
             val sessionId = activeSessionId.value
             val assistantMessageId = _currentChatMessages.lastOrNull()?.id?.toString().orEmpty()
-            var currentMessage = org.onion.agent.native.llm.Message.user(promptContent)
-            var keepGoing = true
-            var recursionCount = 0
-            
-            while (keepGoing && recursionCount < 10) {
-                var toolCallsReceived: List<ToolCall>? = null
-                
-                val extraContext = if (enableThinking.value) mapOf("enable_thinking" to "true") else emptyMap()
-                lmConversation?.sendMessageAsync(currentMessage, extraContext)
-                    ?.catch { e ->
-                        isGenerating.value = false
-                        isInferenceOn = false
-                        keepGoing = false
-                        if (e is CancellationException) {
-                            onCancelled()
+            val toolLogIds = mutableMapOf<String, String>()
+            var terminalTransition = "RUNNING"
+            var terminalTurnCount = 0
+
+            suspend fun updateAssistantMessage(isGeneratingNow: Boolean) {
+                val thinkingPrefix = if (generatedThought.isNotEmpty()) getString(Res.string.chat_thinking_prefix) else ""
+                val fullMessage = buildString {
+                    if (thinkingPrefix.isNotEmpty()) {
+                        append(thinkingPrefix)
+                        generatedThought.lineSequence().forEach { line ->
+                            append("> ").append(line).append("\n")
+                        }
+                        append("\n")
+                    }
+                    append(generatedResult)
+                }
+
+                if (_currentChatMessages.isNotEmpty()) {
+                    val lastIdx = _currentChatMessages.lastIndex
+                    val msgToUpdate = _currentChatMessages[lastIdx]
+                    val meta = mapOf("is_generating" to isGeneratingNow.toString())
+                    _currentChatMessages[lastIdx] = msgToUpdate.copy(
+                        message = fullMessage.trim(),
+                        metadata = meta
+                    )
+                }
+            }
+
+            val runner = AgentLoopRunner(
+                session = activeConversation,
+                toolExecutor = agentTools,
+                config = AgentLoopConfig(maxToolTurns = 10)
+            )
+
+            runner.run(
+                initialMessage = org.onion.agent.native.llm.Message.user(promptContent),
+                extraContextProvider = {
+                    if (enableThinking.value) mapOf("enable_thinking" to "true") else emptyMap()
+                }
+            ).catch { e ->
+                terminalTransition = "ERROR"
+                terminalTurnCount = 0
+                isGenerating.value = false
+                isInferenceOn = false
+                if (e is CancellationException) {
+                    onCancelled()
+                } else {
+                    if (_currentChatMessages.isNotEmpty()) {
+                        val lastIdx = _currentChatMessages.lastIndex
+                        val meta = mapOf("is_generating" to "false")
+                        val errMsg = e.message ?: ""
+                        val isTokenLimit = errMsg.contains("too long", ignoreCase = true) ||
+                                errMsg.contains("exceeding", ignoreCase = true) ||
+                                errMsg.contains("token", ignoreCase = true)
+                        val displayMsg = if (isTokenLimit) {
+                            getString(Res.string.chat_system_error_token_limit_exceeded)
                         } else {
-                            if (_currentChatMessages.isNotEmpty()) {
-                                val lastIdx = _currentChatMessages.lastIndex
-                                val meta = mapOf("is_generating" to "false")
-                                val errMsg = e.message ?: ""
-                                val isTokenLimit = errMsg.contains("too long", ignoreCase = true) ||
-                                        errMsg.contains("exceeding", ignoreCase = true) ||
-                                        errMsg.contains("token", ignoreCase = true)
-                                val displayMsg = if (isTokenLimit) {
-                                    getString(Res.string.chat_system_error_token_limit_exceeded)
-                                } else {
-                                    getString(Res.string.chat_system_error_prefix, errMsg.ifEmpty { getString(Res.string.unknown_error) })
-                                }
-                                val updated = _currentChatMessages[lastIdx].copy(
-                                    message = displayMsg,
-                                    metadata = meta
-                                )
-                                _currentChatMessages[lastIdx] = updated
-                                sessionId?.let { chatHistoryRepository.saveMessage(it, updated) }
-                            }
-                            onError(e)
+                            getString(Res.string.chat_system_error_prefix, errMsg.ifEmpty { getString(Res.string.unknown_error) })
                         }
+                        val updated = _currentChatMessages[lastIdx].copy(
+                            message = displayMsg,
+                            metadata = meta
+                        )
+                        _currentChatMessages[lastIdx] = updated
+                        sessionId?.let { chatHistoryRepository.saveMessage(it, updated) }
                     }
-                    ?.collect { responseMsg ->
-                        if (responseMsg.toolCalls.isNotEmpty()) {
-                            toolCallsReceived = responseMsg.toolCalls
-                        }
-                        
-                        val thoughtChunk = responseMsg.channels["thought"] ?: ""
-                        if (thoughtChunk.isNotEmpty()) {
-                            generatedThought += thoughtChunk
-                        }
-                        val chunk = responseMsg.contents.toString()
-                        if (chunk.isNotEmpty()) {
-                            generatedResult += chunk
-                        }
-                        
-                        val thinkingPrefix = if (generatedThought.isNotEmpty()) getString(Res.string.chat_thinking_prefix) else ""
-                        val fullMessage = buildString {
-                            if (thinkingPrefix.isNotEmpty()) {
-                                append(thinkingPrefix)
-                                generatedThought.lineSequence().forEach { line ->
-                                    append("> ").append(line).append("\n")
-                                }
-                                append("\n")
-                            }
-                            append(generatedResult)
-                        }
-                        
-                        if (chunk.isNotEmpty() || thoughtChunk.isNotEmpty()) {
-                            if (_currentChatMessages.isNotEmpty()) {
-                                val lastIdx = _currentChatMessages.lastIndex
-                                val msgToUpdate = _currentChatMessages[lastIdx]
-                                val meta = mapOf("is_generating" to "true")
-                                _currentChatMessages[lastIdx] = msgToUpdate.copy(message = fullMessage.trim(), metadata = meta)
-                            }
-                        }
+                    onError(e)
+                }
+            }.collect { event ->
+                terminalTransition = event.state.transition.name
+                terminalTurnCount = event.state.turnCount
+
+                when (event) {
+                    is AgentLoopEvent.TextDelta -> {
+                        generatedResult += event.text
+                        updateAssistantMessage(isGeneratingNow = true)
                     }
-                
-                val toolCalls = toolCallsReceived
-                if (toolCalls != null && toolCalls.isNotEmpty()) {
-                    recursionCount++
-                    val responses = mutableListOf<ToolResponse>()
-                    
-                    for (toolCall in toolCalls) {
-                        println("ChatViewModel: Executing tool '${toolCall.name}' with args: ${toolCall.arguments}")
+                    is AgentLoopEvent.ThoughtDelta -> {
+                        generatedThought += event.text
+                        updateAssistantMessage(isGeneratingNow = true)
+                    }
+                    is AgentLoopEvent.ToolCallsReceived -> {
+                        println("ChatViewModel: Received ${event.toolCalls.size} tool calls.")
+                    }
+                    is AgentLoopEvent.ToolStarted -> {
+                        println("ChatViewModel: Executing tool '${event.toolCall.name}' with args: ${event.toolCall.arguments}")
                         val toolStartedAt = Clock.System.now().toEpochMilliseconds()
                         val toolLogId = ChatHistoryRepository.newId("tool")
-                        val toolArguments = toolCall.arguments.toString()
+                        val toolArguments = event.toolCall.arguments.toString()
+                        val toolKey = "${event.turnIndex}:${event.callIndex}"
+                        toolLogIds[toolKey] = toolLogId
+
                         persistentToolCalls.add(
                             PersistentToolCall(
-                                name = toolCall.name,
+                                name = event.toolCall.name,
                                 arguments = toolArguments,
                                 createdAtMillis = toolStartedAt
                             )
                         )
+
                         if (sessionId != null && assistantMessageId.isNotBlank()) {
                             chatHistoryRepository.upsertToolLog(
                                 ChatToolLogEntity(
                                     id = toolLogId,
                                     sessionId = sessionId,
                                     messageId = assistantMessageId,
-                                    toolName = toolCall.name,
+                                    toolName = event.toolCall.name,
                                     arguments = toolArguments,
                                     response = "",
                                     status = "running",
@@ -728,56 +739,52 @@ class ChatViewModel(
                                 )
                             )
                         }
-                        
-                        val toolLog = getString(Res.string.chat_running_tool, toolCall.name)
-                        generatedResult += toolLog
-                        if (_currentChatMessages.isNotEmpty()) {
-                            val lastIdx = _currentChatMessages.lastIndex
-                            val msgToUpdate = _currentChatMessages[lastIdx]
-                            val meta = mapOf("is_generating" to "true")
-                            _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
-                        }
-                        
-                        val resultStr = agentTools.execute(toolCall.name, toolCall.arguments)
-                        val toolCompletedAt = Clock.System.now().toEpochMilliseconds()
+
+                        generatedResult += getString(Res.string.chat_running_tool, event.toolCall.name)
+                        updateAssistantMessage(isGeneratingNow = true)
+                    }
+                    is AgentLoopEvent.ToolFinished -> {
+                        val toolKey = "${event.turnIndex}:${event.callIndex}"
+                        val toolLogId = toolLogIds[toolKey] ?: ChatHistoryRepository.newId("tool")
+                        val resultStr = event.response.response
+                        val toolArguments = event.toolCall.arguments.toString()
+                        val toolStatus = if (event.result.success) "completed" else "failed"
+
                         persistentToolResponses.add(
                             PersistentToolResponse(
-                                name = toolCall.name,
+                                name = event.toolCall.name,
                                 response = resultStr,
-                                createdAtMillis = toolCompletedAt
+                                createdAtMillis = event.result.completedAtMillis
                             )
                         )
+
                         if (sessionId != null && assistantMessageId.isNotBlank()) {
                             chatHistoryRepository.upsertToolLog(
                                 ChatToolLogEntity(
                                     id = toolLogId,
                                     sessionId = sessionId,
                                     messageId = assistantMessageId,
-                                    toolName = toolCall.name,
+                                    toolName = event.toolCall.name,
                                     arguments = toolArguments,
                                     response = resultStr,
-                                    status = "completed",
-                                    startedAtMillis = toolStartedAt,
-                                    completedAtMillis = toolCompletedAt
+                                    status = toolStatus,
+                                    startedAtMillis = event.result.startedAtMillis,
+                                    completedAtMillis = event.result.completedAtMillis
                                 )
                             )
                         }
-                        
-                        val toolDoneLog = getString(Res.string.chat_tool_completed, toolCall.name)
-                        generatedResult += toolDoneLog
-                        if (_currentChatMessages.isNotEmpty()) {
-                            val lastIdx = _currentChatMessages.lastIndex
-                            val msgToUpdate = _currentChatMessages[lastIdx]
-                            val meta = mapOf("is_generating" to "true")
-                            _currentChatMessages[lastIdx] = msgToUpdate.copy(message = generatedResult.trim(), metadata = meta)
-                        }
-                        
-                        responses.add(ToolResponse(toolCall.name, resultStr))
+
+                        generatedResult += getString(Res.string.chat_tool_completed, event.toolCall.name)
+                        updateAssistantMessage(isGeneratingNow = true)
                     }
-                    
-                    currentMessage = org.onion.agent.native.llm.Message.tool(responses)
-                } else {
-                    keepGoing = false
+                    is AgentLoopEvent.Completed -> {
+                        terminalTransition = event.state.transition.name
+                        terminalTurnCount = event.state.turnCount
+                    }
+                    is AgentLoopEvent.MaxTurnsReached -> {
+                        terminalTransition = event.state.transition.name
+                        terminalTurnCount = event.state.turnCount
+                    }
                 }
             }
             
@@ -788,7 +795,9 @@ class ChatViewModel(
                 val meta = mapOf(
                     "prompt" to promptContent,
                     "time_taken" to formatDuration(generationDuration),
-                    "is_generating" to "false"
+                    "is_generating" to "false",
+                    "agent_turn_count" to terminalTurnCount.toString(),
+                    "agent_transition" to terminalTransition
                 )
                 val updated = _currentChatMessages[lastIdx].copy(
                     metadata = meta,

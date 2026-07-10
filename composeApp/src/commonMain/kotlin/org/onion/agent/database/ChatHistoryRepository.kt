@@ -71,8 +71,14 @@ class ChatHistoryRepository(
         refreshSessionSummary(sessionId, "")
     }
 
-    suspend fun upsertToolLog(toolLog: ChatToolLogEntity) {
-        dao.upsertToolLog(toolLog)
+    suspend fun upsertToolLog(toolLog: ChatToolLogEntity): Boolean {
+        if (!dao.messageExists(toolLog.sessionId, toolLog.messageId)) {
+            return false
+        }
+        return runCatching {
+            dao.upsertToolLog(toolLog)
+            true
+        }.getOrElse { false }
     }
 
     suspend fun exportSessionMarkdown(sessionId: String): String {
