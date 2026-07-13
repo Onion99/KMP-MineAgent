@@ -1,109 +1,226 @@
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import kotlin.io.path.deleteIfExists
-import kotlin.io.path.isDirectory
 
 // ================== 配置区 ==================
-val newPackage = "org.onion.agent"
-// 被替换的包名
-val needToReplacePackage = "org.onion.diffusion"
+val newPackage = "org.onion.agro"
+// 被替换的 Kotlin/Java 包名
+val needToReplacePackage = "org.onion.agent"
+
+// Compose Multiplatform generated resources 的包名不等同于 applicationId。
+// 例如：
+//   import oldappname.ui_theme.generated.resources.Res
+//   import newappname.xxxxxx.generated.resources.Res
+val oldComposeResourceRoot = "mineagent"
+val newComposeResourceRoot = "agro"
+val composeResourceModuleReplacements = mapOf(
+    "composeapp" to "composeapp",
+    "ui_theme" to "ui_theme",
+)
+val explicitResourcePackageReplacements = mapOf<String, String>(
+    // "oldappname.ui_theme.generated.resources" to "newappname.xxxxxx.generated.resources",
+)
+
 val rootDir = ".\\"
-val ignoreDirs = listOf(".\\.fleet",".\\.gitignore",".\\.kotlin", ".\\.idea",
-    ".\\build", ".\\.gradle", ".\\gradle", ".\\.git", ".\\iosApp", ".\\cpp",".\\composeApp\\.cxx",".\\composeApp\\build")
-val checkFileSuffix = listOf(".kt", ".java", ".xml"/*, ".kts"*/, ".pro") // 增加了更多可能包含包名的文件类型
+val ignoreDirs = listOf(
+    ".\\.fleet",
+    ".\\.gitignore",
+    ".\\.kotlin",
+    ".\\.idea",
+    ".\\build",
+    ".\\.gradle",
+    ".\\gradle",
+    ".\\.git",
+    ".\\iosApp",
+    ".\\cpp",
+    ".\\composeApp\\.cxx",
+    ".\\composeApp\\build",
+)
+val ignoreDirNames = setOf(
+    ".fleet",
+    ".git",
+    ".gradle",
+    ".idea",
+    ".kotlin",
+    ".cxx",
+    "build",
+)
+val ignoreRootDirNames = setOf(
+    "cpp",
+    "iosApp",
+)
+val checkFileSuffix = listOf(".kt", ".java", ".xml", ".pro")
 // ============================================
+
+data class ReplacementRule(
+    val oldValue: String,
+    val newValue: String,
+    val description: String,
+)
 
 val rootFile = File(rootDir).canonicalFile
 val ignoreFiles = ignoreDirs.map {
     File(rootFile, it).canonicalFile
+}.toSet()
+
+val packageReplacementRules = listOf(
+    ReplacementRule(
+        oldValue = needToReplacePackage,
+        newValue = newPackage,
+        description = "package",
+    ),
+)
+
+val resourcePackageReplacementRules = buildList {
+    composeResourceModuleReplacements.forEach { (oldModule, newModule) ->
+        add(
+            ReplacementRule(
+                oldValue = "$oldComposeResourceRoot.$oldModule.generated.resources",
+                newValue = "$newComposeResourceRoot.$newModule.generated.resources",
+                description = "compose resources",
+            ),
+        )
+    }
+    explicitResourcePackageReplacements.forEach { (oldPackage, newPackage) ->
+        add(
+            ReplacementRule(
+                oldValue = oldPackage,
+                newValue = newPackage,
+                description = "explicit compose resources",
+            ),
+        )
+    }
 }
+    .filter { it.oldValue.isNotBlank() && it.oldValue != it.newValue }
+    .distinctBy { it.oldValue }
+
+val replacementRules = packageReplacementRules + resourcePackageReplacementRules
 
 // --- 步骤 1: 修改文件内容 ---
 println("Step 1: Replacing package content in files...")
 rootFile.walkTopDown()
-    .onEnter { dir -> !ignoreFiles.contains(dir.canonicalFile) } // 避免进入忽略的目录
+    .onEnter { dir -> dir.shouldEnterDirectory() }
     .filter { it.isFile && it.isTargetFile() }
     .forEach { file ->
-        file.replacePackageContent()
+        file.replaceContent(replacementRules)
     }
 println("Step 1: Finished.\n")
 
-
 // --- 步骤 2: 移动/重命名目录 ---
 println("Step 2: Finding and moving directories...")
-val oldPackagePath = needToReplacePackage.replace('.', File.separatorChar) // "org\onion\gpt"
-val newPackagePath = newPackage.replace('.', File.separatorChar) // "org\onion\diffusion"
+val oldPackageSegments = needToReplacePackage.split('.')
+val newPackagePath = newPackage.replace('.', File.separatorChar)
 
-val dirsToMove = mutableMapOf<File, File>()
+val dirsToMove = linkedMapOf<File, File>()
 
-// 使用更健壮的方式查找所有匹配旧包名路径的目录
 rootFile.walkTopDown()
-    .onEnter { dir -> !ignoreFiles.contains(dir.canonicalFile) }
-    .filter { it.isDirectory && it.canonicalPath.endsWith(oldPackagePath) }
+    .onEnter { dir -> dir.shouldEnterDirectory() }
+    .filter { it.isDirectory && it.endsWithPathSegments(oldPackageSegments) }
     .forEach { oldDir ->
-        // 计算新目录的路径
-        // oldDir.parentFile.path 是 ...\org\onion
-        // newPackagePath 是 org\onion\diffusion
-        val newDir = File(oldDir.parentFile, newPackagePath.substringAfterLast(File.separatorChar))
-        dirsToMove[oldDir] = newDir
+        val packageBaseDir = oldDir.parentBeforePathSegments(oldPackageSegments)
+        dirsToMove[oldDir] = File(packageBaseDir, newPackagePath)
     }
 
 if (dirsToMove.isEmpty()) {
-    println("Warning: No directories found matching the old package path: $oldPackagePath")
+    println("Warning: No directories found matching the old package path: ${oldPackageSegments.joinToString(File.separator)}")
 } else {
     dirsToMove.forEach { (oldDir, newDir) ->
         try {
             println("Renaming: ${oldDir.path}")
             println("      to: ${newDir.path}")
 
-            // 确保新目录的父目录存在
-            if(newDir.parentFile.isDirectory.not()){
+            if (!newDir.parentFile.isDirectory) {
                 newDir.parentFile.mkdirs()
             }
 
-            // 直接移动/重命名，这是原子操作，比逐个文件移动更高效、更安全
             Files.move(oldDir.toPath(), newDir.toPath(), StandardCopyOption.ATOMIC_MOVE)
-
-            // 清理旧的、可能变空的父目录
             deleteEmptyParentDirs(oldDir.parentFile)
-
         } catch (e: Exception) {
-            System.err.println("Error moving directory ${oldDir.path}: ${e.message},exception -> ${e.stackTraceToString()}")
+            System.err.println("Error moving directory ${oldDir.path}: ${e.message}, exception -> ${e.stackTraceToString()}")
         }
     }
 }
 println("Step 2: Finished.\n")
 
-
 // --- 辅助函数 ---
 
 fun File.isTargetFile(): Boolean {
-    return checkFileSuffix.any { this.name.endsWith(it) }
+    return checkFileSuffix.any { name.endsWith(it) }
 }
 
-fun File.replacePackageContent() {
-    val originalText = this.readText()
-    if (originalText.contains(needToReplacePackage)) {
-        val newText = originalText.replace(needToReplacePackage, newPackage)
-        this.writeText(newText)
-        println("  -> Replaced content in: ${this.path}")
+fun File.shouldEnterDirectory(): Boolean {
+    if (canonicalFile == rootFile) return true
+    if (ignoreFiles.contains(canonicalFile)) return false
+    if (name in ignoreDirNames) return false
+
+    val relativePath = rootFile.toPath().relativize(canonicalFile.toPath())
+    val firstSegment = relativePath.firstOrNull()?.toString()
+    return firstSegment !in ignoreRootDirNames
+}
+
+fun File.replaceContent(rules: List<ReplacementRule>) {
+    val originalText = readText()
+    val replacedText = rules.fold(originalText) { current, rule ->
+        current.replace(rule.oldValue, rule.newValue)
+    }.removeDuplicateImports()
+
+    if (replacedText != originalText) {
+        writeText(replacedText)
+        println("  -> Replaced content in: $path")
+    }
+}
+
+fun File.endsWithPathSegments(expectedSegments: List<String>): Boolean {
+    val pathSegments = canonicalFile.toPath().map { it.toString() }
+    return pathSegments.takeLast(expectedSegments.size) == expectedSegments
+}
+
+fun File.parentBeforePathSegments(pathSegments: List<String>): File {
+    var current = canonicalFile
+    repeat(pathSegments.size) {
+        current = current.parentFile
+    }
+    return current
+}
+
+fun String.removeDuplicateImports(): String {
+    if (!contains("import ")) return this
+
+    val lineSeparator = if (contains("\r\n")) "\r\n" else "\n"
+    val normalized = replace("\r\n", "\n")
+    val hasTrailingLineSeparator = normalized.endsWith("\n")
+    val sourceLines = normalized.removeSuffix("\n").split("\n")
+    val seenImports = mutableSetOf<String>()
+    val deduplicatedLines = sourceLines.filter { line ->
+        val normalizedLine = line.trim()
+        if (!normalizedLine.startsWith("import ")) {
+            true
+        } else {
+            seenImports.add(normalizedLine)
+        }
+    }
+
+    return buildString {
+        append(deduplicatedLines.joinToString(lineSeparator))
+        if (hasTrailingLineSeparator) {
+            append(lineSeparator)
+        }
     }
 }
 
 /**
- * 递归删除空的父目录
+ * 递归删除空的父目录。
  */
 fun deleteEmptyParentDirs(dir: File?) {
     if (dir == null || !dir.canonicalPath.startsWith(rootFile.canonicalPath)) {
-        return // 安全检查，防止删除到项目根目录之外
+        return
     }
 
-    if (dir.isDirectory && (dir.listFiles()?.isEmpty() == true)) {
+    if (dir.isDirectory && dir.listFiles()?.isEmpty() == true) {
         val parent = dir.parentFile
         if (dir.delete()) {
             println("  -> Deleted empty directory: ${dir.path}")
-            deleteEmptyParentDirs(parent) // 递归检查上一级
+            deleteEmptyParentDirs(parent)
         }
     }
 }

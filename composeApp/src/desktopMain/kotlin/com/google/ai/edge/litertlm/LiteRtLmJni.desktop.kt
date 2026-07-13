@@ -2,7 +2,7 @@ package com.google.ai.edge.litertlm
 
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.openFilePicker
-import org.onion.agent.utils.NativeLibraryLoader
+import org.onion.agro.utils.NativeLibraryLoader
 
 import com.sun.jna.Library
 import com.sun.jna.Native

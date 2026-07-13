@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-13] - 包名替换脚本资源导入适配
+- [修改] 优化 `package_replace.kts`，新增 Compose generated resources 包前缀替换配置，支持 `oldappname.ui_theme.generated.resources.Res` 到 `newappname.xxxxxx.generated.resources.Res` 这类资源导入迁移。
+- [修改] 增强脚本目录过滤，跳过所有模块级 `build`、`.gradle`、`.git` 等生成目录，并在替换后清理重复 `import` 行。
+- [文档] 新增 `docs/specs/package-replace-script.md`，记录脚本配置项、Compose 资源导入迁移规则和遍历边界。
+
 ## [2026-07-10] - Chat 工具日志外键修复
 - [修复] 将 `ChatHistoryDao` 中 `chat_sessions`、`chat_messages`、`chat_tool_logs` 的写入从 SQLite `REPLACE` 语义改为 Room `@Upsert`，避免更新 session 或 message 时触发外键级联删除。
 - [修复] `ChatHistoryRepository.upsertToolLog()` 写入前检查父消息是否仍存在，防止生成过程中会话被删除或状态切换时工具日志写入导致后台协程崩溃。
