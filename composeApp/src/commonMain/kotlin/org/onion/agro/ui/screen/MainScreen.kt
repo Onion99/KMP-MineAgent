@@ -54,6 +54,7 @@ import agro.composeapp.generated.resources.ic_sun
 import agro.composeapp.generated.resources.light_theme
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
+import org.onion.agro.BuildConfig
 import org.onion.agro.ui.navigation.NavActions
 import org.onion.agro.ui.navigation.route.MainRoute
 import org.onion.agro.ui.navigation.route.NAV_BOTTOM_ITEMS
@@ -206,7 +207,7 @@ fun EtherealNavigationRail(
                     .padding(top = AppTheme.spacing.md, bottom = AppTheme.spacing.xxl)
             ) {
                 Text(
-                    text = "Aura LLM",
+                    text = BuildConfig.APP_NAME,
                     style = AppTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Light,
                         letterSpacing = (-0.5).sp

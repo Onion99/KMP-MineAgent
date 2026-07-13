@@ -32,6 +32,7 @@ import org.onion.agro.native.llm.AgentTools
 import agro.composeapp.generated.resources.Res
 import agro.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+import org.onion.agro.BuildConfig
 import org.onion.agro.database.ChatHistoryRepository
 import org.onion.agro.database.ChatSessionEntity
 import org.onion.agro.database.ChatToolLogEntity
@@ -147,7 +148,7 @@ class ChatViewModel(
     var topK = mutableStateOf(40)
     var enableThinking = mutableStateOf(false)
     var enableSpeculativeDecoding = mutableStateOf(false)
-    var systemPrompt = mutableStateOf("You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.")
+    var systemPrompt = mutableStateOf("You are  ${BuildConfig.APP_NAME}, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.")
     var systemContextShift = mutableStateOf(true)
 
 
@@ -162,9 +163,10 @@ class ChatViewModel(
             lmMaxNumTokens.value = 4096
             systemContextShift.value = true
             try {
-                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default)
+                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default,
+                    BuildConfig.APP_NAME)
             } catch (e: Exception) {
-                systemPrompt.value = "You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone."
+                systemPrompt.value = "You are ${BuildConfig.APP_NAME}, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone."
             }
         }
     }
@@ -816,7 +818,7 @@ class ChatViewModel(
     init {
         viewModelScope.launch {
             try {
-                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default)
+                systemPrompt.value = getString(Res.string.llm_setting_system_prompt_default,BuildConfig.APP_NAME)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

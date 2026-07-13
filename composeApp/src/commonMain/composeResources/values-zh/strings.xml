@@ -4,7 +4,6 @@
     <string name="chat">对话</string>
     <string name="library">资源库</string>
     <string name="setting">设置</string>
-    <string name="app_brand">Aura LLM</string>
     <string name="local_intelligence">本地智能</string>
     <string name="light_theme">亮色主題</string>
     <string name="dark_theme">暗色主題</string>
@@ -109,7 +108,6 @@
     <string name="model_action_load">加载模型</string>
     <string name="model_action_active">正在运行</string>
     <string name="model_action_select_file">选择文件</string>
-    <string name="brand_short">Aura</string>
     <string name="new_chat">新对话</string>
     <string name="history">历史记录</string>
     <string name="history_search_hint">搜索历史记录</string>
@@ -119,7 +117,7 @@
     <string name="chat_date_desktop">今天，清晨如水</string>
     <string name="chat_input_hint_mobile">分享你的想法...</string>
     <string name="chat_input_hint_desktop">向虚空倾诉你的思绪...</string>
-    <string name="chat_disclaimer">Aura 基于概率编织回应，请以温和的审视探寻真相。</string>
+    <string name="chat_disclaimer">%1$s 基于概率编织回应，请以温和的审视探寻真相。</string>
     <string name="model_loading_title">模型初始化中</string>
     <string name="model_loading_subtitle">正在配置权重并准备本地神经网络引擎...</string>
 
@@ -152,7 +150,7 @@
     <string name="llm_setting_btn_reset">恢复默认</string>
     <string name="llm_setting_btn_apply">应用参数</string>
     <string name="llm_setting_value_label">当前值: %1$s</string>
-    <string name="llm_setting_system_prompt_default">你是一个善于分析和精准的本地人工智能。优先考虑事实的准确性和简洁的格式。保持冷静、中立的语气。</string>
+    <string name="llm_setting_system_prompt_default">你是一个善于分析和精准的本地人工智能%1$s。优先考虑事实的准确性和简洁的格式。保持冷静、中立的语气。</string>
     <string name="model_download_queued">排队中...</string>
     <string name="model_download_paused">已暂停</string>
     <string name="model_download_failed">下载失败: %1$s</string>

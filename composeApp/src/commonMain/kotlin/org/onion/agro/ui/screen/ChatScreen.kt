@@ -97,7 +97,6 @@ import kotlinx.coroutines.launch
 import agro.composeapp.generated.resources.Res
 import agro.composeapp.generated.resources.ai_image
 import agro.composeapp.generated.resources.attachment
-import agro.composeapp.generated.resources.brand_short
 import agro.composeapp.generated.resources.chat_date_desktop
 import agro.composeapp.generated.resources.chat_date_mobile
 import agro.composeapp.generated.resources.chat_disclaimer
@@ -127,6 +126,7 @@ import agro.composeapp.generated.resources.user_image
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import org.onion.agro.BuildConfig
 import org.onion.agro.database.ChatSessionEntity
 import org.onion.agro.utils.Animations
 import org.onion.agro.viewmodel.ChatViewModel
@@ -1364,7 +1364,7 @@ fun InputArea(
                     }
 
                     Text(
-                        text = stringResource(Res.string.chat_disclaimer),
+                        text = stringResource(Res.string.chat_disclaimer, BuildConfig.APP_NAME),
                         style = AppTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = AppTheme.colors.outline.copy(alpha = 0.6f),
                         letterSpacing = 0.5.sp

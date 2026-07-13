@@ -5,7 +5,6 @@
     <string name="library">Library</string>
     <string name="setting">Setting</string>
     <string name="unknown">unknown</string>
-    <string name="app_brand">Aura LLM</string>
     <string name="local_intelligence">Local Intelligence</string>
     <string name="light_theme">Light Theme</string>
     <string name="dark_theme">Dark Theme</string>
@@ -110,7 +109,6 @@
     <string name="model_action_load">Load Model</string>
     <string name="model_action_active">Active Engine</string>
     <string name="model_action_select_file">Select File</string>
-    <string name="brand_short">Aura</string>
     <string name="new_chat">New Spark</string>
     <string name="history">History</string>
     <string name="history_search_hint">Search history</string>
@@ -120,7 +118,7 @@
     <string name="chat_date_desktop">Today, serene morning</string>
     <string name="chat_input_hint_mobile">Share your thoughts...</string>
     <string name="chat_input_hint_desktop">Whisper your thoughts to the void...</string>
-    <string name="chat_disclaimer">Aura weaves responses from probability. Seek truth with gentle scrutiny.</string>
+    <string name="chat_disclaimer">%1$s weaves responses from probability. Seek truth with gentle scrutiny.</string>
     <string name="model_loading_title">Initializing Model</string>
     <string name="model_loading_subtitle">Configuring weights and preparing the local engine...</string>
 
@@ -153,7 +151,7 @@
     <string name="llm_setting_btn_reset">Reset Defaults</string>
     <string name="llm_setting_btn_apply">Apply Parameters</string>
     <string name="llm_setting_value_label">Value: %1$s</string>
-    <string name="llm_setting_system_prompt_default">You are Aura, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.</string>
+    <string name="llm_setting_system_prompt_default">You are %1$s, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.</string>
     <string name="model_download_queued">Queued...</string>
     <string name="model_download_paused">Paused</string>
     <string name="model_download_failed">Failed: %1$s</string>
