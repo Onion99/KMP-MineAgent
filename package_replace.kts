@@ -11,7 +11,7 @@ val needToReplacePackage = "org.onion.agent"
 // 例如：
 //   import oldappname.ui_theme.generated.resources.Res
 //   import newappname.xxxxxx.generated.resources.Res
-val oldComposeResourceRoot = "mineagent"
+val oldComposeResourceRoot = "xxxx"
 val newComposeResourceRoot = "agro"
 val composeResourceModuleReplacements = mapOf(
     "composeapp" to "composeapp",
