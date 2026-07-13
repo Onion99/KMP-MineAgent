@@ -267,9 +267,9 @@ jobs:
               done
             fi
             # Package portable as zip
-            if [ -d "windows-${arch}/app/MineAgent" ]; then
+            if [ -d "windows-${arch}/app/Agro" ]; then
               cd windows-${arch}/app
-              zip -r "../../${BASE_NAME}-windows-${arch}.zip" MineAgent
+              zip -r "../../${BASE_NAME}-windows-${arch}.zip" Agro
               cd ../..
             fi
           done
@@ -359,14 +359,14 @@ jobs:
 
           # Prepare AppDir
           mkdir -p AppDir/usr
-          cp -r linux-${{ matrix.arch }}/app/MineAgent/* AppDir/usr
+          cp -r linux-${{ matrix.arch }}/app/Agro/* AppDir/usr
 
           # Create desktop file
-          cat > AppDir/MineAgent.desktop << 'EOF'
+          cat > AppDir/Agro.desktop << 'EOF'
           [Desktop Entry]
-          Name=MineAgent
-          Exec=MineAgent
-          Icon=MineAgent
+          Name=Agro
+          Exec=Agro
+          Icon=Agro
           Terminal=false
           Type=Application
           Categories=Utility;
@@ -379,23 +379,23 @@ jobs:
           HERE=${SELF%/*}
           export PATH="${HERE}/usr/bin/:${PATH}"
           export LD_LIBRARY_PATH="${HERE}/usr/lib/:${LD_LIBRARY_PATH}"
-          exec "${HERE}/usr/bin/MineAgent" "$@"
+          exec "${HERE}/usr/bin/Agro" "$@"
           EOF
 
           # Copy icon if exists
           if [ -f "docs/AppIcon.png" ]; then
-            cp docs/AppIcon.png AppDir/MineAgent.png
+            cp docs/AppIcon.png AppDir/Agro.png
           fi
 
           # Fix permissions
           chmod a+x AppDir/AppRun
-          chmod a+x AppDir/usr/bin/MineAgent
+          chmod a+x AppDir/usr/bin/Agro
 
           # Build AppImage
           ARCH=${{ matrix.arch }} ./${{ matrix.appimagetool }} AppDir
           
           # Rename AppImage with base name from DMG
-          mv MineAgent-${{ matrix.arch }}.AppImage ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
+          mv Agro-${{ matrix.arch }}.AppImage ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
           chmod a+x ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
 
       - name: Upload AppImage artifact

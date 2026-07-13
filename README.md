@@ -2,9 +2,6 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/Onion99/KMP-MineAgent.git
-cd KMP-MineAgent
-
 # Install Protobuf https://github.com/protocolbuffers/protobuf/releases
 # add path to system environment D:\MyApp\Code\protoc-25.9-win64\bin
 protoc --version
