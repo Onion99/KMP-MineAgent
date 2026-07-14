@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [2026-07-14] - 多平台 CI 原生构建前置条件修复
+- [修复] 更新 `.github/workflows/build.yml`，为 Android release 构建安装 Android NDK 27.2.12479018 并写入 `local.properties`，修复 `buildAndroidNativeLib` 创建阶段 `NDK is not installed`。
+- [修复] Windows Desktop 构建改为下载真实 `bazelisk.exe` 并加入 `PATH`，避免 Gradle `ExecOperations` 无法启动 npm `.cmd` shim 导致 `command 'bazelisk'` 失败。
+- [修复] Linux Desktop 构建在 CI `.bazelrc.user` 中禁用 `xnn_enable_avxvnniint8`，规避 Ubuntu 22.04 clang 14 不支持 `-mavxvnniint8` 的 XNNPACK 编译失败。
+- [修复] Desktop 与 Mobile 构建 checkout 启用 Git LFS，并对子模块执行 `git lfs pull`，避免 macOS 链接到 LFS pointer 导致 `ld: unknown file type`。
+- [文档] 更新 `docs/specs/bazel-windows-android-rc.md`，补充 Android NDK、Windows Bazelisk、Linux XNNPACK 和子模块 LFS 的 CI 约束。
+
 ## [2026-07-14] - Linux Gradle Wrapper 权限修复
 - [修复] 将 `gradlew` 的 Git 可执行位调整为 executable，并在 `.github/workflows/build.yml` 的 Unix runner 中增加 `chmod +x ./gradlew` 前置步骤，修复 Linux 包构建执行 `./gradlew` 时 `Permission denied` 的问题。
 - [文档] 更新 `docs/specs/bazel-windows-android-rc.md`，补充 GitHub Actions 中 Gradle Wrapper 执行权限约束。

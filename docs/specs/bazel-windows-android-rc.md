@@ -44,12 +44,17 @@ build:win_host --host_cxxopt=/utf-8
 仓库根目录的 `.bazelrc.user` 是本机开发配置，包含本机 Bazel 输出目录和 Visual Studio 路径，不能直接作为 GitHub Actions 的运行时配置使用。`.github/workflows/build.yml` 在 CI 中会重写工作区内的 `.bazelrc.user`：
 
 - Desktop 三平台和 Android release 构建都会显式安装 `bazelisk`，避免 Gradle 原生库任务启动 `bazelisk` 时找不到命令。
+- Desktop CI 当前只发布 `macos-aarch64`、`linux-x86_64`、`windows-x86_64` 三个平台产物；`macos-x86_64` 不在构建矩阵和打包聚合链路中。
+- Windows CI 下载 `bazelisk-windows-amd64.exe` 并加入 `PATH`。不要只依赖 `npm install -g @bazel/bazelisk`，因为 npm 在 Windows 上暴露的是 `.cmd` shim，Gradle `ExecOperations`/Java `ProcessBuilder` 直接启动 `bazelisk` 时可能无法解析该 shim。
 - CI 生成独立的 `startup --output_user_root`，不复用本机 `G:/_b` 等绝对路径。
 - CI 生成 `build --disk_cache=~/.cache/bazel-disk`，并通过 `actions/cache` 按 `runner.os` 与构建矩阵隔离缓存。
 - Windows CI 通过 `vswhere.exe` 动态发现 Visual Studio C++ toolchain，并写入 `BAZEL_VC`，不依赖本机固定的 BuildTools 路径。
 - Linux、macOS 和 Android-on-macOS 不写入 `BAZEL_VC`，只保留 Bazel 输出目录和磁盘缓存配置。
+- Linux CI 通过 `.bazelrc.user` 写入 `build --define=xnn_enable_avxvnniint8=false`。Ubuntu 22.04 默认 clang 14 不支持 XNNPACK 的 `-mavxvnniint8` 参数，必须禁用该微内核族或升级 clang。
 - Windows desktop 仍保留 `msvc_target_utf8` 与 `win_host` 两组 UTF-8 配置，确保 target 与 host 参数边界不回退。
 - 所有会执行 `./gradlew` 的 Unix runner 在 wrapper 校验前都会执行 `chmod +x ./gradlew`；同时仓库中的 `gradlew` 必须保持 Git 可执行位，避免 Linux/macOS checkout 后出现 `Permission denied`。
+- Desktop 和 Android/iOS 构建 job 必须拉取 Git LFS 资源，并对子模块执行 `git lfs pull`。`cpp/lite-rt-lm/prebuilt/*` 下的 `.so`、`.dylib`、`.dll`、`.lib` 均由子模块 Git LFS 管理；如果 CI 只拿到 LFS pointer，macOS 链接会出现 `ld: unknown file type`。
+- Android release 构建必须在 Gradle 执行前安装 NDK，并写入 `local.properties` 的 `sdk.dir` 与 `ndk.dir`。`composeApp:buildAndroidNativeLib` 在任务创建阶段读取 AGP 的 `ndkDirectory`，未安装 NDK 会直接导致 `NDK is not installed`。
 
 ## 验证
 

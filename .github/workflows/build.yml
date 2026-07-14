@@ -54,6 +54,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
+          lfs: true
 
       - name: Ensure Gradle Wrapper executable
         if: runner.os != 'Windows'
@@ -84,10 +85,6 @@ jobs:
         include:
           - name: macos-aarch64
             runner: macos-latest
-            task: ./gradlew packageReleaseDmg
-
-          - name: macos-x86_64
-            runner: macos-15-intel
             task: ./gradlew packageReleaseDmg
 
           - name: linux-x86_64
@@ -122,6 +119,14 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
+          lfs: true
+
+      - name: Fetch Git LFS assets
+        shell: bash
+        run: |
+          git lfs install --local
+          git lfs pull
+          git submodule foreach --recursive 'git lfs install --local && git lfs pull'
 
       - name: Ensure Gradle Wrapper executable
         if: runner.os != 'Windows'
@@ -158,10 +163,24 @@ jobs:
         if: startsWith(matrix.name, 'windows')
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install Bazelisk
+      - name: Install Bazelisk (Unix)
+        if: "!startsWith(matrix.name, 'windows')"
         run: |
           npm install -g @bazel/bazelisk
           bazelisk --version
+
+      - name: Install Bazelisk (Windows)
+        if: startsWith(matrix.name, 'windows')
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP "bazelisk"
+          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+          $bazelisk = Join-Path $installDir "bazelisk.exe"
+          Invoke-WebRequest `
+            -Uri "https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-windows-amd64.exe" `
+            -OutFile $bazelisk
+          $installDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & $bazelisk --version
 
       - name: Restore Bazel disk cache
         uses: actions/cache@v4
@@ -174,6 +193,8 @@ jobs:
 
       - name: Configure Bazel user rc (Unix)
         if: "!startsWith(matrix.name, 'windows')"
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
         run: |
           BAZEL_OUTPUT_ROOT="${RUNNER_TEMP}/bazel-output"
           BAZEL_DISK_CACHE="${HOME}/.cache/bazel-disk"
@@ -181,7 +202,13 @@ jobs:
           cat > .bazelrc.user <<EOF
           startup --output_user_root=$BAZEL_OUTPUT_ROOT
           build --disk_cache=$BAZEL_DISK_CACHE
+          build --verbose_failures
           EOF
+          if [[ "$MATRIX_NAME" == linux* ]]; then
+            cat >> .bazelrc.user <<EOF
+          build --define=xnn_enable_avxvnniint8=false
+          EOF
+          fi
           cat .bazelrc.user
 
       - name: Configure Bazel user rc (Windows)
@@ -214,6 +241,7 @@ jobs:
           @"
           startup --output_user_root=$bazelOutputRoot
           build --disk_cache=$bazelDiskCache
+          build --verbose_failures
           build --action_env=BAZEL_VC="$vcPath"
           build --repo_env=BAZEL_VC="$vcPath"
           build:msvc_target_utf8 --copt=/utf-8
@@ -272,6 +300,14 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
+          lfs: true
+
+      - name: Fetch Git LFS assets
+        shell: bash
+        run: |
+          git lfs install --local
+          git lfs pull
+          git submodule foreach --recursive 'git lfs install --local && git lfs pull'
 
       - name: Ensure Gradle Wrapper executable
         if: runner.os != 'Windows'
@@ -291,6 +327,39 @@ jobs:
 
       - name: Configure Gradle CI properties
         run: echo "kotlin.native.ignoreDisabledTargets=true" >> gradle.properties
+
+      - name: Install Android SDK components
+        if: ${{ matrix.name == 'android' }}
+        env:
+          ANDROID_NDK_VERSION: 27.2.12479018
+        run: |
+          set -euo pipefail
+          ANDROID_SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found at $SDKMANAGER"
+            find "$ANDROID_SDK_ROOT" -maxdepth 4 -name sdkmanager -type f || true
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "ndk;$ANDROID_NDK_VERSION"
+          "$SDKMANAGER" "build-tools;36.0.0" || "$SDKMANAGER" "build-tools;35.0.0"
+
+          ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          if [ ! -d "$ANDROID_NDK_HOME" ]; then
+            echo "::error::Android NDK was not installed at $ANDROID_NDK_HOME"
+            exit 1
+          fi
+
+          {
+            echo "ANDROID_HOME=$ANDROID_SDK_ROOT"
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+            echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+            echo "ANDROID_NDK_ROOT=$ANDROID_NDK_HOME"
+          } >> "$GITHUB_ENV"
+
+          printf 'sdk.dir=%s\nndk.dir=%s\n' "$ANDROID_SDK_ROOT" "$ANDROID_NDK_HOME" > local.properties
 
       - name: Setup Node.js (Android)
         if: ${{ matrix.name == 'android' }}
@@ -323,6 +392,7 @@ jobs:
           cat > .bazelrc.user <<EOF
           startup --output_user_root=$BAZEL_OUTPUT_ROOT
           build --disk_cache=$BAZEL_DISK_CACHE
+          build --verbose_failures
           EOF
           cat .bazelrc.user
 
@@ -369,12 +439,6 @@ jobs:
           name: macos-aarch64
           path: macos-aarch64
 
-      - name: Download macOS x86_64 artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: macos-x86_64
-          path: macos-x86_64
-
       - name: Download Linux x86_64 artifact
         uses: actions/download-artifact@v5
         with:
@@ -410,9 +474,9 @@ jobs:
           fi
           BASE_NAME=$(basename "$DMG_FILE" .dmg)
           echo "Base filename: $BASE_NAME"
-          
+
           # macOS
-          for arch in aarch64 x86_64; do
+          for arch in aarch64; do
             if [ -d "macos-${arch}/dmg" ]; then
               for file in macos-${arch}/dmg/*.dmg; do
                 if [ -f "$file" ]; then
@@ -455,12 +519,6 @@ jobs:
         with:
           name: macos-aarch64-dmg
           path: macos-aarch64/dmg/*.dmg
-
-      - name: Upload macOS x86_64 DMG
-        uses: actions/upload-artifact@v5
-        with:
-          name: macos-x86_64-dmg
-          path: macos-x86_64/dmg/*.dmg
 
       - name: Upload Linux x86_64 DEB
         uses: actions/upload-artifact@v5
@@ -508,6 +566,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
+          lfs: true
 
       - name: Download macOS aarch64 artifact
         uses: actions/download-artifact@v5
@@ -597,7 +656,6 @@ jobs:
         with:
           name: |
             macos-aarch64
-            macos-x86_64
             linux-x86_64
             linux-aarch64
             windows-x86_64
