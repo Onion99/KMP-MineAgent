@@ -47,7 +47,8 @@ build:win_host --host_cxxopt=/utf-8
 - Desktop CI 当前只发布 `macos-aarch64`、`linux-x86_64`、`windows-x86_64` 三个平台产物；`macos-x86_64` 不在构建矩阵和打包聚合链路中。
 - Windows CI 下载 `bazelisk-windows-amd64.exe` 并加入 `PATH`。不要只依赖 `npm install -g @bazel/bazelisk`，因为 npm 在 Windows 上暴露的是 `.cmd` shim，Gradle `ExecOperations`/Java `ProcessBuilder` 直接启动 `bazelisk` 时可能无法解析该 shim。
 - Windows desktop CI 必须在执行 Gradle build 步骤时清空 `ANDROID_NDK_HOME` 与 `ANDROID_NDK_ROOT`。`cpp/lite-rt-lm` 的 `android_ndk_env.bzl` 只要检测到 `ANDROID_NDK_HOME` 非空，就会注册 `@androidndk` toolchain；`windows-latest` 预置 NDK 位于 runner SDK 目录，`rules_android_ndk` 在该路径创建 symlink 会触发 `Cannot write outside of the repository directory`。
-- CI 生成独立的 `startup --output_user_root`，不复用本机 `G:/_b` 等绝对路径。
+- CI 生成独立的 Bazel 输出路径，不复用本机 `G:/_b` 等绝对路径。
+- Windows CI 必须使用 `startup --output_base=C:/b`。`rules_rust` 构建 proc-macro 时会把很长的 `bazel-out/.../external/crate_index__.../*.rcgu.o` 路径交给 MSVC `link.exe`；如果输出根位于 `D:/a/_temp/bazel-output`，完整路径会超过传统 `MAX_PATH` 并触发 `LNK1181: cannot open input file`。
 - CI 生成 `build --disk_cache=~/.cache/bazel-disk`，并通过 `actions/cache` 按 `runner.os` 与构建矩阵隔离缓存。
 - Windows CI 通过 `vswhere.exe` 动态发现 Visual Studio C++ toolchain，并写入 `BAZEL_VC`，不依赖本机固定的 BuildTools 路径。
 - Linux、macOS 和 Android-on-macOS 不写入 `BAZEL_VC`，只保留 Bazel 输出目录和磁盘缓存配置。

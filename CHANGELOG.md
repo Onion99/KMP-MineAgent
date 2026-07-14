@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2026-07-14] - Windows Bazel Rust 链接路径修复
+- [修复] 更新 `.github/workflows/build.yml`，将 Windows CI 的 Bazel 输出基准目录从 `$RUNNER_TEMP/bazel-output` 改为 `startup --output_base=C:/b`，避免 `rules_rust` proc-macro 对象文件路径过长导致 MSVC `link.exe` 报 `LNK1181`。
+- [文档] 更新 `docs/specs/bazel-windows-android-rc.md`，补充 Windows CI 必须使用短 Bazel 输出根的约束与故障原因。
+
 ## [2026-07-14] - CI NDK 版本与 Windows Bazel 环境隔离修复
 - [修复] 将 Android NDK 版本收敛到 `gradle/libs.versions.toml` 的 `android-ndk=27.0.12077973`，并由 `build-logic/convention/src/main/kotlin/ext/AndroidExt.kt` 显式写入 `android.ndkVersion`，避免 AGP 默认值与 CI 安装版本漂移。
 - [修复] 更新 `.github/workflows/build.yml`，Android release 构建安装 `27.0.12077973` 并写入 `local.properties`，修复 `ndk.dir` 与 `android.ndkVersion` 不一致导致的 `CXX1104`。

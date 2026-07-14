@@ -215,9 +215,11 @@ jobs:
         if: startsWith(matrix.name, 'windows')
         shell: pwsh
         run: |
-          $bazelOutputRoot = Join-Path $env:RUNNER_TEMP "bazel-output"
+          # Keep Bazel's execroot short. MSVC link.exe can still fail near
+          # MAX_PATH when rules_rust passes long proc-macro object paths.
+          $bazelOutputBase = "C:\b"
           $bazelDiskCache = Join-Path $env:USERPROFILE ".cache\bazel-disk"
-          New-Item -ItemType Directory -Force -Path $bazelOutputRoot, $bazelDiskCache | Out-Null
+          New-Item -ItemType Directory -Force -Path $bazelOutputBase, $bazelDiskCache | Out-Null
 
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           if (-not (Test-Path $vswhere)) {
@@ -234,12 +236,12 @@ jobs:
             throw "Visual Studio VC path not found: $vcPath"
           }
 
-          $bazelOutputRoot = $bazelOutputRoot -replace "\\", "/"
+          $bazelOutputBase = $bazelOutputBase -replace "\\", "/"
           $bazelDiskCache = $bazelDiskCache -replace "\\", "/"
           $vcPath = $vcPath -replace "\\", "/"
 
           @"
-          startup --output_user_root=$bazelOutputRoot
+          startup --output_base=$bazelOutputBase
           build --disk_cache=$bazelDiskCache
           build --verbose_failures
           build --action_env=BAZEL_VC="$vcPath"
