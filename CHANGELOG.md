@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-14] - Android App Icon GRIS 风格重构
+- [修改] 全局重构 `composeApp/src/androidMain/res/drawable/ic_launcher.xml` 与 `composeApp/src/androidMain/res/drawable/ic_launcher_round.xml`，放弃萌宠卡通路线，改为受 GRIS 艺术方向启发的空灵水彩人物剪影、流动斗篷、种子光点与羊皮纸留白。
+
 ## [2026-07-13] - 包名替换脚本资源导入适配
 - [修改] 优化 `package_replace.kts`，新增 Compose generated resources 包前缀替换配置，支持 `oldappname.ui_theme.generated.resources.Res` 到 `newappname.xxxxxx.generated.resources.Res` 这类资源导入迁移。
 - [修改] 增强脚本目录过滤，跳过所有模块级 `build`、`.gradle`、`.git` 等生成目录，并在替换后清理重复 `import` 行。
