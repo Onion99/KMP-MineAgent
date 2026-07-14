@@ -49,6 +49,7 @@ build:win_host --host_cxxopt=/utf-8
 - Windows CI 通过 `vswhere.exe` 动态发现 Visual Studio C++ toolchain，并写入 `BAZEL_VC`，不依赖本机固定的 BuildTools 路径。
 - Linux、macOS 和 Android-on-macOS 不写入 `BAZEL_VC`，只保留 Bazel 输出目录和磁盘缓存配置。
 - Windows desktop 仍保留 `msvc_target_utf8` 与 `win_host` 两组 UTF-8 配置，确保 target 与 host 参数边界不回退。
+- 所有会执行 `./gradlew` 的 Unix runner 在 wrapper 校验前都会执行 `chmod +x ./gradlew`；同时仓库中的 `gradlew` 必须保持 Git 可执行位，避免 Linux/macOS checkout 后出现 `Permission denied`。
 
 ## 验证
 
