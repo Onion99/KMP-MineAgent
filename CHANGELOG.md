@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-14] - GitHub Actions 原生构建链路优化
+- [修复] 优化 `.github/workflows/build.yml`，为 Desktop 三平台和 Android release 构建显式安装 Bazelisk，修复 CI 中 `buildNativeLibForWindows` 启动 `bazelisk` 失败的问题。
+- [修改] 在 CI 中按平台生成临时 `.bazelrc.user`，为 Bazel 配置独立输出目录、磁盘缓存和 Windows Visual Studio C++ toolchain 自动发现，避免复用本机固定路径。
+- [修改] 扩展 workflow 触发路径与 `pull_request`/`workflow_dispatch` 入口，覆盖 `cpp/`、KMP 子模块、`build-logic/`、iOS 工程和桌面图标资源变更。
+- [文档] 更新 `docs/specs/bazel-windows-android-rc.md`，记录 GitHub Actions 与本机 Bazel RC 配置的边界。
+
 ## [2026-07-14] - Desktop App Icon 资源生成
 - [新增] 基于 `composeApp/src/androidMain/res/drawable/ic_launcher_round.xml` 生成 `docs/AppIcon.png`、`docs/AppIcon.ico`、`docs/AppIcon.icns` 与中间 SVG，匹配 Compose Desktop Linux、Windows、macOS 打包配置。
 - [新增] 新增 `scripts/generate_desktop_icons.py` 与 `docs/specs/desktop-icon-assets.md`，记录桌面图标生成流程、输出文件与 Gradle 接入路径。

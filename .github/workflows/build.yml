@@ -2,7 +2,7 @@ name: Build
 
 on:
   schedule:
-    - cron: '0 7 * * *' # 每天凌晨3点运行一次测试构建
+    - cron: '0 19 * * *' # 每天北京时间 03:00 运行一次测试构建
   # 1. 当代码推送到 main 分支时
   push:
     branches:
@@ -11,12 +11,40 @@ on:
     # 且修改了应用或文档相关文件
     paths:
       - 'composeApp/**'         # Kotlin Multiplatform 核心代码
+      - 'shared/**'
+      - 'ui-theme/**'
+      - 'data-model/**'
+      - 'data-network/**'
+      - 'iosApp/**'
+      - 'build-logic/**'
+      - 'cpp/**'                # LiteRT / Bazel 原生库源码
       - 'gradle/**'             # Gradle wrapper
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
+      - '**/*.gradle.kts'
       - 'gradle.properties'
+      - '.bazelrc.user'
+      - 'docs/AppIcon.*'
       - '.github/workflows/**' # 工作流自身变更
+  pull_request:
+    branches:
+      - 'master'
+      - 'main'
+    paths:
+      - 'composeApp/**'
+      - 'shared/**'
+      - 'ui-theme/**'
+      - 'data-model/**'
+      - 'data-network/**'
+      - 'iosApp/**'
+      - 'build-logic/**'
+      - 'cpp/**'
+      - 'gradle/**'
+      - '**/*.gradle.kts'
+      - 'gradle.properties'
+      - '.bazelrc.user'
+      - 'docs/AppIcon.*'
+      - '.github/workflows/**'
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -38,6 +66,9 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Configure Gradle CI properties
+        run: echo "kotlin.native.ignoreDisabledTargets=true" >> gradle.properties
 
       - name: Run tests
         run: ./gradlew jvmTest
@@ -101,9 +132,91 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Configure Gradle CI properties
+        run: echo "kotlin.native.ignoreDisabledTargets=true" >> gradle.properties
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Linux build dependencies
+        if: startsWith(matrix.name, 'linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake ninja-build pkg-config python3 python3-numpy rpm fakeroot
+
       - name: Setup MSBuild (Windows)
         if: startsWith(matrix.name, 'windows')
         uses: microsoft/setup-msbuild@v2
+
+      - name: Install Bazelisk
+        run: |
+          npm install -g @bazel/bazelisk
+          bazelisk --version
+
+      - name: Restore Bazel disk cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('cpp/lite-rt-lm/.bazelversion', 'cpp/lite-rt-lm/.bazelrc', 'cpp/lite-rt-lm/WORKSPACE', 'cpp/lite-rt-lm/kotlin/java/**/BUILD*', 'cpp/lite-rt-lm/python/**/BUILD*', 'cpp/lite-rt-lm/runtime/**/BUILD*') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-${{ matrix.name }}-
+            bazel-${{ runner.os }}-
+
+      - name: Configure Bazel user rc (Unix)
+        if: "!startsWith(matrix.name, 'windows')"
+        run: |
+          BAZEL_OUTPUT_ROOT="${RUNNER_TEMP}/bazel-output"
+          BAZEL_DISK_CACHE="${HOME}/.cache/bazel-disk"
+          mkdir -p "$BAZEL_OUTPUT_ROOT" "$BAZEL_DISK_CACHE"
+          cat > .bazelrc.user <<EOF
+          startup --output_user_root=$BAZEL_OUTPUT_ROOT
+          build --disk_cache=$BAZEL_DISK_CACHE
+          EOF
+          cat .bazelrc.user
+
+      - name: Configure Bazel user rc (Windows)
+        if: startsWith(matrix.name, 'windows')
+        shell: pwsh
+        run: |
+          $bazelOutputRoot = Join-Path $env:RUNNER_TEMP "bazel-output"
+          $bazelDiskCache = Join-Path $env:USERPROFILE ".cache\bazel-disk"
+          New-Item -ItemType Directory -Force -Path $bazelOutputRoot, $bazelDiskCache | Out-Null
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe not found. Visual Studio Build Tools are required for the Windows Bazel target."
+          }
+
+          $vsInstall = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vsInstall) {
+            throw "Visual Studio C++ toolchain not found."
+          }
+
+          $vcPath = Join-Path $vsInstall "VC"
+          if (-not (Test-Path $vcPath)) {
+            throw "Visual Studio VC path not found: $vcPath"
+          }
+
+          $bazelOutputRoot = $bazelOutputRoot -replace "\\", "/"
+          $bazelDiskCache = $bazelDiskCache -replace "\\", "/"
+          $vcPath = $vcPath -replace "\\", "/"
+
+          @"
+          startup --output_user_root=$bazelOutputRoot
+          build --disk_cache=$bazelDiskCache
+          build --action_env=BAZEL_VC="$vcPath"
+          build --repo_env=BAZEL_VC="$vcPath"
+          build:msvc_target_utf8 --copt=/utf-8
+          build:msvc_target_utf8 --cxxopt=/utf-8
+          build:msvc_target_utf8 --host_copt=/utf-8
+          build:msvc_target_utf8 --host_cxxopt=/utf-8
+          build:win_host --host_copt=/utf-8
+          build:win_host --host_cxxopt=/utf-8
+          "@ | Set-Content -Path .bazelrc.user -Encoding UTF8
+
+          Get-Content .bazelrc.user
 
       - name: Build
         if: "!startsWith(matrix.name, 'windows')"
@@ -112,9 +225,17 @@ jobs:
       - name: Build (Windows)
         if: startsWith(matrix.name, 'windows')
         run: |
-          subst V: (Get-Location).Path
-          Set-Location V:
+          $workspace = (Get-Location).Path
+          if (Test-Path "V:\") {
+            subst V: /D
+          }
+          subst V: "$workspace"
+          Set-Location "V:\"
           ${{ matrix.task }}
+          $exitCode = $LASTEXITCODE
+          Set-Location "$workspace"
+          subst V: /D
+          exit $exitCode
 
       - name: Upload artifact
         if: success()
@@ -156,14 +277,59 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Configure Gradle CI properties
+        run: echo "kotlin.native.ignoreDisabledTargets=true" >> gradle.properties
 
+      - name: Setup Node.js (Android)
+        if: ${{ matrix.name == 'android' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Bazelisk (Android)
+        if: ${{ matrix.name == 'android' }}
+        run: |
+          npm install -g @bazel/bazelisk
+          bazelisk --version
+
+      - name: Restore Bazel disk cache (Android)
+        if: ${{ matrix.name == 'android' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('cpp/lite-rt-lm/.bazelversion', 'cpp/lite-rt-lm/.bazelrc', 'cpp/lite-rt-lm/WORKSPACE', 'cpp/lite-rt-lm/kotlin/java/**/BUILD*', 'cpp/lite-rt-lm/python/**/BUILD*', 'cpp/lite-rt-lm/runtime/**/BUILD*') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-${{ matrix.name }}-
+            bazel-${{ runner.os }}-
+
+      - name: Configure Bazel user rc (Android)
+        if: ${{ matrix.name == 'android' }}
+        run: |
+          BAZEL_OUTPUT_ROOT="${RUNNER_TEMP}/bazel-output"
+          BAZEL_DISK_CACHE="${HOME}/.cache/bazel-disk"
+          mkdir -p "$BAZEL_OUTPUT_ROOT" "$BAZEL_DISK_CACHE"
+          cat > .bazelrc.user <<EOF
+          startup --output_user_root=$BAZEL_OUTPUT_ROOT
+          build --disk_cache=$BAZEL_DISK_CACHE
+          EOF
+          cat .bazelrc.user
 
       - name: Setup Signing
         id: sign
         if: ${{ matrix.name == 'android' }}
+        env:
+          RELEASE_KEY_BASE64: ${{ secrets.RELEASE_KEY }}
         run: |
-          base64 --decode <<< "${{ secrets.RELEASE_KEY }}" > composeApp/release.jks
-          grep -q '[^[:space:]]' composeApp/release.jks && echo release_key_exists=true >> $GITHUB_OUTPUT || echo release_key_exists=false >> $GITHUB_OUTPUT
+          python3 - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          key = os.environ.get("RELEASE_KEY_BASE64", "").strip()
+          output = Path("composeApp/release.jks")
+          output.write_bytes(base64.b64decode(key) if key else b"")
+          PY
+          test -s composeApp/release.jks && echo release_key_exists=true >> "$GITHUB_OUTPUT" || echo release_key_exists=false >> "$GITHUB_OUTPUT"
 
       - name: Build
         env:
@@ -221,7 +387,15 @@ jobs:
       - name: Rename artifacts
         run: |
           # Get base filename from macOS DMG
+          if [ ! -d "macos-aarch64/dmg" ]; then
+            echo "::error::macos-aarch64 DMG artifact directory not found"
+            exit 1
+          fi
           DMG_FILE=$(find macos-aarch64/dmg -name "*.dmg" -type f | head -n 1)
+          if [ -z "$DMG_FILE" ]; then
+            echo "::error::macos-aarch64 DMG artifact not found"
+            exit 1
+          fi
           BASE_NAME=$(basename "$DMG_FILE" .dmg)
           echo "Base filename: $BASE_NAME"
           
@@ -338,7 +512,15 @@ jobs:
       - name: Build AppImage
         run: |
           # Get base filename from macOS DMG
+          if [ ! -d "macos-aarch64/dmg" ]; then
+            echo "::error::macos-aarch64 DMG artifact directory not found"
+            exit 1
+          fi
           DMG_FILE=$(find macos-aarch64/dmg -name "*.dmg" -type f | head -n 1)
+          if [ -z "$DMG_FILE" ]; then
+            echo "::error::macos-aarch64 DMG artifact not found"
+            exit 1
+          fi
           BASE_NAME=$(basename "$DMG_FILE" .dmg)
           echo "Base filename: $BASE_NAME"
           
@@ -381,7 +563,7 @@ jobs:
           chmod a+x AppDir/usr/bin/Agro
 
           # Build AppImage
-          ARCH=${{ matrix.arch }} ./${{ matrix.appimagetool }} AppDir
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=${{ matrix.arch }} ./${{ matrix.appimagetool }} AppDir
           
           # Rename AppImage with base name from DMG
           mv Agro-${{ matrix.arch }}.AppImage ${BASE_NAME}-linux-${{ matrix.arch }}.AppImage
