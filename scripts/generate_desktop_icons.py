@@ -15,7 +15,8 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ANDROID_VECTOR = ROOT / "composeApp/src/androidMain/res/drawable/ic_launcher_round.xml"
+#ANDROID_VECTOR = ROOT / "composeApp/src/androidMain/res/drawable/ic_launcher_round.xml"
+ANDROID_VECTOR = ROOT / "composeApp/src/androidMain/res/drawable/ic_launcher.xml"
 OUTPUT_DIR = ROOT / "docs"
 SVG_OUTPUT = OUTPUT_DIR / "AppIcon.svg"
 PNG_OUTPUT = OUTPUT_DIR / "AppIcon.png"

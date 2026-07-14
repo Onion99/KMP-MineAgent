@@ -7,6 +7,7 @@
 - Linux: `docs/AppIcon.png`
 - Windows: `docs/AppIcon.ico`
 - macOS: `docs/AppIcon.icns`
+- Desktop runtime window: `composeApp/src/commonMain/composeResources/drawable/app_icon.png`
 
 ## 生成方式
 
@@ -31,4 +32,6 @@ python scripts/generate_desktop_icons.py
 - `windows.iconFile`: `docs/AppIcon.ico`
 - `macOS.iconFile`: `docs/AppIcon.icns`
 
-后续如果 Android 图标设计变化，应重新运行生成脚本，并一起提交上述桌面端资源。
+桌面窗口运行时图标在 `composeApp/src/desktopMain/kotlin/org/onion/agro/main.kt` 中通过 `Window(icon = painterResource(Res.drawable.app_icon))` 设置。该设置影响开发运行窗口、标题栏和任务栏图标；`nativeDistributions.iconFile` 仍负责安装包、开始菜单、Dock 或应用文件图标。
+
+后续如果 Android 图标设计变化，应重新运行生成脚本，并同步更新 `composeResources/drawable/app_icon.png` 与 `docs/AppIcon.*` 平台资源。

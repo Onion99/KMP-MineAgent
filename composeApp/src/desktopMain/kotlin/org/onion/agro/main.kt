@@ -1,11 +1,13 @@
 package org.onion.agro
 
+import agro.composeapp.generated.resources.Res
+import agro.composeapp.generated.resources.app_icon
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-
 import io.github.vinceglb.filekit.FileKit
+import org.jetbrains.compose.resources.painterResource
 
 fun main() {
     FileKit.init(BuildConfig.APP_NAME)
@@ -18,6 +20,7 @@ fun main() {
             visible = true,
             undecorated = false,
             resizable = true,
+            icon = painterResource(Res.drawable.app_icon),
             //transparent = true,
             state = rememberWindowState(width = 1200.dp, height = 800.dp)
         ) {
