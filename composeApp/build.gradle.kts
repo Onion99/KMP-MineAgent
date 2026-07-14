@@ -32,7 +32,6 @@ kotlin {
     }
     // app icon iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png,https://convertany.net/zh-cn/app-icon-converter
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
@@ -226,7 +225,6 @@ dependencies {
     debugImplementation(compose.uiTooling)
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspDesktop", libs.androidx.room.compiler)
-    add("kspIosX64", libs.androidx.room.compiler)
     add("kspIosArm64", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
 }
