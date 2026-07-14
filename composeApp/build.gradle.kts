@@ -17,9 +17,12 @@ plugins {
     alias(libs.plugins.androidx.room)
 }
 
+val liteRtLmNativeRoot = rootProject.file("cpp/lite-rt-lm")
+val liteRtLmCInteropDefFile = project.file("src/nativeInterop/cinterop/litertlm.def")
+val iosLiteRtLmLibraryName = "litertlm_c_api"
+val iosLiteRtLmBazelTarget = providers.gradleProperty("ios.litertlm.bazelTarget").orElse("//c:engine")
+val iosLiteRtLmBazelOutputPath = providers.gradleProperty("ios.litertlm.bazelOutputPath").orElse("bazel-bin/c/libengine.a")
 
-val headersDir = project.file("${rootProject.projectDir}/cpp/stable-diffusion.cpp")
-val nativeDefFile = project.file("src/nativeInterop/cinterop/sdloader.def")
 kotlin {
     androidTarget {
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -33,23 +36,17 @@ kotlin {
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
-        val libDir = if (iosTarget.name == "iosArm64") "ios-device" else "ios-simulator"
+        val nativeLibDir = if (iosTarget.name == "iosArm64") "ios-device" else "ios-simulator"
         iosTarget.binaries.all {
             linkerOpts += listOf(
-                "-L${project.file("${rootProject.projectDir}/cpp/libs/$libDir")}",
-                "-lstable-diffusion",
-                "-lggml",
-                "-lggml-base",
-                "-lggml-cpu",
-                "-lggml-blas",
-                "-lggml-metal",
-                "-framework", "Metal",
-                "-framework", "MetalPerformanceShaders",
+                "-L${rootProject.file("cpp/libs/$nativeLibDir")}",
+                "-l$iosLiteRtLmLibraryName",
                 "-framework", "Foundation",
                 "-framework", "Accelerate",
-                //"-lzip"
+                "-framework", "Metal",
+                "-framework", "MetalPerformanceShaders",
             )
-            linkTaskProvider.configure { dependsOn("buildIosNativeLibs") }
+            linkTaskProvider.configure { dependsOn("validateIosLiteRtLmNativeLibs") }
         }
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
@@ -63,21 +60,12 @@ kotlin {
             isStatic = false
         }
         iosTarget.compilations["main"].cinterops {
-            creating {
-                defFile(nativeDefFile)
-                //compilerOpts("-I${headersDir.absolutePath}")
-                includeDirs(headersDir)
-                //extraOpts("-verbose")
+            create("litertlm") {
+                defFile(liteRtLmCInteropDefFile)
+                includeDirs(liteRtLmNativeRoot)
             }
         }
     }
-    
-    // Ensure cinterop depends on native build to avoid race conditions and ensure headers/libs are ready
-    /*tasks.withType<org.jetbrains.kotlin.gradle.tasks.CInteropProcess>().configureEach {
-        if (name.contains("SdloaderIos")) {
-            dependsOn("buildIosNativeLibs")
-        }
-    }*/
     
     jvm("desktop")
     
@@ -458,6 +446,90 @@ abstract class BuildNativeLibTask : DefaultTask() {
         }
     }
 }
+abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
+    @get:Inject
+    abstract val execOps: ExecOperations
+
+    @get:Input
+    abstract val bazelTarget: Property<String>
+
+    @get:Input
+    abstract val bazelConfig: Property<String>
+
+    @get:Input
+    abstract val bazelOutputPath: Property<String>
+
+    @get:Internal
+    abstract val targetWorkingDir: Property<File>
+
+    @get:OutputFile
+    abstract val outputArchive: RegularFileProperty
+
+    @TaskAction
+    fun execute() {
+        val workDir = targetWorkingDir.get()
+        val target = bazelTarget.get()
+        val config = bazelConfig.get()
+        println("Building iOS LiteRT LM native archive with Bazel (target=$target, config=$config)")
+
+        execOps.exec {
+            workingDir = workDir
+            commandLine(
+                "bazelisk",
+                "--bazelrc=${workDir.parentFile.parentFile.absolutePath}/.bazelrc.user",
+                "build",
+                target,
+                "--config=$config"
+            )
+            isIgnoreExitValue = false
+        }
+
+        val sourceArchive = File(workDir, bazelOutputPath.get())
+        if (!sourceArchive.exists()) {
+            throw GradleException("Bazel output archive not found: ${sourceArchive.absolutePath}")
+        }
+
+        val outputFile = outputArchive.get().asFile
+        outputFile.parentFile.mkdirs()
+        sourceArchive.copyTo(outputFile, overwrite = true)
+        println("Copied iOS LiteRT LM native archive: ${sourceArchive.absolutePath} -> ${outputFile.absolutePath}")
+    }
+}
+
+abstract class MergeIosSimulatorNativeArchiveTask : DefaultTask() {
+    @get:Inject
+    abstract val execOps: ExecOperations
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.ABSOLUTE)
+    abstract val arm64Archive: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.ABSOLUTE)
+    abstract val x64Archive: RegularFileProperty
+
+    @get:OutputFile
+    abstract val outputArchive: RegularFileProperty
+
+    @TaskAction
+    fun execute() {
+        val outputFile = outputArchive.get().asFile
+        outputFile.parentFile.mkdirs()
+        execOps.exec {
+            commandLine(
+                "xcrun",
+                "lipo",
+                "-create",
+                arm64Archive.get().asFile.absolutePath,
+                x64Archive.get().asFile.absolutePath,
+                "-output",
+                outputFile.absolutePath
+            )
+            isIgnoreExitValue = false
+        }
+        println("Merged iOS simulator LiteRT LM archive: ${outputFile.absolutePath}")
+    }
+}
 // 捕获 Configuration Phase 的变量，供 Execution Phase 使用，避免 configuration cache 问题
 val rootDirVal = rootDir
 val desktopPlatforms = listOf("windows", "macos", "linux")
@@ -523,6 +595,67 @@ desktopPlatforms.forEach { platform ->
 }
 val cppLibsDirVal = rootProject.extra["cppLibsDir"].toString()
 val jvmResourceLibDirVal = rootProject.extra["jvmResourceLibDir"].toString()
+
+val buildIosLiteRtLmNativeLibDevice by tasks.registering(BuildIosLiteRtLmNativeArchiveTask::class) {
+    group = "build"
+    description = "Builds the LiteRT LM C API archive for iOS device arm64 via Bazel."
+    targetWorkingDir.set(liteRtLmNativeRoot)
+    bazelTarget.set(iosLiteRtLmBazelTarget)
+    bazelConfig.set("ios_arm64")
+    bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
+    outputArchive.set(rootProject.layout.projectDirectory.file("cpp/libs/ios-device/lib$iosLiteRtLmLibraryName.a"))
+    onlyIf {
+        System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
+    }
+}
+
+val iosLiteRtLmSimulatorArm64Archive = layout.buildDirectory.file("iosNative/litertlm/ios-simulator-arm64/lib$iosLiteRtLmLibraryName.a")
+val buildIosLiteRtLmNativeLibSimulatorArm64 by tasks.registering(BuildIosLiteRtLmNativeArchiveTask::class) {
+    group = "build"
+    description = "Builds the LiteRT LM C API archive for iOS simulator arm64 via Bazel."
+    targetWorkingDir.set(liteRtLmNativeRoot)
+    bazelTarget.set(iosLiteRtLmBazelTarget)
+    bazelConfig.set("ios_sim_arm64")
+    bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
+    outputArchive.set(iosLiteRtLmSimulatorArm64Archive)
+    mustRunAfter(buildIosLiteRtLmNativeLibDevice)
+    onlyIf {
+        System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
+    }
+}
+
+val iosLiteRtLmSimulatorX64Archive = layout.buildDirectory.file("iosNative/litertlm/ios-simulator-x64/lib$iosLiteRtLmLibraryName.a")
+val buildIosLiteRtLmNativeLibSimulatorX64 by tasks.registering(BuildIosLiteRtLmNativeArchiveTask::class) {
+    group = "build"
+    description = "Builds the LiteRT LM C API archive for iOS simulator x64 via Bazel."
+    targetWorkingDir.set(liteRtLmNativeRoot)
+    bazelTarget.set(iosLiteRtLmBazelTarget)
+    bazelConfig.set("ios_x86_64")
+    bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
+    outputArchive.set(iosLiteRtLmSimulatorX64Archive)
+    mustRunAfter(buildIosLiteRtLmNativeLibSimulatorArm64)
+    onlyIf {
+        System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
+    }
+}
+
+val mergeIosLiteRtLmSimulatorNativeLib by tasks.registering(MergeIosSimulatorNativeArchiveTask::class) {
+    group = "build"
+    description = "Merges arm64 and x64 iOS simulator LiteRT LM C API archives into a fat archive."
+    dependsOn(buildIosLiteRtLmNativeLibSimulatorArm64, buildIosLiteRtLmNativeLibSimulatorX64)
+    arm64Archive.set(iosLiteRtLmSimulatorArm64Archive)
+    x64Archive.set(iosLiteRtLmSimulatorX64Archive)
+    outputArchive.set(rootProject.layout.projectDirectory.file("cpp/libs/ios-simulator/lib$iosLiteRtLmLibraryName.a"))
+    onlyIf {
+        System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
+    }
+}
+
+tasks.register("buildIosLiteRtLmNativeLibs") {
+    group = "build"
+    description = "Builds all iOS LiteRT LM C API native archives required by Kotlin/Native."
+    dependsOn(buildIosLiteRtLmNativeLibDevice, mergeIosLiteRtLmSimulatorNativeLib)
+}
 
 // ------------------------------------------------------------------------
 // Android Bazel 构建任务 - 替代 externalNativeBuild.cmake
@@ -623,39 +756,29 @@ tasks.matching { it.name.contains("desktopProcessResources") }.configureEach {
     dependsOn("buildNativeLibsIfNeeded")
 }
 
-// ------------------------------------------------------------------------
-// iOS Native Build Task
-// ------------------------------------------------------------------------
-tasks.register<Exec>("buildIosNativeLibs") {
-    val script = rootProject.file("cpp/build_ios.sh")
-    workingDir = rootProject.file("cpp")
-    commandLine("bash", "./build_ios.sh")
-
-    // Only run on macOS
+tasks.register("validateIosLiteRtLmNativeLibs") {
+    dependsOn("buildIosLiteRtLmNativeLibs")
     onlyIf {
         System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
     }
-
-    // Declare inputs and outputs for up-to-date checks
-    val inputDir = rootProject.file("cpp/stable-diffusion.cpp")
-    inputs.files(fileTree(inputDir) {
-        exclude("**/.git/**")
-        exclude("**/build/**")
-    })
-    inputs.file(script)
-    
-    val outputDeviceDir = rootProject.file("cpp/libs/ios-device")
-    val outputSimDir = rootProject.file("cpp/libs/ios-simulator")
-    outputs.dir(outputDeviceDir)
-    outputs.dir(outputSimDir)
-
-    // Custom up-to-date check to be safe
-    outputs.upToDateWhen {
-        outputDeviceDir.exists() && outputDeviceDir.listFiles()?.isNotEmpty() == true &&
-        outputSimDir.exists() && outputSimDir.listFiles()?.isNotEmpty() == true
+    doLast {
+        val requiredDirs = listOf("ios-device", "ios-simulator")
+        val missing = requiredDirs.filter { dirName ->
+            val dir = rootProject.file("cpp/libs/$dirName")
+            listOf(
+                dir.resolve("lib$iosLiteRtLmLibraryName.a"),
+                dir.resolve("lib$iosLiteRtLmLibraryName.dylib")
+            ).none { it.exists() }
+        }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Missing iOS LiteRT LM native library `$iosLiteRtLmLibraryName` in: ${
+                    missing.joinToString { "cpp/libs/$it" }
+                }. Build or copy lib$iosLiteRtLmLibraryName.a/.dylib before linking iOS targets."
+            )
+        }
     }
 }
-
 
 @CacheableTask
 abstract class BuildIpaTask : DefaultTask() {

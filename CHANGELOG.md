@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-14] - iOS LiteRtLmJni platform boundary cleanup
+- [Changed] Removed the legacy `sdloader.def` Kotlin/Native cinterop setup, stable-diffusion iOS linker options, and `buildIosNativeLibs` task from `composeApp/build.gradle.kts`.
+- [Added] Added `composeApp/src/nativeInterop/cinterop/litertlm.def` and wired iOS targets to the LiteRT LM C API in `cpp/lite-rt-lm/c/engine.h`.
+- [Added] Implemented `composeApp/src/iosMain/kotlin/com/google/ai/edge/litertlm/LiteRtLmJni.ios.kt` with C API engine/conversation lifecycle, synchronous send, streaming send, cancellation, and release handling.
+- [Changed] iOS linking now expects `liblitertlm_c_api.a` or `liblitertlm_c_api.dylib` under `cpp/libs/ios-device` and `cpp/libs/ios-simulator`, with `validateIosLiteRtLmNativeLibs` failing early on macOS if artifacts are missing.
+- [Docs] Added `docs/specs/ios-litertlm-platform.md` to record the iOS LiteRT LM bridge, native library contract, and unsupported common API fields.
+
 
 ## [2026-07-14] - Windows Bazel Rust 链接路径修复
 - [修复] 更新 `.github/workflows/build.yml`，将 Windows CI 的 Bazel 输出基准目录从 `$RUNNER_TEMP/bazel-output` 改为 `startup --output_base=C:/b`，避免 `rules_rust` proc-macro 对象文件路径过长导致 MSVC `link.exe` 报 `LNK1181`。

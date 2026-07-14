@@ -1,0 +1,3 @@
+headers = c/engine.h
+headerFilter = c/engine.h
+package = com.google.ai.edge.litertlm.cinterop
