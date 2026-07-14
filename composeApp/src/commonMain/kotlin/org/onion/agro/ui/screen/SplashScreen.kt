@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 import agro.composeapp.generated.resources.Res
 import agro.composeapp.generated.resources.splash_logo
 import org.jetbrains.compose.resources.painterResource
-import org.onion.agent.BuildConfig
+import org.onion.agro.BuildConfig
 import ui.theme.AppTheme
 
 

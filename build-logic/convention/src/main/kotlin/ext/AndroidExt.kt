@@ -27,6 +27,7 @@ fun org.gradle.api.Project.commonConfiguration(
     extension: CommonExtension<*, *, *, *, *, *>,
 ) = extension.apply {
     compileSdk = 36
+    ndkVersion = versionCatalog.findVersion("android-ndk").get().requiredVersion
 
     defaultConfig {
         // Could have been 21, but I need sqlite 3.24.0 for upserts

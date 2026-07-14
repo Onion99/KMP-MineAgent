@@ -46,6 +46,7 @@ build:win_host --host_cxxopt=/utf-8
 - Desktop 三平台和 Android release 构建都会显式安装 `bazelisk`，避免 Gradle 原生库任务启动 `bazelisk` 时找不到命令。
 - Desktop CI 当前只发布 `macos-aarch64`、`linux-x86_64`、`windows-x86_64` 三个平台产物；`macos-x86_64` 不在构建矩阵和打包聚合链路中。
 - Windows CI 下载 `bazelisk-windows-amd64.exe` 并加入 `PATH`。不要只依赖 `npm install -g @bazel/bazelisk`，因为 npm 在 Windows 上暴露的是 `.cmd` shim，Gradle `ExecOperations`/Java `ProcessBuilder` 直接启动 `bazelisk` 时可能无法解析该 shim。
+- Windows desktop CI 必须在执行 Gradle build 步骤时清空 `ANDROID_NDK_HOME` 与 `ANDROID_NDK_ROOT`。`cpp/lite-rt-lm` 的 `android_ndk_env.bzl` 只要检测到 `ANDROID_NDK_HOME` 非空，就会注册 `@androidndk` toolchain；`windows-latest` 预置 NDK 位于 runner SDK 目录，`rules_android_ndk` 在该路径创建 symlink 会触发 `Cannot write outside of the repository directory`。
 - CI 生成独立的 `startup --output_user_root`，不复用本机 `G:/_b` 等绝对路径。
 - CI 生成 `build --disk_cache=~/.cache/bazel-disk`，并通过 `actions/cache` 按 `runner.os` 与构建矩阵隔离缓存。
 - Windows CI 通过 `vswhere.exe` 动态发现 Visual Studio C++ toolchain，并写入 `BAZEL_VC`，不依赖本机固定的 BuildTools 路径。
@@ -55,6 +56,7 @@ build:win_host --host_cxxopt=/utf-8
 - 所有会执行 `./gradlew` 的 Unix runner 在 wrapper 校验前都会执行 `chmod +x ./gradlew`；同时仓库中的 `gradlew` 必须保持 Git 可执行位，避免 Linux/macOS checkout 后出现 `Permission denied`。
 - Desktop 和 Android/iOS 构建 job 必须拉取 Git LFS 资源，并对子模块执行 `git lfs pull`。`cpp/lite-rt-lm/prebuilt/*` 下的 `.so`、`.dylib`、`.dll`、`.lib` 均由子模块 Git LFS 管理；如果 CI 只拿到 LFS pointer，macOS 链接会出现 `ld: unknown file type`。
 - Android release 构建必须在 Gradle 执行前安装 NDK，并写入 `local.properties` 的 `sdk.dir` 与 `ndk.dir`。`composeApp:buildAndroidNativeLib` 在任务创建阶段读取 AGP 的 `ndkDirectory`，未安装 NDK 会直接导致 `NDK is not installed`。
+- CI 安装的 Android NDK 版本必须与 `gradle/libs.versions.toml` 中的 `android-ndk` 完全一致，并通过 Android convention 插件写入 `android.ndkVersion`。如果 `local.properties` 的 `ndk.dir` 指向另一个版本，AGP 会在配置阶段报 `CXX1104` 版本不一致错误。
 
 ## 验证
 

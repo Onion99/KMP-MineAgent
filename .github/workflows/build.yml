@@ -260,6 +260,12 @@ jobs:
 
       - name: Build (Windows)
         if: startsWith(matrix.name, 'windows')
+        env:
+          # windows-latest exposes ANDROID_NDK_HOME. The LiteRT Bazel workspace
+          # treats that as a signal to register @androidndk, whose Windows
+          # symlink setup cannot use the hosted runner's SDK directory.
+          ANDROID_NDK_HOME: ''
+          ANDROID_NDK_ROOT: ''
         run: |
           $workspace = (Get-Location).Path
           if (Test-Path "V:\") {
@@ -331,7 +337,7 @@ jobs:
       - name: Install Android SDK components
         if: ${{ matrix.name == 'android' }}
         env:
-          ANDROID_NDK_VERSION: 27.2.12479018
+          ANDROID_NDK_VERSION: 27.0.12077973
         run: |
           set -euo pipefail
           ANDROID_SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
