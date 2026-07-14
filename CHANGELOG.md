@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-14] - Desktop App Icon 资源生成
+- [新增] 基于 `composeApp/src/androidMain/res/drawable/ic_launcher_round.xml` 生成 `docs/AppIcon.png`、`docs/AppIcon.ico`、`docs/AppIcon.icns` 与中间 SVG，匹配 Compose Desktop Linux、Windows、macOS 打包配置。
+- [新增] 新增 `scripts/generate_desktop_icons.py` 与 `docs/specs/desktop-icon-assets.md`，记录桌面图标生成流程、输出文件与 Gradle 接入路径。
+
 ## [2026-07-14] - Android App Icon GRIS 风格重构
 - [修改] 全局重构 `composeApp/src/androidMain/res/drawable/ic_launcher.xml` 与 `composeApp/src/androidMain/res/drawable/ic_launcher_round.xml`，放弃萌宠卡通路线，改为受 GRIS 艺术方向启发的空灵水彩人物剪影、流动斗篷、种子光点与羊皮纸留白。
 
