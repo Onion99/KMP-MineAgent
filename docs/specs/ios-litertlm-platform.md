@@ -11,8 +11,10 @@ This note records the iOS native bridge for `LiteRtLmJni`.
 - `composeApp` no longer registers the old Kotlin/Native cinterop for `sdloader.def`.
 - iOS framework builds no longer link the legacy `stable-diffusion.cpp` static libraries from Gradle.
 - `composeApp/src/nativeInterop/cinterop/litertlm.def` maps the LiteRT LM C API from `cpp/lite-rt-lm/c/engine.h`.
-- iOS framework linking expects an aggregate native library named `liblitertlm_c_api.a` or `liblitertlm_c_api.dylib` in both `cpp/libs/ios-device` and `cpp/libs/ios-simulator`.
-- `validateIosLiteRtLmNativeLibs` runs on macOS before iOS link tasks and fails early if the aggregate library is missing.
+- iOS framework linking expects a native library named `liblitertlm_c_api.a` or `liblitertlm_c_api.dylib` in both `cpp/libs/ios-device` and `cpp/libs/ios-simulator`.
+- The active iOS target matrix is `iosArm64` and `iosSimulatorArm64`; `iosX64` is intentionally not registered.
+- `validateIosLiteRtLmNativeLibs` runs on macOS before iOS link tasks and fails early if the required native library is missing.
+- `buildIosLiteRtLmNativeLibs` builds the device arm64 archive and simulator arm64 archive directly; it does not build `ios_x86_64` or merge simulator archives with `lipo`.
 - `LiteRtLmJni` now has an iOS `actual` implementation that calls the LiteRT LM C API for engine creation, conversation creation, synchronous message sending, streaming message sending, cancellation, and release.
 - iOS model selection uses FileKit and returns the selected `.litertlm` path.
 - `sendLmMessageAsync` uses a Kotlin/Native `StableRef` as callback state and disposes it on final/error stream callbacks.
@@ -28,4 +30,4 @@ This note records the iOS native bridge for `LiteRtLmJni`.
 ## Current Limitations
 
 - The LiteRT LM C API does not expose the common API's `mainBackendNumThreads`, `audioBackendNumThreads`, `channelsJsonString`, `overwritePromptTemplate`, or `visualTokenBudget` inputs. The iOS bridge currently ignores those fields.
-- This change does not build the `liblitertlm_c_api` aggregate library. That native packaging step must produce the expected device and simulator artifacts before iOS linking can succeed.
+- Intel iOS Simulator is not supported by the current target matrix. Reintroducing it requires adding `iosX64`, an `ios_x86_64` Bazel build, and an explicit simulator archive merge step.

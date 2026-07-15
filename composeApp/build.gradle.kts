@@ -494,40 +494,6 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     }
 }
 
-abstract class MergeIosSimulatorNativeArchiveTask : DefaultTask() {
-    @get:Inject
-    abstract val execOps: ExecOperations
-
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.ABSOLUTE)
-    abstract val arm64Archive: RegularFileProperty
-
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.ABSOLUTE)
-    abstract val x64Archive: RegularFileProperty
-
-    @get:OutputFile
-    abstract val outputArchive: RegularFileProperty
-
-    @TaskAction
-    fun execute() {
-        val outputFile = outputArchive.get().asFile
-        outputFile.parentFile.mkdirs()
-        execOps.exec {
-            commandLine(
-                "xcrun",
-                "lipo",
-                "-create",
-                arm64Archive.get().asFile.absolutePath,
-                x64Archive.get().asFile.absolutePath,
-                "-output",
-                outputFile.absolutePath
-            )
-            isIgnoreExitValue = false
-        }
-        println("Merged iOS simulator LiteRT LM archive: ${outputFile.absolutePath}")
-    }
-}
 // 捕获 Configuration Phase 的变量，供 Execution Phase 使用，避免 configuration cache 问题
 val rootDirVal = rootDir
 val desktopPlatforms = listOf("windows", "macos", "linux")
@@ -607,7 +573,6 @@ val buildIosLiteRtLmNativeLibDevice by tasks.registering(BuildIosLiteRtLmNativeA
     }
 }
 
-val iosLiteRtLmSimulatorArm64Archive = layout.buildDirectory.file("iosNative/litertlm/ios-simulator-arm64/lib$iosLiteRtLmLibraryName.a")
 val buildIosLiteRtLmNativeLibSimulatorArm64 by tasks.registering(BuildIosLiteRtLmNativeArchiveTask::class) {
     group = "build"
     description = "Builds the LiteRT LM C API archive for iOS simulator arm64 via Bazel."
@@ -615,35 +580,8 @@ val buildIosLiteRtLmNativeLibSimulatorArm64 by tasks.registering(BuildIosLiteRtL
     bazelTarget.set(iosLiteRtLmBazelTarget)
     bazelConfig.set("ios_sim_arm64")
     bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
-    outputArchive.set(iosLiteRtLmSimulatorArm64Archive)
-    mustRunAfter(buildIosLiteRtLmNativeLibDevice)
-    onlyIf {
-        System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
-    }
-}
-
-val iosLiteRtLmSimulatorX64Archive = layout.buildDirectory.file("iosNative/litertlm/ios-simulator-x64/lib$iosLiteRtLmLibraryName.a")
-val buildIosLiteRtLmNativeLibSimulatorX64 by tasks.registering(BuildIosLiteRtLmNativeArchiveTask::class) {
-    group = "build"
-    description = "Builds the LiteRT LM C API archive for iOS simulator x64 via Bazel."
-    targetWorkingDir.set(liteRtLmNativeRoot)
-    bazelTarget.set(iosLiteRtLmBazelTarget)
-    bazelConfig.set("ios_x86_64")
-    bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
-    outputArchive.set(iosLiteRtLmSimulatorX64Archive)
-    mustRunAfter(buildIosLiteRtLmNativeLibSimulatorArm64)
-    onlyIf {
-        System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
-    }
-}
-
-val mergeIosLiteRtLmSimulatorNativeLib by tasks.registering(MergeIosSimulatorNativeArchiveTask::class) {
-    group = "build"
-    description = "Merges arm64 and x64 iOS simulator LiteRT LM C API archives into a fat archive."
-    dependsOn(buildIosLiteRtLmNativeLibSimulatorArm64, buildIosLiteRtLmNativeLibSimulatorX64)
-    arm64Archive.set(iosLiteRtLmSimulatorArm64Archive)
-    x64Archive.set(iosLiteRtLmSimulatorX64Archive)
     outputArchive.set(rootProject.layout.projectDirectory.file("cpp/libs/ios-simulator/lib$iosLiteRtLmLibraryName.a"))
+    mustRunAfter(buildIosLiteRtLmNativeLibDevice)
     onlyIf {
         System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
     }
@@ -652,7 +590,7 @@ val mergeIosLiteRtLmSimulatorNativeLib by tasks.registering(MergeIosSimulatorNat
 tasks.register("buildIosLiteRtLmNativeLibs") {
     group = "build"
     description = "Builds all iOS LiteRT LM C API native archives required by Kotlin/Native."
-    dependsOn(buildIosLiteRtLmNativeLibDevice, mergeIosLiteRtLmSimulatorNativeLib)
+    dependsOn(buildIosLiteRtLmNativeLibDevice, buildIosLiteRtLmNativeLibSimulatorArm64)
 }
 
 // ------------------------------------------------------------------------

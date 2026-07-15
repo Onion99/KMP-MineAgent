@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-15] - iOS simulator native build simplification
+- [Changed] Removed `iosX64` from `build-logic/convention/src/main/kotlin/ext/KotlinMultiplatformExt.kt` and `shared/build.gradle.kts` so the Gradle target matrix matches the supported iOS platforms.
+- [Changed] Simplified `composeApp/build.gradle.kts` by removing the iOS simulator x64 Bazel task and `lipo` merge task; `buildIosLiteRtLmNativeLibs` now builds only device arm64 and simulator arm64 LiteRT LM archives.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to document the current iOS target matrix and the absence of Intel iOS Simulator support.
+
 ## [2026-07-14] - iOS LiteRtLmJni platform boundary cleanup
 - [Changed] Removed the legacy `sdloader.def` Kotlin/Native cinterop setup, stable-diffusion iOS linker options, and `buildIosNativeLibs` task from `composeApp/build.gradle.kts`.
 - [Added] Added `composeApp/src/nativeInterop/cinterop/litertlm.def` and wired iOS targets to the LiteRT LM C API in `cpp/lite-rt-lm/c/engine.h`.
