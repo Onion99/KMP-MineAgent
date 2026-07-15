@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Changed] Simplified `composeApp/build.gradle.kts` by removing the iOS simulator x64 Bazel task and `lipo` merge task; `buildIosLiteRtLmNativeLibs` now builds only device arm64 and simulator arm64 LiteRT LM archives.
 - [Docs] Updated `docs/specs/ios-litertlm-platform.md` to document the current iOS target matrix and the absence of Intel iOS Simulator support.
 
+## [2026-07-14] - iOS LiteRT LM native 构建修复
+- [修复] 调整 `composeApp/build.gradle.kts` 中 `BuildIosLiteRtLmNativeArchiveTask` 的 Bazel 启动命令，macOS iOS 构建不再显式加载仓库根 `.bazelrc.user`，避免 Windows `G:/_b` 输出根破坏 Bazel 内嵌 JDK 路径。
+- [修复] iOS Bazel 构建显式传入当前 Xcode 的 `macosx` 与 `iphoneos` SDK 版本，避免 Bazel Apple support 回退到不可用的 `macosx10.11`。
+- [修复] 新增 `cpp/lite-rt-lm/BUILD.miniaudio` 的 `miniaudio_decoder` 目标，并让 iOS 音频预处理依赖该 decoder-only 目标，避免 `miniaudio_objc` 或完整 Apple 设备后端拉取 AVFoundation/CoreImage 头导致 iOS 编译失败。
+- [修复] 将 `validateIosLiteRtLmNativeLibs` 改为配置缓存安全的自定义任务，避免执行阶段闭包捕获 `Project/rootProject` 导致 configuration cache 存储失败。
+- [修改] 将 iOS simulator 原生库产物收敛为当前 KMP 已注册的 `iosSimulatorArm64()` slice，移除未注册 `iosX64` slice 的强制 `dependsOn` 与 `lipo` 聚合链路。
+- [文档] 更新 `docs/specs/ios-litertlm-platform.md`，记录 iOS native archive 产物、`.bazelrc.user` 边界与 simulator 架构约束。
+
+## [2026-07-14] - Kotlin 工具链升级
+- [修改] 将 `gradle/libs.versions.toml` 中 Kotlin 版本从 `2.2.0` 升级到 `2.3.20`，使 Kotlin/Native 能消费由 Kotlin `2.3.20` 编译的 Navigation3 iOS KLIB。
+- [修改] 将 KSP 插件版本从 `2.2.0-2.0.2` 升级到 Maven Central 当前可用的 `2.3.10`，避免继续绑定旧 Kotlin 2.2 工具链。
+- [修改] 将 Android Gradle Plugin 从 `8.9.1` 升级到 `8.10.0`，满足 KSP `2.3.10` 对 AGP 的最低版本要求。
+- [修复] 移除 `build-logic/convention/build.gradle.kts` 中显式 apply 的 Kotlin JVM 插件，让 `kotlin-dsl` 使用 Gradle 内嵌 Kotlin 编译 convention plugins，避免 Kotlin `2.3.20` 与 Gradle Kotlin DSL 语言版本冲突。
+- [修复] 为 `data-network/src/iosMain/kotlin/com/onion/network/http/PlatformFileWriter.ios.kt` 增加文件级 `ExperimentalForeignApi` opt-in，适配 Kotlin `2.3.20` 对 Kotlin/Native POSIX/cinterop API 的检查。
+- [修复] 在 `composeApp/build.gradle.kts` 中显式连接 `iosMain` 到 `iosArm64Main`/`iosSimulatorArm64Main`，确保 Kotlin `2.3.20` 下 iOS actual 实现参与 Native 编译。
+- [修复] 调整 `composeApp/src/iosMain/kotlin/com/google/ai/edge/litertlm/LiteRtLmJni.ios.kt` 的 cinterop forward declaration 与字符串参数调用方式，适配 Kotlin `2.3.20` 生成的 LiteRT LM C API 绑定。
+- [修复] 删除 `iosArm64Main` 与 `iosSimulatorArm64Main` 下重复的 `MainViewController.kt`，保留 `iosMain` 共享入口，避免 iOS source set 接入后函数重载冲突。
+
 ## [2026-07-14] - iOS LiteRtLmJni platform boundary cleanup
 - [Changed] Removed the legacy `sdloader.def` Kotlin/Native cinterop setup, stable-diffusion iOS linker options, and `buildIosNativeLibs` task from `composeApp/build.gradle.kts`.
 - [Added] Added `composeApp/src/nativeInterop/cinterop/litertlm.def` and wired iOS targets to the LiteRT LM C API in `cpp/lite-rt-lm/c/engine.h`.

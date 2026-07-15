@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package com.onion.network.http
 
 import kotlinx.cinterop.*
@@ -15,7 +17,6 @@ actual class PlatformFileWriter actual constructor(filePath: String) {
         filePtr = fopen(filePath, "r+b")
     }
 
-    @OptIn(ExperimentalForeignApi::class)
     actual fun write(bytes: ByteArray, offset: Int, length: Int) {
         if (length <= 0) return
         val ptr = filePtr ?: return
@@ -38,7 +39,6 @@ actual class PlatformFileWriter actual constructor(filePath: String) {
 }
 
 actual object PlatformFileUtil {
-    @OptIn(ExperimentalForeignApi::class)
     actual fun getFileSize(filePath: String): Long {
         val filePtr = fopen(filePath, "rb") ?: return 0L
         fseek(filePtr, 0.convert(), SEEK_END)

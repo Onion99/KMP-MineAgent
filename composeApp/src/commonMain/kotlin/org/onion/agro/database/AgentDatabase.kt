@@ -29,7 +29,7 @@ expect object AgentDatabaseConstructor : RoomDatabaseConstructor<AgentDatabase> 
 fun createAgentDatabase(builder: RoomDatabase.Builder<AgentDatabase>): AgentDatabase {
     return builder
         .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
+        .setQueryCoroutineContext(Dispatchers.Default)
         .build()
 }
 

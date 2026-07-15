@@ -1,9 +1,9 @@
 package com.google.ai.edge.litertlm
 
-import com.google.ai.edge.litertlm.cinterop.LiteRtLmConversation
-import com.google.ai.edge.litertlm.cinterop.LiteRtLmEngine
+import cnames.structs.LiteRtLmConversation
+import cnames.structs.LiteRtLmEngine
+import cnames.structs.LiteRtLmSessionConfig
 import com.google.ai.edge.litertlm.cinterop.LiteRtLmSamplerParams
-import com.google.ai.edge.litertlm.cinterop.LiteRtLmSessionConfig
 import com.google.ai.edge.litertlm.cinterop.kLiteRtLmSamplerTypeTopP
 import com.google.ai.edge.litertlm.cinterop.litert_lm_conversation_cancel_process
 import com.google.ai.edge.litertlm.cinterop.litert_lm_conversation_config_create
@@ -45,7 +45,6 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.asStableRef
-import kotlinx.cinterop.cstr
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.staticCFunction
@@ -139,15 +138,15 @@ internal actual object LiteRtLmJni {
             }
             litert_lm_conversation_config_set_messages(
                 config,
-                messageJsonString.ifBlank { "[]" }.cstr.ptr
+                messageJsonString.ifBlank { "[]" }
             )
             litert_lm_conversation_config_set_tools(
                 config,
-                toolsDescriptionJsonString.ifBlank { "[]" }.cstr.ptr
+                toolsDescriptionJsonString.ifBlank { "[]" }
             )
             litert_lm_conversation_config_set_extra_context(
                 config,
-                extraContextJsonString.ifBlank { "{}" }.cstr.ptr
+                extraContextJsonString.ifBlank { "{}" }
             )
             litert_lm_conversation_config_set_enable_constrained_decoding(
                 config,
@@ -174,8 +173,8 @@ internal actual object LiteRtLmJni {
         val conversation = conversationPointer.toNativePointer<LiteRtLmConversation>("LiteRT LM conversation")
         val response = litert_lm_conversation_send_message(
             conversation,
-            messageJsonString.cstr.ptr,
-            extraContextJsonString.ifBlank { "{}" }.cstr.ptr
+            messageJsonString,
+            extraContextJsonString.ifBlank { "{}" }
         ) ?: throw LiteRtLmJniException("LiteRT LM message send failed.")
         try {
             litert_lm_json_response_get_string(response)?.toKString()
@@ -206,8 +205,8 @@ internal actual object LiteRtLmJni {
         val status = memScoped {
             litert_lm_conversation_send_message_stream(
                 conversation,
-                messageJsonString.cstr.ptr,
-                extraContextJsonString.ifBlank { "{}" }.cstr.ptr,
+                messageJsonString,
+                extraContextJsonString.ifBlank { "{}" },
                 streamCallback,
                 callbackState.asCPointer()
             )
@@ -251,10 +250,10 @@ internal actual object LiteRtLmJni {
         dispatchLibraryDir: String?
     ): Long = memScoped {
         val settings = litert_lm_engine_settings_create(
-            modelPath.cstr.ptr,
-            backend.cstr.ptr,
-            visionBackend.takeIf { it.isNotBlank() }?.cstr?.ptr,
-            audioBackend.takeIf { it.isNotBlank() }?.cstr?.ptr
+            modelPath,
+            backend,
+            visionBackend.takeIf { it.isNotBlank() },
+            audioBackend.takeIf { it.isNotBlank() }
         ) ?: throw LiteRtLmJniException("Failed to create LiteRT LM engine settings for backend `$backend`.")
 
         try {
@@ -265,12 +264,12 @@ internal actual object LiteRtLmJni {
                 litert_lm_engine_settings_set_max_num_images(settings, maxNumImages)
             }
             if (cacheDir.isNotBlank()) {
-                litert_lm_engine_settings_set_cache_dir(settings, cacheDir.cstr.ptr)
+                litert_lm_engine_settings_set_cache_dir(settings, cacheDir)
             }
             if (dispatchLibraryDir != null) {
                 litert_lm_engine_settings_set_litert_dispatch_lib_dir(
                     settings,
-                    dispatchLibraryDir.cstr.ptr
+                    dispatchLibraryDir
                 )
             }
             if (enableBenchmark) {
