@@ -539,7 +539,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     }
 
     private fun buildConfiguredNativeDeps(workDir: File, target: String, config: String) {
-        val queryExpression = "kind(\"(cc|objc|rust|proto|genrule).* rule\", deps($target))"
+        val queryExpression = "kind(\"(cc_library|objc_library|cc_import|objc_import) rule\", deps($target))"
         val labels = runBazelForOutput(
             workDir,
             "cquery",

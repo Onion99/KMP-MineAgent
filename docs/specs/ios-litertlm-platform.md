@@ -14,7 +14,8 @@ This note records the iOS native bridge for `LiteRtLmJni`.
 - Kotlin/Native cinterop must include `cpp/lite-rt-lm/c` directly because `litertlm.def` declares `headers = engine.h`. Including only `cpp/lite-rt-lm` makes CI/Xcode cinterop fail with `fatal error: 'engine.h' file not found`.
 - iOS framework linking expects a native library named `liblitertlm_c_api.a` or `liblitertlm_c_api.dylib` in both `cpp/libs/ios-device` and `cpp/libs/ios-simulator`.
 - `//c:engine` is a Bazel `cc_library`; its direct output `bazel-bin/c/libengine.a` is a thin archive containing the C API object but not the C++/Abseil/proto/Rust transitive archives required by Kotlin/Native.
-- `BuildIosLiteRtLmNativeArchiveTask` must build the configured Bazel native dependency labels, collect configured `.a` outputs from `deps(//c:engine)`, and merge them with `/usr/bin/libtool -static` into the final `liblitertlm_c_api.a` copied under `cpp/libs/ios-*`.
+- `BuildIosLiteRtLmNativeArchiveTask` must build the configured Bazel C/ObjC static dependency labels, collect configured `.a` outputs from `deps(//c:engine)`, and merge them with `/usr/bin/libtool -static` into the final `liblitertlm_c_api.a` copied under `cpp/libs/ios-*`.
+- The dependency build query must not include `rust_proc_macro` labels. Rust proc-macros are exec tools; building them as top-level iOS targets can compile crates such as `cxxbridge_macro` for `aarch64-apple-ios` instead of the macOS host.
 - Bazel `cquery --output=label` may append a configuration suffix such as ` (ccfbe96)`; Gradle must strip that suffix before passing labels back to `bazel build`.
 - iOS Kotlin/Native linker options include `-lc++` because the C API archive contains C++ objects even though the cinterop surface is a C header.
 - The active iOS target matrix is `iosArm64` and `iosSimulatorArm64`; `iosX64` is intentionally not registered.

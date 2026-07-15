@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2026-07-15] - iOS LiteRT LM transitive static link fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM Bazel builds no longer copy the thin `//c:engine` archive directly; the task now builds configured native dependency labels, collects `.a` outputs from `deps(//c:engine)`, and merges them into `liblitertlm_c_api.a` with macOS `libtool -static`.
 - [Fixed] Normalized Bazel `cquery --output=label` results before invoking `bazel build`, stripping configuration suffixes like ` (ccfbe96)` that Bazel cannot parse as target labels.
+- [Fixed] Restricted the extra iOS Bazel dependency build query to C/ObjC static library rules so Rust proc-macros such as `cxxbridge_macro` remain exec dependencies instead of being built as `aarch64-apple-ios` top-level targets.
 - [Fixed] Added `-lc++` to iOS Kotlin/Native linker options because the LiteRT LM C API archive contains C++ objects behind its C header.
 - [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the monolithic static archive contract and the thin Bazel archive failure mode.
 
