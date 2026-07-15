@@ -15,6 +15,7 @@ This note records the iOS native bridge for `LiteRtLmJni`.
 - iOS framework linking expects a native library named `liblitertlm_c_api.a` or `liblitertlm_c_api.dylib` in both `cpp/libs/ios-device` and `cpp/libs/ios-simulator`.
 - `//c:engine` is a Bazel `cc_library`; its direct output `bazel-bin/c/libengine.a` is a thin archive containing the C API object but not the C++/Abseil/proto/Rust transitive archives required by Kotlin/Native.
 - `BuildIosLiteRtLmNativeArchiveTask` must build the configured Bazel native dependency labels, collect configured `.a` outputs from `deps(//c:engine)`, and merge them with `/usr/bin/libtool -static` into the final `liblitertlm_c_api.a` copied under `cpp/libs/ios-*`.
+- Bazel `cquery --output=label` may append a configuration suffix such as ` (ccfbe96)`; Gradle must strip that suffix before passing labels back to `bazel build`.
 - iOS Kotlin/Native linker options include `-lc++` because the C API archive contains C++ objects even though the cinterop surface is a C header.
 - The active iOS target matrix is `iosArm64` and `iosSimulatorArm64`; `iosX64` is intentionally not registered.
 - `iosArm64Main` and `iosSimulatorArm64Main` must explicitly depend on the shared `iosMain` source set so `src/iosMain/kotlin` actual declarations are visible to Kotlin/Native expect/actual matching.

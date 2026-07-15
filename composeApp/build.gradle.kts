@@ -549,6 +549,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         ).lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
+            .map { normalizeCqueryLabel(it) }
             .distinct()
             .toList()
 
@@ -584,6 +585,10 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     private fun resolveBazelPath(workDir: File, path: String): File {
         val file = File(path)
         return if (file.isAbsolute) file else File(workDir, path)
+    }
+
+    private fun normalizeCqueryLabel(label: String): String {
+        return label.replace(Regex("\\s+\\([^()]+\\)$"), "")
     }
 
     private fun mergeStaticArchives(outputFile: File, archives: List<File>) {
