@@ -14,6 +14,7 @@ This note records the iOS native bridge for `LiteRtLmJni`.
 - Kotlin/Native cinterop must include `cpp/lite-rt-lm/c` directly because `litertlm.def` declares `headers = engine.h`. Including only `cpp/lite-rt-lm` makes CI/Xcode cinterop fail with `fatal error: 'engine.h' file not found`.
 - iOS framework linking expects a native library named `liblitertlm_c_api.a` or `liblitertlm_c_api.dylib` in both `cpp/libs/ios-device` and `cpp/libs/ios-simulator`.
 - The active iOS target matrix is `iosArm64` and `iosSimulatorArm64`; `iosX64` is intentionally not registered.
+- `iosArm64Main` and `iosSimulatorArm64Main` must explicitly depend on the shared `iosMain` source set so `src/iosMain/kotlin` actual declarations are visible to Kotlin/Native expect/actual matching.
 - `validateIosLiteRtLmNativeLibs` runs on macOS before iOS link tasks and fails early if the required native library is missing.
 - `buildIosLiteRtLmNativeLibs` builds the device arm64 archive and simulator arm64 archive directly; it does not build `ios_x86_64` or merge simulator archives with `lipo`.
 - GitHub Actions iOS builds install Bazelisk, restore the Bazel disk cache, and rewrite the repository-root `.bazelrc.user` before invoking Gradle. The iOS Bazel tasks must not inherit local developer paths such as `G:/_b` or Windows-only `BAZEL_VC` values.
