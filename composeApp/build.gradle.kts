@@ -568,6 +568,8 @@ val buildIosLiteRtLmNativeLibDevice by tasks.registering(BuildIosLiteRtLmNativeA
     bazelConfig.set("ios_arm64")
     bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
     outputArchive.set(rootProject.layout.projectDirectory.file("cpp/libs/ios-device/lib$iosLiteRtLmLibraryName.a"))
+    // 避免gradle没声明完整Bazel源码输入时,错误复用旧的.a文件
+    outputs.upToDateWhen { false }
     onlyIf {
         System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
     }
@@ -581,6 +583,7 @@ val buildIosLiteRtLmNativeLibSimulatorArm64 by tasks.registering(BuildIosLiteRtL
     bazelConfig.set("ios_sim_arm64")
     bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
     outputArchive.set(rootProject.layout.projectDirectory.file("cpp/libs/ios-simulator/lib$iosLiteRtLmLibraryName.a"))
+    outputs.upToDateWhen { false }
     mustRunAfter(buildIosLiteRtLmNativeLibDevice)
     onlyIf {
         System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")

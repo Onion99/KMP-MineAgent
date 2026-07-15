@@ -369,20 +369,17 @@ jobs:
 
           printf 'sdk.dir=%s\nndk.dir=%s\n' "$ANDROID_SDK_ROOT" "$ANDROID_NDK_HOME" > local.properties
 
-      - name: Setup Node.js (Android)
-        if: ${{ matrix.name == 'android' }}
+      - name: Setup Node.js (Bazelisk)
         uses: actions/setup-node@v5
         with:
           node-version: 22
 
-      - name: Install Bazelisk (Android)
-        if: ${{ matrix.name == 'android' }}
+      - name: Install Bazelisk
         run: |
           npm install -g @bazel/bazelisk
           bazelisk --version
 
-      - name: Restore Bazel disk cache (Android)
-        if: ${{ matrix.name == 'android' }}
+      - name: Restore Bazel disk cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel-disk
@@ -391,8 +388,7 @@ jobs:
             bazel-${{ runner.os }}-${{ matrix.name }}-
             bazel-${{ runner.os }}-
 
-      - name: Configure Bazel user rc (Android)
-        if: ${{ matrix.name == 'android' }}
+      - name: Configure Bazel user rc
         run: |
           BAZEL_OUTPUT_ROOT="${RUNNER_TEMP}/bazel-output"
           BAZEL_DISK_CACHE="${HOME}/.cache/bazel-disk"

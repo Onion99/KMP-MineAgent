@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-15] - Mobile iOS Bazel CI setup
+- [Fixed] Updated `.github/workflows/build.yml` so the mobile `ios` matrix entry installs Bazelisk, restores the Bazel disk cache, and rewrites the CI `.bazelrc.user` before `buildReleaseIpa`, matching the LiteRT LM iOS Bazel task chain.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` and `docs/specs/bazel-windows-android-rc.md` to record the shared mobile Bazel setup and the macOS runner path boundary.
+
 ## [2026-07-15] - iOS simulator native build simplification
 - [Changed] Removed `iosX64` from `build-logic/convention/src/main/kotlin/ext/KotlinMultiplatformExt.kt` and `shared/build.gradle.kts` so the Gradle target matrix matches the supported iOS platforms.
 - [Changed] Simplified `composeApp/build.gradle.kts` by removing the iOS simulator x64 Bazel task and `lipo` merge task; `buildIosLiteRtLmNativeLibs` now builds only device arm64 and simulator arm64 LiteRT LM archives.
