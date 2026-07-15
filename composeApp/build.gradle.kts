@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
+import java.io.ByteArrayOutputStream
 import java.util.Locale
 import java.lang.System.getenv
 
@@ -41,6 +42,7 @@ kotlin {
             linkerOpts += listOf(
                 "-L${rootProject.file("cpp/libs/$nativeLibDir")}",
                 "-l$iosLiteRtLmLibraryName",
+                "-lc++",
                 "-framework", "Foundation",
                 "-framework", "Accelerate",
                 "-framework", "Metal",
@@ -485,17 +487,9 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         val config = bazelConfig.get()
         println("Building iOS LiteRT LM native archive with Bazel (target=$target, config=$config)")
 
-        execOps.exec {
-            workingDir = workDir
-            commandLine(
-                "bazelisk",
-                "--bazelrc=${workDir.parentFile.parentFile.absolutePath}/.bazelrc.user",
-                "build",
-                target,
-                "--config=$config"
-            )
-            isIgnoreExitValue = false
-        }
+        // Bazel cc_library outputs do not include transitive static deps, so merge them below.
+        runBazel(workDir, "build", "--config=$config", target)
+        buildConfiguredNativeDeps(workDir, target, config)
 
         val sourceArchive = File(workDir, bazelOutputPath.get())
         if (!sourceArchive.exists()) {
@@ -504,8 +498,107 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
 
         val outputFile = outputArchive.get().asFile
         outputFile.parentFile.mkdirs()
-        sourceArchive.copyTo(outputFile, overwrite = true)
-        println("Copied iOS LiteRT LM native archive: ${sourceArchive.absolutePath} -> ${outputFile.absolutePath}")
+
+        val archives = collectConfiguredStaticArchives(workDir, target, config, sourceArchive)
+        if (archives.size == 1) {
+            sourceArchive.copyTo(outputFile, overwrite = true)
+            println("Copied iOS LiteRT LM native archive: ${sourceArchive.absolutePath} -> ${outputFile.absolutePath}")
+        } else {
+            mergeStaticArchives(outputFile, archives)
+            println(
+                "Merged iOS LiteRT LM archive with ${archives.size} Bazel static archives: " +
+                        "${outputFile.absolutePath}"
+            )
+        }
+    }
+
+    private fun bazelCommand(workDir: File, vararg args: String): List<String> {
+        return listOf(
+            "bazelisk",
+            "--bazelrc=${workDir.parentFile.parentFile.absolutePath}/.bazelrc.user",
+        ) + args
+    }
+
+    private fun runBazel(workDir: File, vararg args: String) {
+        execOps.exec {
+            workingDir = workDir
+            commandLine(bazelCommand(workDir, *args))
+            isIgnoreExitValue = false
+        }
+    }
+
+    private fun runBazelForOutput(workDir: File, vararg args: String): String {
+        val stdout = ByteArrayOutputStream()
+        execOps.exec {
+            workingDir = workDir
+            commandLine(bazelCommand(workDir, *args))
+            standardOutput = stdout
+            isIgnoreExitValue = false
+        }
+        return stdout.toString(Charsets.UTF_8.name())
+    }
+
+    private fun buildConfiguredNativeDeps(workDir: File, target: String, config: String) {
+        val queryExpression = "kind(\"(cc|objc|rust|proto|genrule).* rule\", deps($target))"
+        val labels = runBazelForOutput(
+            workDir,
+            "cquery",
+            "--config=$config",
+            "--output=label",
+            queryExpression,
+        ).lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .toList()
+
+        labels.chunked(150).forEach { chunk ->
+            val buildArgs = (listOf("build", "--config=$config") + chunk).toTypedArray()
+            runBazel(workDir, *buildArgs)
+        }
+    }
+
+    private fun collectConfiguredStaticArchives(
+        workDir: File,
+        target: String,
+        config: String,
+        sourceArchive: File,
+    ): List<File> {
+        val archivesFromDeps = runBazelForOutput(
+            workDir,
+            "cquery",
+            "--config=$config",
+            "--output=files",
+            "deps($target)",
+        ).lineSequence()
+            .map { it.trim() }
+            .filter { it.endsWith(".a") }
+            .map { resolveBazelPath(workDir, it) }
+            .filter { it.exists() }
+            .toList()
+
+        return (listOf(sourceArchive) + archivesFromDeps)
+            .distinctBy { it.canonicalPath }
+    }
+
+    private fun resolveBazelPath(workDir: File, path: String): File {
+        val file = File(path)
+        return if (file.isAbsolute) file else File(workDir, path)
+    }
+
+    private fun mergeStaticArchives(outputFile: File, archives: List<File>) {
+        outputFile.delete()
+        execOps.exec {
+            commandLine(
+                listOf(
+                    "/usr/bin/libtool",
+                    "-static",
+                    "-o",
+                    outputFile.absolutePath,
+                ) + archives.map { it.absolutePath }
+            )
+            isIgnoreExitValue = false
+        }
     }
 }
 

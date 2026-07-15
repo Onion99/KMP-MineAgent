@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-15] - iOS LiteRT LM transitive static link fix
+- [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM Bazel builds no longer copy the thin `//c:engine` archive directly; the task now builds configured native dependency labels, collects `.a` outputs from `deps(//c:engine)`, and merges them into `liblitertlm_c_api.a` with macOS `libtool -static`.
+- [Fixed] Added `-lc++` to iOS Kotlin/Native linker options because the LiteRT LM C API archive contains C++ objects behind its C header.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the monolithic static archive contract and the thin Bazel archive failure mode.
+
 ## [2026-07-15] - iOS cinterop header include path fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so the LiteRT LM Kotlin/Native cinterop includes `cpp/lite-rt-lm/c` directly, allowing `litertlm.def` to resolve `engine.h` during GitHub Actions/Xcode archive builds.
 - [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the required cinterop header directory boundary.
