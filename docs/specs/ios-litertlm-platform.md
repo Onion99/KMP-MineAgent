@@ -11,6 +11,7 @@ This note records the iOS native bridge for `LiteRtLmJni`.
 - `composeApp` no longer registers the old Kotlin/Native cinterop for `sdloader.def`.
 - iOS framework builds no longer link the legacy `stable-diffusion.cpp` static libraries from Gradle.
 - `composeApp/src/nativeInterop/cinterop/litertlm.def` maps the LiteRT LM C API from `cpp/lite-rt-lm/c/engine.h`.
+- Kotlin/Native cinterop must include `cpp/lite-rt-lm/c` directly because `litertlm.def` declares `headers = engine.h`. Including only `cpp/lite-rt-lm` makes CI/Xcode cinterop fail with `fatal error: 'engine.h' file not found`.
 - iOS framework linking expects a native library named `liblitertlm_c_api.a` or `liblitertlm_c_api.dylib` in both `cpp/libs/ios-device` and `cpp/libs/ios-simulator`.
 - The active iOS target matrix is `iosArm64` and `iosSimulatorArm64`; `iosX64` is intentionally not registered.
 - `validateIosLiteRtLmNativeLibs` runs on macOS before iOS link tasks and fails early if the required native library is missing.

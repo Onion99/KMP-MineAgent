@@ -18,6 +18,7 @@ plugins {
 }
 
 val liteRtLmNativeRoot = rootProject.file("cpp/lite-rt-lm")
+val liteRtLmCHeadersDir = liteRtLmNativeRoot.resolve("c")
 val liteRtLmCInteropDefFile = project.file("src/nativeInterop/cinterop/litertlm.def")
 val iosLiteRtLmLibraryName = "litertlm_c_api"
 val iosLiteRtLmBazelTarget = providers.gradleProperty("ios.litertlm.bazelTarget").orElse("//c:engine")
@@ -61,7 +62,7 @@ kotlin {
         iosTarget.compilations["main"].cinterops {
             create("litertlm") {
                 defFile(liteRtLmCInteropDefFile)
-                includeDirs(liteRtLmNativeRoot)
+                includeDirs(liteRtLmCHeadersDir)
             }
         }
     }

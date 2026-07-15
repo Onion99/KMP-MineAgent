@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-15] - iOS cinterop header include path fix
+- [Fixed] Updated `composeApp/build.gradle.kts` so the LiteRT LM Kotlin/Native cinterop includes `cpp/lite-rt-lm/c` directly, allowing `litertlm.def` to resolve `engine.h` during GitHub Actions/Xcode archive builds.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the required cinterop header directory boundary.
+
 ## [2026-07-15] - Mobile iOS Bazel CI setup
 - [Fixed] Updated `.github/workflows/build.yml` so the mobile `ios` matrix entry installs Bazelisk, restores the Bazel disk cache, and rewrites the CI `.bazelrc.user` before `buildReleaseIpa`, matching the LiteRT LM iOS Bazel task chain.
 - [Docs] Updated `docs/specs/ios-litertlm-platform.md` and `docs/specs/bazel-windows-android-rc.md` to record the shared mobile Bazel setup and the macOS runner path boundary.
