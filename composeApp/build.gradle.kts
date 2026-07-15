@@ -71,7 +71,15 @@ kotlin {
     
     sourceSets {
         val desktopMain by getting
-        
+        val commonMain by getting
+
+        val iosMain by creating {
+            dependsOn(commonMain)
+        }
+
+        iosMain.dependencies {
+
+        }
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
