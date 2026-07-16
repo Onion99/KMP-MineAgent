@@ -499,6 +499,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         println("Building iOS LiteRT LM native archive with Bazel (target=$target, config=$config)")
 
         // Bazel library outputs do not include every transitive static input, so merge them below.
+        patchIosSynCrateFeatures(workDir)
         runBazel(workDir, "build", "--config=$config", target)
         buildConfiguredNativeDeps(workDir, target, config)
 
@@ -544,6 +545,55 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             isIgnoreExitValue = false
         }
         return stdout.toString(Charsets.UTF_8.name())
+    }
+
+    private fun patchIosSynCrateFeatures(workDir: File) {
+        runBazel(workDir, "sync", "--only=crate_index")
+
+        val outputBase = runBazelForOutput(workDir, "info", "output_base")
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .lastOrNull()
+            ?: throw GradleException("Unable to resolve Bazel output_base for LiteRT LM iOS build.")
+
+        val synBuildFile = File(outputBase, "external/crate_index/BUILD.syn-2.0.114.bazel")
+        if (!synBuildFile.exists()) {
+            throw GradleException("Bazel crate_index syn BUILD file not found: ${synBuildFile.absolutePath}")
+        }
+
+        val original = synBuildFile.readText()
+        fun hasIosFeatureSelect(triple: String): Boolean {
+            return original.contains("\"extra-traits\",  # $triple\n") ||
+                original.contains("\"extra-traits\",  # $triple\r\n")
+        }
+        val iosSynTriples = listOf("aarch64-apple-ios", "aarch64-apple-ios-sim")
+        val missingIosTriples = iosSynTriples.filterNot { hasIosFeatureSelect(it) }
+        if (missingIosTriples.isEmpty()) {
+            println("Bazel crate_index syn BUILD already contains arm64 iOS feature selects.")
+            return
+        }
+
+        // The project registers iosArm64 and iosSimulatorArm64 only; iosX64 is intentionally unsupported.
+        val iosSynFeatureSelects = missingIosTriples.joinToString(separator = "") { triple ->
+            """
+        "@rules_rust//rust/platform:$triple": [
+            "extra-traits",  # $triple
+            "full",  # $triple
+            "visit",  # $triple
+            "visit-mut",  # $triple
+        ],
+""".trimStart()
+        }
+
+        val anchor = "        \"@rules_rust//rust/platform:aarch64-pc-windows-msvc\": ["
+        val patched = original.replace(anchor, iosSynFeatureSelects + anchor)
+        if (patched == original) {
+            throw GradleException("Unable to patch iOS syn feature selects in ${synBuildFile.absolutePath}")
+        }
+
+        synBuildFile.writeText(patched)
+        println("Patched Bazel crate_index syn BUILD with arm64 iOS feature selects for ${missingIosTriples.joinToString()}: ${synBuildFile.absolutePath}")
     }
 
     private fun buildConfiguredNativeDeps(workDir: File, target: String, config: String) {

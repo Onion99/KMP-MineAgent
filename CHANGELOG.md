@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-16] - iOS Bazel Rust syn feature fix
+- [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM native builds patch Bazel's generated `external/crate_index/BUILD.syn-2.0.114.bazel` after `bazel sync --only=crate_index`, adding `syn` feature selects for the active `aarch64-apple-ios` and `aarch64-apple-ios-sim` triples without modifying the LiteRT submodule source.
+- [Changed] Updated `.github/workflows/build.yml` Bazel cache keys to include root Gradle wiring plus LiteRT Rust manifests, lockfiles, and patches so CI invalidates the disk cache when generated-repo patching or crate inputs change.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the generated crate-index patch boundary and GitHub Actions cache inputs.
+
 ## [2026-07-15] - iOS LiteRT LM transitive static link fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM Bazel builds no longer copy the thin `//c:engine` archive directly; the task now builds configured native, proto, and Rust static dependency labels, collects `.a` and `.rlib` outputs from `deps(//c:engine)`, and merges them into `liblitertlm_c_api.a` with macOS `libtool -static`.
 - [Fixed] Normalized Bazel `cquery --output=label` results before invoking `bazel build`, stripping configuration suffixes like ` (ccfbe96)` that Bazel cannot parse as target labels.

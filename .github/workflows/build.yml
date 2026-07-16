@@ -186,7 +186,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel-disk
-          key: bazel-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('cpp/lite-rt-lm/.bazelversion', 'cpp/lite-rt-lm/.bazelrc', 'cpp/lite-rt-lm/WORKSPACE', 'cpp/lite-rt-lm/kotlin/java/**/BUILD*', 'cpp/lite-rt-lm/python/**/BUILD*', 'cpp/lite-rt-lm/runtime/**/BUILD*') }}
+          key: bazel-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('composeApp/build.gradle.kts', 'cpp/lite-rt-lm/.bazelversion', 'cpp/lite-rt-lm/.bazelrc', 'cpp/lite-rt-lm/WORKSPACE', 'cpp/lite-rt-lm/Cargo.toml', 'cpp/lite-rt-lm/Cargo.lock', 'cpp/lite-rt-lm/cargo-bazel-lock.json', 'cpp/lite-rt-lm/PATCH.*', 'cpp/lite-rt-lm/kotlin/java/**/BUILD*', 'cpp/lite-rt-lm/python/**/BUILD*', 'cpp/lite-rt-lm/runtime/**/BUILD*') }}
           restore-keys: |
             bazel-${{ runner.os }}-${{ matrix.name }}-
             bazel-${{ runner.os }}-
@@ -383,7 +383,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel-disk
-          key: bazel-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('cpp/lite-rt-lm/.bazelversion', 'cpp/lite-rt-lm/.bazelrc', 'cpp/lite-rt-lm/WORKSPACE', 'cpp/lite-rt-lm/kotlin/java/**/BUILD*', 'cpp/lite-rt-lm/python/**/BUILD*', 'cpp/lite-rt-lm/runtime/**/BUILD*') }}
+          key: bazel-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('composeApp/build.gradle.kts', 'cpp/lite-rt-lm/.bazelversion', 'cpp/lite-rt-lm/.bazelrc', 'cpp/lite-rt-lm/WORKSPACE', 'cpp/lite-rt-lm/Cargo.toml', 'cpp/lite-rt-lm/Cargo.lock', 'cpp/lite-rt-lm/cargo-bazel-lock.json', 'cpp/lite-rt-lm/PATCH.*', 'cpp/lite-rt-lm/kotlin/java/**/BUILD*', 'cpp/lite-rt-lm/python/**/BUILD*', 'cpp/lite-rt-lm/runtime/**/BUILD*') }}
           restore-keys: |
             bazel-${{ runner.os }}-${{ matrix.name }}-
             bazel-${{ runner.os }}-
