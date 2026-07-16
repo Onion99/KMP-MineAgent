@@ -478,7 +478,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
 
     private val hermeticPythonVersion = "3.12"
     private val hermeticPythonRepoEnvArg = "--repo_env=HERMETIC_PYTHON_VERSION=$hermeticPythonVersion"
-    private val repositoryAwareBazelCommands = setOf("build", "cquery", "sync")
+    private val repositoryAwareBazelCommands = setOf("build", "cquery", "fetch", "sync")
 
     @get:Input
     abstract val bazelTarget: Property<String>
@@ -568,6 +568,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
 
     private fun patchIosSynCrateFeatures(workDir: File) {
         runBazel(workDir, "sync", "--only=crate_index")
+        runBazel(workDir, "fetch", "@crate_index__syn-2.0.114//:syn")
 
         val outputBase = runBazelForOutput(workDir, "info", "output_base")
             .lineSequence()
@@ -576,21 +577,41 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             .lastOrNull()
             ?: throw GradleException("Unable to resolve Bazel output_base for LiteRT LM iOS build.")
 
-        val synBuildFile = File(outputBase, "external/crate_index/BUILD.syn-2.0.114.bazel")
+        val synBuildFiles = listOf(
+            File(outputBase, "external/crate_index/BUILD.syn-2.0.114.bazel"),
+            File(outputBase, "external/crate_index__syn-2.0.114/BUILD.bazel"),
+        )
+        val patchedFiles = synBuildFiles.map { patchSynBuildFile(it) }.filter { it.isNotEmpty() }
+        if (patchedFiles.isEmpty()) {
+            println("Bazel crate_index syn BUILD files already contain arm64 iOS feature selects.")
+        } else {
+            println("Patched Bazel crate_index syn BUILD files with arm64 iOS feature selects: ${patchedFiles.joinToString()}")
+        }
+    }
+
+    private fun patchSynBuildFile(synBuildFile: File): String {
         if (!synBuildFile.exists()) {
             throw GradleException("Bazel crate_index syn BUILD file not found: ${synBuildFile.absolutePath}")
         }
-
         val original = synBuildFile.readText()
+        val requiredSynFeatures = listOf("extra-traits", "full", "visit", "visit-mut")
+
         fun hasIosFeatureSelect(triple: String): Boolean {
-            return original.contains("\"extra-traits\",  # $triple\n") ||
-                original.contains("\"extra-traits\",  # $triple\r\n")
+            val platformKey = "\"@rules_rust//rust/platform:$triple\""
+            val platformStart = original.indexOf(platformKey)
+            if (platformStart < 0) {
+                return false
+            }
+            val platformEnd = original.indexOf("],", platformStart).takeIf { it > platformStart }
+                ?: return false
+            val platformSelect = original.substring(platformStart, platformEnd)
+            return requiredSynFeatures.all { feature -> "\"$feature\"" in platformSelect }
         }
+
         val iosSynTriples = listOf("aarch64-apple-ios", "aarch64-apple-ios-sim")
         val missingIosTriples = iosSynTriples.filterNot { hasIosFeatureSelect(it) }
         if (missingIosTriples.isEmpty()) {
-            println("Bazel crate_index syn BUILD already contains arm64 iOS feature selects.")
-            return
+            return ""
         }
 
         // The project registers iosArm64 and iosSimulatorArm64 only; iosX64 is intentionally unsupported.
@@ -612,7 +633,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         }
 
         synBuildFile.writeText(patched)
-        println("Patched Bazel crate_index syn BUILD with arm64 iOS feature selects for ${missingIosTriples.joinToString()}: ${synBuildFile.absolutePath}")
+        return synBuildFile.absolutePath
     }
 
     private fun buildConfiguredNativeDeps(workDir: File, target: String, config: String) {
