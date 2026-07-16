@@ -476,6 +476,10 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     @get:Inject
     abstract val execOps: ExecOperations
 
+    private val hermeticPythonVersion = "3.12"
+    private val hermeticPythonRepoEnvArg = "--repo_env=HERMETIC_PYTHON_VERSION=$hermeticPythonVersion"
+    private val repositoryAwareBazelCommands = setOf("build", "cquery", "sync")
+
     @get:Input
     abstract val bazelTarget: Property<String>
 
@@ -522,15 +526,29 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     }
 
     private fun bazelCommand(workDir: File, vararg args: String): List<String> {
+        val commandArgs = args.toList()
+        val command = commandArgs.firstOrNull()
+        val commandArgsWithRepoEnv =
+            if (
+                command != null &&
+                command in repositoryAwareBazelCommands &&
+                commandArgs.none { it.startsWith("--repo_env=HERMETIC_PYTHON_VERSION=") }
+            ) {
+                listOf(command, hermeticPythonRepoEnvArg) + commandArgs.drop(1)
+            } else {
+                commandArgs
+            }
+
         return listOf(
             "bazelisk",
             "--bazelrc=${workDir.parentFile.parentFile.absolutePath}/.bazelrc.user",
-        ) + args
+        ) + commandArgsWithRepoEnv
     }
 
     private fun runBazel(workDir: File, vararg args: String) {
         execOps.exec {
             workingDir = workDir
+            environment("HERMETIC_PYTHON_VERSION", hermeticPythonVersion)
             commandLine(bazelCommand(workDir, *args))
             isIgnoreExitValue = false
         }
@@ -540,6 +558,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         val stdout = ByteArrayOutputStream()
         execOps.exec {
             workingDir = workDir
+            environment("HERMETIC_PYTHON_VERSION", hermeticPythonVersion)
             commandLine(bazelCommand(workDir, *args))
             standardOutput = stdout
             isIgnoreExitValue = false

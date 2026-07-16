@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-16] - iOS Bazel hermetic Python fix
+- [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM Bazel `sync`, `build`, and `cquery` calls set `HERMETIC_PYTHON_VERSION=3.12` through both process environment and `--repo_env`, preventing XLA repository fetches from falling back to unsupported Python 3.9.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the hermetic Python boundary for root Gradle Bazel invocations.
+
 ## [2026-07-16] - iOS Bazel Rust syn feature fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM native builds patch Bazel's generated `external/crate_index/BUILD.syn-2.0.114.bazel` after `bazel sync --only=crate_index`, adding `syn` feature selects for the active `aarch64-apple-ios` and `aarch64-apple-ios-sim` triples without modifying the LiteRT submodule source.
 - [Changed] Updated `.github/workflows/build.yml` Bazel cache keys to include root Gradle wiring plus LiteRT Rust manifests, lockfiles, and patches so CI invalidates the disk cache when generated-repo patching or crate inputs change.
