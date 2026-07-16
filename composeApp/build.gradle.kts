@@ -55,6 +55,7 @@ kotlin {
                 "-lc++",
                 "-framework", "Foundation",
                 "-framework", "AVFoundation",
+                "-framework", "AudioToolbox",
                 "-framework", "Accelerate",
                 "-framework", "Metal",
                 "-framework", "MetalPerformanceShaders",
@@ -689,9 +690,42 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             .map { resolveBazelPath(workDir, it) }
             .filter { it.exists() }
             .toList()
+        val rustSysrootArchives = collectRustSysrootArchives(workDir, config)
 
-        return (listOf(sourceArchive) + archivesFromDeps)
+        return (listOf(sourceArchive) + archivesFromDeps + rustSysrootArchives)
             .distinctBy { it.canonicalPath }
+    }
+
+    private fun collectRustSysrootArchives(workDir: File, config: String): List<File> {
+        val targetTriple = when (config) {
+            "ios_arm64" -> "aarch64-apple-ios"
+            "ios_sim_arm64" -> "aarch64-apple-ios-sim"
+            else -> return emptyList()
+        }
+        val bazelBin = File(workDir, "bazel-bin").canonicalFile
+        val externalDir = File(bazelBin, "external")
+        if (!externalDir.exists()) {
+            throw GradleException("Bazel external output directory not found: ${externalDir.absolutePath}")
+        }
+
+        val rustlibSuffix = listOf("rust_toolchain", "lib", "rustlib", targetTriple, "lib")
+            .joinToString(File.separator)
+        val rustlibDirs = externalDir.walkTopDown()
+            .filter { it.isDirectory && it.path.endsWith(rustlibSuffix) }
+            .toList()
+        if (rustlibDirs.isEmpty()) {
+            throw GradleException("Rust sysroot archives not found for $targetTriple under ${externalDir.absolutePath}")
+        }
+
+        val rustSysrootArchives = rustlibDirs
+            .flatMap { dir -> dir.listFiles { file -> file.extension == "rlib" }?.toList().orEmpty() }
+            .distinctBy { it.canonicalPath }
+        if (rustSysrootArchives.none { it.name.startsWith("libstd-") }) {
+            throw GradleException("Rust std archive not found for $targetTriple under ${rustlibDirs.joinToString()}")
+        }
+
+        println("Collected ${rustSysrootArchives.size} Rust sysroot archives for $targetTriple.")
+        return rustSysrootArchives
     }
 
     private fun resolveBazelPath(workDir: File, path: String): File {

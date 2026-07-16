@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-16] - iOS LiteRT LM final link fix
+- [Fixed] Added `AudioToolbox` to iOS Kotlin/Native linker options because miniaudio CoreAudio objects in `liblitertlm_c_api.a` reference `AudioComponent*` and `AudioUnit*` symbols.
+- [Fixed] Updated `BuildIosLiteRtLmNativeArchiveTask` to merge Bazel target Rust sysroot `.rlib` archives into `liblitertlm_c_api.a`, resolving Rust `std` symbols referenced by crate `.rlib` objects during the final Xcode/Kotlin/Native link.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the AudioToolbox and Rust sysroot archive link requirements.
+
 ## [2026-07-16] - iOS Bazel hermetic Python fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM Bazel `sync`, `build`, and `cquery` calls set `HERMETIC_PYTHON_VERSION=3.12` through both process environment and `--repo_env`, preventing XLA repository fetches from falling back to unsupported Python 3.9.
 - [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the hermetic Python boundary for root Gradle Bazel invocations.
