@@ -577,15 +577,11 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             .lastOrNull()
             ?: throw GradleException("Unable to resolve Bazel output_base for LiteRT LM iOS build.")
 
-        val synBuildFiles = listOf(
-            File(outputBase, "external/crate_index/BUILD.syn-2.0.114.bazel"),
-            File(outputBase, "external/crate_index__syn-2.0.114/BUILD.bazel"),
-        )
-        val patchedFiles = synBuildFiles.map { patchSynBuildFile(it) }.filter { it.isNotEmpty() }
-        if (patchedFiles.isEmpty()) {
-            println("Bazel crate_index syn BUILD files already contain arm64 iOS feature selects.")
+        val patchedFile = patchSynBuildFile(File(outputBase, "external/crate_index__syn-2.0.114/BUILD.bazel"))
+        if (patchedFile.isEmpty()) {
+            println("Bazel crate_index syn per-crate BUILD already contains arm64 iOS crate_features.")
         } else {
-            println("Patched Bazel crate_index syn BUILD files with arm64 iOS feature selects: ${patchedFiles.joinToString()}")
+            println("Patched Bazel crate_index syn per-crate BUILD with arm64 iOS crate_features: $patchedFile")
         }
     }
 
