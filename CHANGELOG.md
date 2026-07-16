@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [2026-07-15] - iOS LiteRT LM transitive static link fix
-- [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM Bazel builds no longer copy the thin `//c:engine` archive directly; the task now builds configured native dependency labels, collects `.a` outputs from `deps(//c:engine)`, and merges them into `liblitertlm_c_api.a` with macOS `libtool -static`.
+- [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM Bazel builds no longer copy the thin `//c:engine` archive directly; the task now builds configured native, proto, and Rust static dependency labels, collects `.a` and `.rlib` outputs from `deps(//c:engine)`, and merges them into `liblitertlm_c_api.a` with macOS `libtool -static`.
 - [Fixed] Normalized Bazel `cquery --output=label` results before invoking `bazel build`, stripping configuration suffixes like ` (ccfbe96)` that Bazel cannot parse as target labels.
-- [Fixed] Restricted the extra iOS Bazel dependency build query to C/ObjC static library rules so Rust proc-macros such as `cxxbridge_macro` remain exec dependencies instead of being built as `aarch64-apple-ios` top-level targets.
-- [Fixed] Added `-lc++` to iOS Kotlin/Native linker options because the LiteRT LM C API archive contains C++ objects behind its C header.
-- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the monolithic static archive contract and the thin Bazel archive failure mode.
+- [Fixed] Restricted the extra iOS Bazel dependency build query to static link inputs while still excluding Rust proc-macro rules so `cxxbridge_macro` remains an exec dependency instead of being built as an `aarch64-apple-ios` top-level target.
+- [Fixed] Added LiteRT prebuilt dylib linker options for `libLiteRt.dylib`, `libGemmaModelConstraintProvider.dylib`, and `libLiteRtMetalAccelerator.dylib`, plus early validation that the iOS device and simulator prebuilts exist.
+- [Fixed] Added `-lc++` and `AVFoundation` to iOS Kotlin/Native linker options because the LiteRT LM C API archive contains C++ objects and miniaudio objects behind its C header.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the monolithic static archive contract, dynamic prebuilt LiteRT dependencies, and the submodule modification boundary.
 
 ## [2026-07-15] - iOS cinterop header include path fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so the LiteRT LM Kotlin/Native cinterop includes `cpp/lite-rt-lm/c` directly, allowing `litertlm.def` to resolve `engine.h` during GitHub Actions/Xcode archive builds.

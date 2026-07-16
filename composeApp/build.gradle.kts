@@ -24,6 +24,11 @@ val liteRtLmCInteropDefFile = project.file("src/nativeInterop/cinterop/litertlm.
 val iosLiteRtLmLibraryName = "litertlm_c_api"
 val iosLiteRtLmBazelTarget = providers.gradleProperty("ios.litertlm.bazelTarget").orElse("//c:engine")
 val iosLiteRtLmBazelOutputPath = providers.gradleProperty("ios.litertlm.bazelOutputPath").orElse("bazel-bin/c/libengine.a")
+val iosLiteRtLmRequiredDylibs = listOf(
+    "libLiteRt.dylib",
+    "libGemmaModelConstraintProvider.dylib",
+    "libLiteRtMetalAccelerator.dylib",
+)
 
 kotlin {
     androidTarget {
@@ -38,12 +43,18 @@ kotlin {
         iosSimulatorArm64()
     ).forEach { iosTarget ->
         val nativeLibDir = if (iosTarget.name == "iosArm64") "ios-device" else "ios-simulator"
+        val nativePrebuiltDir = if (iosTarget.name == "iosArm64") "ios_arm64" else "ios_sim_arm64"
+        val nativePrebuiltLinkerOpts = listOf(
+            "-L${liteRtLmNativeRoot.resolve("prebuilt/$nativePrebuiltDir")}",
+        ) + iosLiteRtLmRequiredDylibs.map { "-l${it.removePrefix("lib").removeSuffix(".dylib")}" }
         iosTarget.binaries.all {
             linkerOpts += listOf(
                 "-L${rootProject.file("cpp/libs/$nativeLibDir")}",
                 "-l$iosLiteRtLmLibraryName",
+                *nativePrebuiltLinkerOpts.toTypedArray(),
                 "-lc++",
                 "-framework", "Foundation",
+                "-framework", "AVFoundation",
                 "-framework", "Accelerate",
                 "-framework", "Metal",
                 "-framework", "MetalPerformanceShaders",
@@ -487,7 +498,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         val config = bazelConfig.get()
         println("Building iOS LiteRT LM native archive with Bazel (target=$target, config=$config)")
 
-        // Bazel cc_library outputs do not include transitive static deps, so merge them below.
+        // Bazel library outputs do not include every transitive static input, so merge them below.
         runBazel(workDir, "build", "--config=$config", target)
         buildConfiguredNativeDeps(workDir, target, config)
 
@@ -505,10 +516,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             println("Copied iOS LiteRT LM native archive: ${sourceArchive.absolutePath} -> ${outputFile.absolutePath}")
         } else {
             mergeStaticArchives(outputFile, archives)
-            println(
-                "Merged iOS LiteRT LM archive with ${archives.size} Bazel static archives: " +
-                        "${outputFile.absolutePath}"
-            )
+            println("Merged iOS LiteRT LM archive with ${archives.size} Bazel static inputs: ${outputFile.absolutePath}")
         }
     }
 
@@ -539,7 +547,8 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     }
 
     private fun buildConfiguredNativeDeps(workDir: File, target: String, config: String) {
-        val queryExpression = "kind(\"(cc_library|objc_library|cc_import|objc_import) rule\", deps($target))"
+        val queryExpression =
+            "kind(\"(cc_library|objc_library|cc_import|objc_import|cc_proto_library|rust_library|rust_static_library) rule\", deps($target))"
         val labels = runBazelForOutput(
             workDir,
             "cquery",
@@ -573,7 +582,7 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             "deps($target)",
         ).lineSequence()
             .map { it.trim() }
-            .filter { it.endsWith(".a") }
+            .filter { it.endsWith(".a") || it.endsWith(".rlib") }
             .map { resolveBazelPath(workDir, it) }
             .filter { it.exists() }
             .toList()
@@ -814,19 +823,34 @@ tasks.register("validateIosLiteRtLmNativeLibs") {
         System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
     }
     doLast {
-        val requiredDirs = listOf("ios-device", "ios-simulator")
-        val missing = requiredDirs.filter { dirName ->
+        val requiredDirs = listOf(
+            "ios-device" to "ios_arm64",
+            "ios-simulator" to "ios_sim_arm64",
+        )
+        val missingNativeArchives = requiredDirs.filter { (dirName, _) ->
             val dir = rootProject.file("cpp/libs/$dirName")
             listOf(
                 dir.resolve("lib$iosLiteRtLmLibraryName.a"),
                 dir.resolve("lib$iosLiteRtLmLibraryName.dylib")
             ).none { it.exists() }
         }
-        if (missing.isNotEmpty()) {
+        if (missingNativeArchives.isNotEmpty()) {
             throw GradleException(
                 "Missing iOS LiteRT LM native library `$iosLiteRtLmLibraryName` in: ${
-                    missing.joinToString { "cpp/libs/$it" }
+                    missingNativeArchives.joinToString { (dirName, _) -> "cpp/libs/$dirName" }
                 }. Build or copy lib$iosLiteRtLmLibraryName.a/.dylib before linking iOS targets."
+            )
+        }
+        val missingPrebuiltDylibs = requiredDirs.flatMap { (_, prebuiltDirName) ->
+            val dir = liteRtLmNativeRoot.resolve("prebuilt/$prebuiltDirName")
+            iosLiteRtLmRequiredDylibs
+                .map { dir.resolve(it) }
+                .filterNot { it.exists() }
+                .map { it.relativeTo(rootProject.rootDir).invariantSeparatorsPath }
+        }
+        if (missingPrebuiltDylibs.isNotEmpty()) {
+            throw GradleException(
+                "Missing iOS LiteRT LM prebuilt dylibs required by linkerOpts: ${missingPrebuiltDylibs.joinToString()}"
             )
         }
     }
