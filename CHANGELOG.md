@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Fixed] Updated `composeApp/build.gradle.kts` so iOS LiteRT LM native builds patch Bazel's generated `external/crate_index/BUILD.syn-2.0.114.bazel` after `bazel sync --only=crate_index`, adding `syn` feature selects for the active `aarch64-apple-ios` and `aarch64-apple-ios-sim` triples without modifying the LiteRT submodule source.
 - [Fixed] Extended the generated `syn` feature patch to fetch and update `external/crate_index__syn-2.0.114/BUILD.bazel`, because the iOS Rust compile uses the per-crate repository rather than only the `crate_index` hub BUILD file.
 - [Fixed] Changed the generated `syn` feature patch to append missing feature strings to existing iOS platform selects instead of inserting duplicate `aarch64-apple-ios` dictionary keys.
+- [Fixed] Scoped the generated `syn` feature patch to the `crate_features` select block so Rust feature strings are not written into `target_compatible_with`.
 - [Changed] Updated `.github/workflows/build.yml` Bazel cache keys to include root Gradle wiring plus LiteRT Rust manifests, lockfiles, and patches so CI invalidates the disk cache when generated-repo patching or crate inputs change.
 - [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the generated crate-index patch boundary and GitHub Actions cache inputs.
 

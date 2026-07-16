@@ -601,8 +601,16 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
 
         val anchor = "        \"@rules_rust//rust/platform:aarch64-pc-windows-msvc\": ["
         iosSynTriples.forEach { triple ->
+            val crateFeaturesStart = patched.indexOf("crate_features = select({")
+                .takeIf { it >= 0 }
+                ?: throw GradleException("Unable to find syn crate_features select in ${synBuildFile.absolutePath}")
+            val crateFeaturesEnd = patched.indexOf("\n    })", crateFeaturesStart)
+                .takeIf { it > crateFeaturesStart }
+                ?: throw GradleException("Unable to find end of syn crate_features select in ${synBuildFile.absolutePath}")
             val platformKey = "\"@rules_rust//rust/platform:$triple\": ["
-            val platformStart = patched.indexOf(platformKey)
+            val platformStart = patched.indexOf(platformKey, crateFeaturesStart)
+                .takeIf { it in crateFeaturesStart until crateFeaturesEnd }
+                ?: -1
             if (platformStart >= 0) {
                 val platformEnd = patched.indexOf("],", platformStart).takeIf { it > platformStart }
                     ?: throw GradleException("Unable to find end of iOS syn feature select for $triple in ${synBuildFile.absolutePath}")
@@ -624,11 +632,10 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             "visit-mut",  # $triple
         ],
 """.trimStart()
-                val nextPatched = patched.replace(anchor, iosSynFeatureSelect + anchor)
-                if (nextPatched == patched) {
-                    throw GradleException("Unable to patch iOS syn feature selects in ${synBuildFile.absolutePath}")
-                }
-                patched = nextPatched
+                val anchorStart = patched.indexOf(anchor, crateFeaturesStart)
+                    .takeIf { it in crateFeaturesStart until crateFeaturesEnd }
+                    ?: throw GradleException("Unable to patch iOS syn crate_features select in ${synBuildFile.absolutePath}")
+                patched = patched.substring(0, anchorStart) + iosSynFeatureSelect + patched.substring(anchorStart)
             }
         }
 
