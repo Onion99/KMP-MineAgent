@@ -597,15 +597,21 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
 
         val anchor = "        \"@rules_rust//rust/platform:aarch64-pc-windows-msvc\": ["
         iosSynTriples.forEach { triple ->
-            val crateFeaturesStart = patched.indexOf("crate_features = select({")
+            val crateFeaturesAttrStart = patched.indexOf("crate_features =")
                 .takeIf { it >= 0 }
+                ?: throw GradleException("Unable to find syn crate_features attribute in ${synBuildFile.absolutePath}")
+            val crateFeaturesAttrEnd = patched.indexOf("\n    crate_root =", crateFeaturesAttrStart)
+                .takeIf { it > crateFeaturesAttrStart }
+                ?: throw GradleException("Unable to find end of syn crate_features attribute in ${synBuildFile.absolutePath}")
+            val crateFeaturesSelectStart = patched.indexOf("select({", crateFeaturesAttrStart)
+                .takeIf { it in crateFeaturesAttrStart until crateFeaturesAttrEnd }
                 ?: throw GradleException("Unable to find syn crate_features select in ${synBuildFile.absolutePath}")
-            val crateFeaturesEnd = patched.indexOf("\n    })", crateFeaturesStart)
-                .takeIf { it > crateFeaturesStart }
+            val crateFeaturesEnd = patched.indexOf("\n    })", crateFeaturesSelectStart)
+                .takeIf { it in crateFeaturesSelectStart until crateFeaturesAttrEnd }
                 ?: throw GradleException("Unable to find end of syn crate_features select in ${synBuildFile.absolutePath}")
             val platformKey = "\"@rules_rust//rust/platform:$triple\": ["
-            val platformStart = patched.indexOf(platformKey, crateFeaturesStart)
-                .takeIf { it in crateFeaturesStart until crateFeaturesEnd }
+            val platformStart = patched.indexOf(platformKey, crateFeaturesSelectStart)
+                .takeIf { it in crateFeaturesSelectStart until crateFeaturesEnd }
                 ?: -1
             if (platformStart >= 0) {
                 val platformEnd = patched.indexOf("],", platformStart).takeIf { it > platformStart }
@@ -628,8 +634,8 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             "visit-mut",  # $triple
         ],
 """.trimStart()
-                val anchorStart = patched.indexOf(anchor, crateFeaturesStart)
-                    .takeIf { it in crateFeaturesStart until crateFeaturesEnd }
+                val anchorStart = patched.indexOf(anchor, crateFeaturesSelectStart)
+                    .takeIf { it in crateFeaturesSelectStart until crateFeaturesEnd }
                     ?: throw GradleException("Unable to patch iOS syn crate_features select in ${synBuildFile.absolutePath}")
                 patched = patched.substring(0, anchorStart) + iosSynFeatureSelect + patched.substring(anchorStart)
             }
