@@ -594,29 +594,29 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             throw GradleException("Bazel crate_index syn BUILD file not found: ${synBuildFile.absolutePath}")
         }
         val original = synBuildFile.readText()
+        var patched = original
         val requiredSynFeatures = listOf("extra-traits", "full", "visit", "visit-mut")
 
-        fun hasIosFeatureSelect(triple: String): Boolean {
-            val platformKey = "\"@rules_rust//rust/platform:$triple\""
-            val platformStart = original.indexOf(platformKey)
-            if (platformStart < 0) {
-                return false
-            }
-            val platformEnd = original.indexOf("],", platformStart).takeIf { it > platformStart }
-                ?: return false
-            val platformSelect = original.substring(platformStart, platformEnd)
-            return requiredSynFeatures.all { feature -> "\"$feature\"" in platformSelect }
-        }
-
         val iosSynTriples = listOf("aarch64-apple-ios", "aarch64-apple-ios-sim")
-        val missingIosTriples = iosSynTriples.filterNot { hasIosFeatureSelect(it) }
-        if (missingIosTriples.isEmpty()) {
-            return ""
-        }
 
-        // The project registers iosArm64 and iosSimulatorArm64 only; iosX64 is intentionally unsupported.
-        val iosSynFeatureSelects = missingIosTriples.joinToString(separator = "") { triple ->
-            """
+        val anchor = "        \"@rules_rust//rust/platform:aarch64-pc-windows-msvc\": ["
+        iosSynTriples.forEach { triple ->
+            val platformKey = "\"@rules_rust//rust/platform:$triple\": ["
+            val platformStart = patched.indexOf(platformKey)
+            if (platformStart >= 0) {
+                val platformEnd = patched.indexOf("],", platformStart).takeIf { it > platformStart }
+                    ?: throw GradleException("Unable to find end of iOS syn feature select for $triple in ${synBuildFile.absolutePath}")
+                val platformSelect = patched.substring(platformStart, platformEnd)
+                val missingFeatures = requiredSynFeatures.filterNot { feature -> "\"$feature\"" in platformSelect }
+                if (missingFeatures.isNotEmpty()) {
+                    val featureLines = missingFeatures.joinToString(separator = "") { feature ->
+                        "            \"$feature\",  # $triple\n"
+                    }
+                    patched = patched.substring(0, platformEnd) + featureLines + patched.substring(platformEnd)
+                }
+            } else {
+                // The project registers iosArm64 and iosSimulatorArm64 only; iosX64 is intentionally unsupported.
+                val iosSynFeatureSelect = """
         "@rules_rust//rust/platform:$triple": [
             "extra-traits",  # $triple
             "full",  # $triple
@@ -624,16 +624,20 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
             "visit-mut",  # $triple
         ],
 """.trimStart()
+                val nextPatched = patched.replace(anchor, iosSynFeatureSelect + anchor)
+                if (nextPatched == patched) {
+                    throw GradleException("Unable to patch iOS syn feature selects in ${synBuildFile.absolutePath}")
+                }
+                patched = nextPatched
+            }
         }
 
-        val anchor = "        \"@rules_rust//rust/platform:aarch64-pc-windows-msvc\": ["
-        val patched = original.replace(anchor, iosSynFeatureSelects + anchor)
-        if (patched == original) {
-            throw GradleException("Unable to patch iOS syn feature selects in ${synBuildFile.absolutePath}")
+        return if (patched == original) {
+            ""
+        } else {
+            synBuildFile.writeText(patched)
+            synBuildFile.absolutePath
         }
-
-        synBuildFile.writeText(patched)
-        return synBuildFile.absolutePath
     }
 
     private fun buildConfiguredNativeDeps(workDir: File, target: String, config: String) {
