@@ -20,9 +20,48 @@ plugins {
 val liteRtLmNativeRoot = rootProject.file("cpp/lite-rt-lm")
 val liteRtLmCHeadersDir = liteRtLmNativeRoot.resolve("c")
 val liteRtLmCInteropDefFile = project.file("src/nativeInterop/cinterop/litertlm.def")
+val liteRtLmIosNativePatchFile = rootProject.file("cpp/patches/lite-rt-lm-ios-native-link.patch")
 val iosLiteRtLmLibraryName = "litertlm_c_api"
-val iosLiteRtLmBazelTarget = providers.gradleProperty("ios.litertlm.bazelTarget").orElse("//c:engine")
-val iosLiteRtLmBazelOutputPath = providers.gradleProperty("ios.litertlm.bazelOutputPath").orElse("bazel-bin/c/libengine.a")
+val iosLiteRtLmBazelTarget = providers.gradleProperty("ios.litertlm.bazelTarget").orElse("//c:engine_fully_linked")
+val iosLiteRtLmBazelOutputPath = providers.gradleProperty("ios.litertlm.bazelOutputPath").orElse("bazel-bin/c/engine_fully_linked_lipo.a")
+val bazeliskExecutableProvider = providers.gradleProperty("bazelisk.path")
+    .orElse(providers.environmentVariable("BAZELISK"))
+    .orElse(providers.environmentVariable("BAZELISK_PATH"))
+    .orElse(providers.provider { discoverBazeliskExecutable() })
+val macosSdkVersionProvider = providers.gradleProperty("apple.macosSdkVersion")
+    .orElse(providers.exec {
+        commandLine("xcrun", "--sdk", "macosx", "--show-sdk-version")
+    }.standardOutput.asText.map { it.trim() })
+val iphoneOsSdkVersionProvider = providers.gradleProperty("apple.iphoneOsSdkVersion")
+    .orElse(providers.exec {
+        commandLine("xcrun", "--sdk", "iphoneos", "--show-sdk-version")
+    }.standardOutput.asText.map { it.trim() })
+val iphoneSimulatorSdkVersionProvider = providers.gradleProperty("apple.iphoneSimulatorSdkVersion")
+    .orElse(providers.exec {
+        commandLine("xcrun", "--sdk", "iphonesimulator", "--show-sdk-version")
+    }.standardOutput.asText.map { it.trim() })
+
+fun discoverBazeliskExecutable(): String {
+    val executableNames = if (System.getProperty("os.name").lowercase(Locale.getDefault()).contains("windows")) {
+        listOf("bazelisk.exe", "bazelisk.bat", "bazelisk.cmd", "bazelisk")
+    } else {
+        listOf("bazelisk")
+    }
+    val pathExecutable = System.getenv("PATH")
+        ?.split(File.pathSeparator)
+        ?.asSequence()
+        ?.map { File(it) }
+        ?.flatMap { dir -> executableNames.asSequence().map { name -> File(dir, name) } }
+        ?.firstOrNull { it.isFile && it.canExecute() }
+    if (pathExecutable != null) {
+        return pathExecutable.absolutePath
+    }
+
+    return listOf(
+        "/opt/homebrew/bin/bazelisk",
+        "/usr/local/bin/bazelisk"
+    ).firstOrNull { File(it).let { file -> file.isFile && file.canExecute() } } ?: "bazelisk"
+}
 
 kotlin {
     androidTarget {
@@ -351,6 +390,9 @@ abstract class BuildNativeLibTask : DefaultTask() {
     abstract val bazelConfig: Property<String>
 
     @get:Input
+    abstract val bazeliskExecutable: Property<String>
+
+    @get:Input
     abstract val bazelExtraArgs: ListProperty<String>
 
     @get:Input
@@ -378,6 +420,7 @@ abstract class BuildNativeLibTask : DefaultTask() {
         val target = bazelTarget.get()
         val config = bazelConfig.get()
         val extraArgs = bazelExtraArgs.get()
+        val bazelisk = requireBazeliskExecutableAvailable(bazeliskExecutable.get())
         println("正在为当前平台 $platform 使用 Bazel 构建原生库 (target=$target, config=$config)")
 
         val workDir = targetWorkingDir.get()
@@ -395,7 +438,7 @@ abstract class BuildNativeLibTask : DefaultTask() {
             }
 
             val cmd = mutableListOf(
-                "bazelisk",
+                bazelisk,
                 "--bazelrc=${workDir.parentFile.parentFile.absolutePath}/.bazelrc.user",
                 "build",
                 target,
@@ -458,6 +501,27 @@ abstract class BuildNativeLibTask : DefaultTask() {
             }
         }
     }
+
+    private fun requireBazeliskExecutableAvailable(executable: String): String {
+        val executableFile = File(executable)
+        val isDirectPath = executableFile.isAbsolute || executable.contains("/") || executable.contains("\\")
+        val isAvailable = if (isDirectPath) {
+            executableFile.isFile && executableFile.canExecute()
+        } else {
+            System.getenv("PATH")
+                ?.split(File.pathSeparator)
+                ?.any { dir -> File(dir, executable).let { it.isFile && it.canExecute() } } == true
+        }
+
+        if (!isAvailable) {
+            throw GradleException(
+                "Bazelisk executable not found: `$executable`. Install Bazelisk, add it to PATH, " +
+                    "or set `-Pbazelisk.path=/absolute/path/to/bazelisk` / BAZELISK / BAZELISK_PATH. " +
+                    "Common macOS Homebrew paths are `/opt/homebrew/bin/bazelisk` and `/usr/local/bin/bazelisk`."
+            )
+        }
+        return executable
+    }
 }
 abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     @get:Inject
@@ -470,7 +534,24 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
     abstract val bazelConfig: Property<String>
 
     @get:Input
+    abstract val bazeliskExecutable: Property<String>
+
+    @get:Input
     abstract val bazelOutputPath: Property<String>
+
+    @get:Input
+    abstract val macosSdkVersion: Property<String>
+
+    @get:Input
+    abstract val iosSdkVersion: Property<String>
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceWorkspaceDir: DirectoryProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val patchFile: RegularFileProperty
 
     @get:Internal
     abstract val targetWorkingDir: Property<File>
@@ -483,16 +564,25 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         val workDir = targetWorkingDir.get()
         val target = bazelTarget.get()
         val config = bazelConfig.get()
+        val bazelisk = requireBazeliskExecutableAvailable(bazeliskExecutable.get())
+        val macosSdk = requireAppleSdkVersion("macOS", macosSdkVersion.get())
+        val iosSdk = requireAppleSdkVersion("iOS", iosSdkVersion.get())
+        preparePatchedWorkspace(
+            sourceDir = sourceWorkspaceDir.get().asFile,
+            workDir = workDir,
+            patch = patchFile.get().asFile,
+        )
         println("Building iOS LiteRT LM native archive with Bazel (target=$target, config=$config)")
 
         execOps.exec {
             workingDir = workDir
             commandLine(
-                "bazelisk",
-                "--bazelrc=${workDir.parentFile.parentFile.absolutePath}/.bazelrc.user",
+                bazelisk,
                 "build",
                 target,
-                "--config=$config"
+                "--config=$config",
+                "--macos_sdk_version=$macosSdk",
+                "--ios_sdk_version=$iosSdk"
             )
             isIgnoreExitValue = false
         }
@@ -507,6 +597,93 @@ abstract class BuildIosLiteRtLmNativeArchiveTask : DefaultTask() {
         sourceArchive.copyTo(outputFile, overwrite = true)
         println("Copied iOS LiteRT LM native archive: ${sourceArchive.absolutePath} -> ${outputFile.absolutePath}")
     }
+
+    private fun requireBazeliskExecutableAvailable(executable: String): String {
+        val executableFile = File(executable)
+        val isDirectPath = executableFile.isAbsolute || executable.contains("/") || executable.contains("\\")
+        val isAvailable = if (isDirectPath) {
+            executableFile.isFile && executableFile.canExecute()
+        } else {
+            System.getenv("PATH")
+                ?.split(File.pathSeparator)
+                ?.any { dir -> File(dir, executable).let { it.isFile && it.canExecute() } } == true
+        }
+
+        if (!isAvailable) {
+            throw GradleException(
+                "Bazelisk executable not found: `$executable`. Install Bazelisk, add it to PATH, " +
+                    "or set `-Pbazelisk.path=/absolute/path/to/bazelisk` / BAZELISK / BAZELISK_PATH. " +
+                    "Common macOS Homebrew paths are `/opt/homebrew/bin/bazelisk` and `/usr/local/bin/bazelisk`."
+            )
+        }
+        return executable
+    }
+
+    private fun requireAppleSdkVersion(label: String, version: String): String {
+        if (version.isBlank()) {
+            throw GradleException(
+                "$label SDK version could not be resolved. Set the matching Gradle property " +
+                    "(`apple.macosSdkVersion`, `apple.iphoneOsSdkVersion`, or `apple.iphoneSimulatorSdkVersion`) " +
+                    "or make sure `xcrun --show-sdk-version` works for the active Xcode."
+            )
+        }
+        return version
+    }
+
+    private fun preparePatchedWorkspace(sourceDir: File, workDir: File, patch: File) {
+        if (!sourceDir.isDirectory) {
+            throw GradleException("LiteRT LM source workspace not found: ${sourceDir.absolutePath}")
+        }
+        if (!patch.isFile) {
+            throw GradleException("LiteRT LM iOS patch file not found: ${patch.absolutePath}")
+        }
+
+        workDir.parentFile.mkdirs()
+        execOps.exec {
+            commandLine(
+                "rsync",
+                "-a",
+                "--delete",
+                "--delete-excluded",
+                "--exclude=.git",
+                "--exclude=bazel-*",
+                "${sourceDir.absolutePath}/",
+                "${workDir.absolutePath}/"
+            )
+            isIgnoreExitValue = false
+        }
+        execOps.exec {
+            workingDir = workDir
+            commandLine("patch", "-p1", "-i", patch.absolutePath)
+            isIgnoreExitValue = false
+        }
+    }
+}
+
+abstract class ValidateIosLiteRtLmNativeLibsTask : DefaultTask() {
+    @get:Input
+    abstract val libraryName: Property<String>
+
+    @get:Input
+    abstract val requiredDirectories: ListProperty<String>
+
+    @TaskAction
+    fun execute() {
+        val name = libraryName.get()
+        val missing = requiredDirectories.get().map { File(it) }.filter { dir ->
+            listOf(
+                dir.resolve("lib$name.a"),
+                dir.resolve("lib$name.dylib")
+            ).none { it.exists() }
+        }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Missing iOS LiteRT LM native library `$name` in: ${
+                    missing.joinToString { it.path }
+                }. Build or copy lib$name.a/.dylib before linking iOS targets."
+            )
+        }
+    }
 }
 
 // 捕获 Configuration Phase 的变量，供 Execution Phase 使用，避免 configuration cache 问题
@@ -520,6 +697,7 @@ desktopPlatforms.forEach { platform ->
         this.targetWorkingDir.set(file("$rootDirVal/cpp/${rootProject.extra["dirCppName"]}"))
         this.platformName.set(platform)
         this.bazelTarget.set(rootProject.extra["bazelTarget"].toString())
+        this.bazeliskExecutable.set(bazeliskExecutableProvider)
 
         // 平台 → Bazel config 映射（对应 .bazelrc 中定义的 config）
         val config = when(platform) {
@@ -578,10 +756,15 @@ val jvmResourceLibDirVal = rootProject.extra["jvmResourceLibDir"].toString()
 val buildIosLiteRtLmNativeLibDevice by tasks.registering(BuildIosLiteRtLmNativeArchiveTask::class) {
     group = "build"
     description = "Builds the LiteRT LM C API archive for iOS device arm64 via Bazel."
-    targetWorkingDir.set(liteRtLmNativeRoot)
+    sourceWorkspaceDir.set(liteRtLmNativeRoot)
+    patchFile.set(liteRtLmIosNativePatchFile)
+    targetWorkingDir.set(layout.buildDirectory.dir("litertlm-ios-workspace").map { it.asFile })
     bazelTarget.set(iosLiteRtLmBazelTarget)
+    bazeliskExecutable.set(bazeliskExecutableProvider)
     bazelConfig.set("ios_arm64")
     bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
+    macosSdkVersion.set(macosSdkVersionProvider)
+    iosSdkVersion.set(iphoneOsSdkVersionProvider)
     outputArchive.set(rootProject.layout.projectDirectory.file("cpp/libs/ios-device/lib$iosLiteRtLmLibraryName.a"))
     // 避免gradle没声明完整Bazel源码输入时,错误复用旧的.a文件
     outputs.upToDateWhen { false }
@@ -593,10 +776,15 @@ val buildIosLiteRtLmNativeLibDevice by tasks.registering(BuildIosLiteRtLmNativeA
 val buildIosLiteRtLmNativeLibSimulatorArm64 by tasks.registering(BuildIosLiteRtLmNativeArchiveTask::class) {
     group = "build"
     description = "Builds the LiteRT LM C API archive for iOS simulator arm64 via Bazel."
-    targetWorkingDir.set(liteRtLmNativeRoot)
+    sourceWorkspaceDir.set(liteRtLmNativeRoot)
+    patchFile.set(liteRtLmIosNativePatchFile)
+    targetWorkingDir.set(layout.buildDirectory.dir("litertlm-ios-workspace").map { it.asFile })
     bazelTarget.set(iosLiteRtLmBazelTarget)
+    bazeliskExecutable.set(bazeliskExecutableProvider)
     bazelConfig.set("ios_sim_arm64")
     bazelOutputPath.set(iosLiteRtLmBazelOutputPath)
+    macosSdkVersion.set(macosSdkVersionProvider)
+    iosSdkVersion.set(iphoneSimulatorSdkVersionProvider)
     outputArchive.set(rootProject.layout.projectDirectory.file("cpp/libs/ios-simulator/lib$iosLiteRtLmLibraryName.a"))
     outputs.upToDateWhen { false }
     mustRunAfter(buildIosLiteRtLmNativeLibDevice)
@@ -619,6 +807,7 @@ tasks.register<BuildNativeLibTask>("buildAndroidNativeLib") {
     this.targetWorkingDir.set(file("$rootDirVal/cpp/${rootProject.extra["dirCppName"]}"))
     this.platformName.set("android")
     this.bazelTarget.set(rootProject.extra["bazelTarget"].toString())
+    this.bazeliskExecutable.set(bazeliskExecutableProvider)
     this.bazelConfig.set("android_arm64")
     
     val osName = System.getProperty("os.name").lowercase(Locale.getDefault())
@@ -710,27 +899,17 @@ tasks.matching { it.name.contains("desktopProcessResources") }.configureEach {
     dependsOn("buildNativeLibsIfNeeded")
 }
 
-tasks.register("validateIosLiteRtLmNativeLibs") {
+tasks.register<ValidateIosLiteRtLmNativeLibsTask>("validateIosLiteRtLmNativeLibs") {
     dependsOn("buildIosLiteRtLmNativeLibs")
+    libraryName.set(iosLiteRtLmLibraryName)
+    requiredDirectories.set(
+        listOf(
+            rootProject.layout.projectDirectory.dir("cpp/libs/ios-device").asFile.absolutePath,
+            rootProject.layout.projectDirectory.dir("cpp/libs/ios-simulator").asFile.absolutePath
+        )
+    )
     onlyIf {
         System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")
-    }
-    doLast {
-        val requiredDirs = listOf("ios-device", "ios-simulator")
-        val missing = requiredDirs.filter { dirName ->
-            val dir = rootProject.file("cpp/libs/$dirName")
-            listOf(
-                dir.resolve("lib$iosLiteRtLmLibraryName.a"),
-                dir.resolve("lib$iosLiteRtLmLibraryName.dylib")
-            ).none { it.exists() }
-        }
-        if (missing.isNotEmpty()) {
-            throw GradleException(
-                "Missing iOS LiteRT LM native library `$iosLiteRtLmLibraryName` in: ${
-                    missing.joinToString { "cpp/libs/$it" }
-                }. Build or copy lib$iosLiteRtLmLibraryName.a/.dylib before linking iOS targets."
-            )
-        }
     }
 }
 

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-19] - iOS LiteRT LM native static link fix
+- [修复] iOS LiteRT LM archive 任务改为将 `cpp/lite-rt-lm` submodule rsync 到 `composeApp/build/litertlm-ios-workspace`，再应用父仓库 patch `cpp/patches/lite-rt-lm-ios-native-link.patch` 后构建，避免直接修改 submodule 导致后续同步失效。
+- [修复] 在临时 Bazel workspace 中将 iOS LiteRT LM 默认目标切换为 `//c:engine_fully_linked`，由 `apple_static_library` 生成包含传递 C/C++/Rust 依赖的静态 archive，修复 Kotlin/Native 链接 `absl::log_internal::LogMessage::CopyToEncodedBuffer` 等符号缺失。
+- [修复] 为 iOS Bazel 构建启用 Apple toolchain resolution，并显式映射 Rust iOS triples 到 `apple_support` 的 `arm64` device/simulator constraints，避免 `//runtime/components/tool_use/rust:parsers` 在 Apple split transition 下找不到 Rust toolchain。
+- [修复] iOS Bazel 构建启用 `LITERT_LM_FST_CONSTRAINTS_DISABLED=1`，移除静态 archive 对预编译 `GemmaModelConstraintProvider` dylib 符号的依赖，修复 Kotlin/Native framework 链接 `LiteRtLmGemmaModelConstraintProvider_*` 缺失。
+- [文档] 更新 `docs/specs/ios-litertlm-platform.md`，记录 fully-linked archive、iOS Rust/Apple 平台约束和 FST constraints 禁用边界。
+
+## [2026-07-18] - Bazelisk executable resolution for native builds
+- [修复] 更新 `composeApp/build.gradle.kts`，让 LiteRT LM Bazel 原生构建任务通过 `-Pbazelisk.path`、`BAZELISK`、`BAZELISK_PATH`、PATH 与 Homebrew 常见路径解析 Bazelisk，修复 iOS simulator archive 任务启动 `command 'bazelisk'` 失败的问题。
+- [修复] 移除 iOS LiteRT LM archive 任务对仓库根 `.bazelrc.user` 的显式传入，避免本机 Windows 输出根 `G:/_b` 污染 macOS/iOS Bazel 构建。
+- [修复] iOS LiteRT LM archive 任务通过 Gradle `providers.exec` 自动传入当前 Xcode 的 macOS/iOS SDK 版本，避免 Bazel Apple support 回退到不可用的 `macosx10.11`。
+- [修复] 为 `cpp/lite-rt-lm/BUILD.miniaudio` 增加 `miniaudio_decoder` 目标，并让 iOS audio preprocessor 依赖 decoder-only C 目标，避免 iOS Simulator 编译 `miniaudio_objc` 时错误拉取 macOS `AVFoundation/CoreImage` 头。
+- [修复] 将 `validateIosLiteRtLmNativeLibs` 改为配置缓存安全的自定义任务，避免 `doLast` 闭包捕获 `Project/rootProject`。
+- [文档] 更新 `docs/specs/ios-litertlm-platform.md`，记录 iOS Bazel archive 任务的 Bazelisk 查找顺序与本机 IDE/Gradle daemon PATH 边界。
+
 ## [2026-07-15] - iOS cinterop header include path fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so the LiteRT LM Kotlin/Native cinterop includes `cpp/lite-rt-lm/c` directly, allowing `litertlm.def` to resolve `engine.h` during GitHub Actions/Xcode archive builds.
 - [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the required cinterop header directory boundary.

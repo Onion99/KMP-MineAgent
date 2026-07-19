@@ -1,0 +1,229 @@
+diff --git a/.bazelrc b/.bazelrc
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -185,6 +185,8 @@ build:macos_arm64 --platforms=@build_bazel_apple_support//platforms:darwin_arm64
+ 
+ # iOS configs for each architecture and the fat binary builds.
+ build:ios --apple_platform_type=ios
++build:ios --incompatible_enable_apple_toolchain_resolution
++build:ios --define=LITERT_LM_FST_CONSTRAINTS_DISABLED=1
+ build:ios --copt=-fembed-bitcode
+ build:ios --copt=-Wno-c++11-narrowing
+ build:ios --ios_minimum_os=13.0
+diff --git a/BUILD b/BUILD
+--- a/BUILD
++++ b/BUILD
+@@ -11,3 +11,10 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
++
++load("@build_bazel_apple_support//test:cc_toolchain_forwarder.bzl", "cc_toolchain_forwarder")
++
++cc_toolchain_forwarder(
++    name = "apple_cc_toolchain_forwarder",
++    visibility = ["//visibility:public"],
++)
+diff --git a/BUILD.miniaudio b/BUILD.miniaudio
+--- a/BUILD.miniaudio
++++ b/BUILD.miniaudio
+@@ -7,6 +7,17 @@ cc_library(
+     hdrs = ["miniaudio.h"],
+ )
+ 
++cc_library(
++    name = "miniaudio_decoder",
++    srcs = ["miniaudio.c"],
++    hdrs = ["miniaudio.h"],
++    defines = [
++        "MA_NO_DEVICE_IO",
++        "MA_NO_ENCODING",
++        "MA_NO_GENERATION",
++    ],
++)
++
+ genrule(
+     name = "generate_miniaudio_mm",
+     srcs = ["miniaudio.c"],
+diff --git a/WORKSPACE b/WORKSPACE
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -272,13 +272,32 @@ rules_rust_dependencies()
+ 
+ rust_register_toolchains(
+     edition = "2021",
+-    extra_target_triples = [
++    extra_target_triples = {
+         # Explicitly add toolchains for mobile. Desktop platforms are supported by default.
+-        "aarch64-linux-android",
+-        "aarch64-apple-ios",
+-        "aarch64-apple-ios-sim",
+-        "x86_64-linux-android",
+-    ],
++        #
++        # rules_rust maps `aarch64` to @platforms//cpu:aarch64 by default, while
++        # apple_support's iOS arm64 platforms use @platforms//cpu:arm64. Keep
++        # the Rust target triples, but make their Bazel constraints match the
++        # Apple platforms used by the iOS Bazel configs.
++        "aarch64-apple-ios": [
++            "@platforms//cpu:arm64",
++            "@platforms//os:ios",
++            "@build_bazel_apple_support//constraints:device",
++        ],
++        "aarch64-apple-ios-sim": [
++            "@platforms//cpu:arm64",
++            "@platforms//os:ios",
++            "@build_bazel_apple_support//constraints:simulator",
++        ],
++        "aarch64-linux-android": [
++            "@platforms//cpu:aarch64",
++            "@platforms//os:android",
++        ],
++        "x86_64-linux-android": [
++            "@platforms//cpu:x86_64",
++            "@platforms//os:android",
++        ],
++    },
+ )
+ 
+ load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
+diff --git a/apple_static_library.bzl b/apple_static_library.bzl
+new file mode 100644
+--- /dev/null
++++ b/apple_static_library.bzl
+@@ -0,0 +1,98 @@
++# Copyright 2026 The ODML Authors.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++load("@build_bazel_apple_support//test:linking_support.bzl", "link_multi_arch_static_library")
++load("@build_bazel_apple_support//test:transitions.bzl", "apple_platform_split_transition")
++
++def _apple_static_library_impl(ctx):
++    if not hasattr(apple_common.platform_type, ctx.attr.platform_type):
++        fail("Unsupported platform type \"{}\"".format(ctx.attr.platform_type))
++
++    link_result = link_multi_arch_static_library(
++        ctx = ctx,
++        cc_toolchains = ctx.split_attr._cc_toolchain_forwarder,
++    )
++    output_library = ctx.actions.declare_file("{}_lipo.a".format(ctx.label.name))
++    libraries = [output.library for output in link_result.outputs]
++
++    if len(libraries) > 1:
++        xcode_config = ctx.attr._xcode_config[apple_common.XcodeVersionConfig]
++        apple_env = {}
++        apple_env.update(apple_common.apple_host_system_env(xcode_config))
++        apple_env.update(
++            apple_common.target_apple_env(
++                xcode_config,
++                ctx.fragments.apple.single_arch_platform,
++            ),
++        )
++        args = ctx.actions.args()
++        args.add("-create")
++        args.add_all(libraries)
++        args.add("-output", output_library)
++        ctx.actions.run(
++            arguments = [args],
++            env = apple_env,
++            executable = "/usr/bin/lipo",
++            execution_requirements = xcode_config.execution_info(),
++            inputs = libraries,
++            outputs = [output_library],
++        )
++    else:
++        ctx.actions.symlink(
++            target_file = libraries[0],
++            output = output_library,
++        )
++
++    return [
++        DefaultInfo(files = depset([output_library])),
++        link_result.output_groups,
++    ]
++
++apple_static_library = rule(
++    _apple_static_library_impl,
++    attrs = {
++        "_child_configuration_dummy": attr.label(
++            cfg = apple_platform_split_transition,
++            default = Label("@bazel_tools//tools/cpp:current_cc_toolchain"),
++        ),
++        "_xcode_config": attr.label(
++            default = configuration_field(
++                fragment = "apple",
++                name = "xcode_config_label",
++            ),
++        ),
++        "additional_linker_inputs": attr.label_list(
++            allow_files = True,
++        ),
++        "avoid_deps": attr.label_list(
++            cfg = apple_platform_split_transition,
++            default = [],
++        ),
++        "deps": attr.label_list(
++            cfg = apple_platform_split_transition,
++            providers = [CcInfo],
++        ),
++        "linkopts": attr.string_list(),
++        "platform_type": attr.string(mandatory = True),
++        "minimum_os_version": attr.string(mandatory = True),
++        "_cc_toolchain_forwarder": attr.label(
++            cfg = apple_platform_split_transition,
++            default = Label("//:apple_cc_toolchain_forwarder"),
++        ),
++        "_allowlist_function_transition": attr.label(
++            default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"),
++        ),
++    },
++    fragments = ["apple", "objc", "cpp"],
++)
+diff --git a/c/BUILD b/c/BUILD
+--- a/c/BUILD
++++ b/c/BUILD
+@@ -14,6 +14,7 @@
+ 
+ # [Google-internal load of `cc_library`]
+ # [Google-internal load of `cc_test`]
++load("//:apple_static_library.bzl", "apple_static_library")
+ 
+ package(
+     default_hdrs_check = "strict",
+@@ -71,6 +72,13 @@ cc_library(
+     ],
+ )
+ 
++apple_static_library(
++    name = "engine_fully_linked",
++    minimum_os_version = "13.0",
++    platform_type = "ios",
++    deps = [":engine"],
++)
++
+ cc_library(
+     name = "engine_cpu",
+     srcs = [
+diff --git a/runtime/components/preprocessor/BUILD b/runtime/components/preprocessor/BUILD
+--- a/runtime/components/preprocessor/BUILD
++++ b/runtime/components/preprocessor/BUILD
+@@ -86,7 +86,7 @@ cc_library(
+         "//runtime/engine:io_types",
+         "//runtime/util:litert_status_util",
+     ] + select({
+-        "@platforms//os:ios": ["@miniaudio//:miniaudio_objc"],
++        "@platforms//os:ios": ["@miniaudio//:miniaudio_decoder"],
+         "@platforms//os:macos": ["@miniaudio//:miniaudio_objc"],
+         "//conditions:default": ["@miniaudio"],
+     }),
