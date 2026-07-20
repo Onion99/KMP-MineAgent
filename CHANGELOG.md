@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-20] - iOS IPA Gradle property injection fix
+- [Fixed] Updated `composeApp/build.gradle.kts` so `BuildIpaTask` receives `app.name` through an `@Input Property<String>` and no longer reads `project.property("app.name")` during task execution.
+- [Changed] Reused a single Gradle Provider-derived release archive path for `buildReleaseArchive` and `buildReleaseIpa`, keeping the `.xcarchive` and `.ipa` naming logic aligned.
+- [Docs] Updated `docs/specs/ios-litertlm-platform.md` to record the configuration-cache-safe property boundary for iOS IPA packaging.
+
 ## [2026-07-19] - iOS LiteRT LM native static link fix
 - [修复] iOS LiteRT LM archive 任务改为将 `cpp/lite-rt-lm` submodule rsync 到 `composeApp/build/litertlm-ios-workspace`，再应用父仓库 patch `cpp/patches/lite-rt-lm-ios-native-link.patch` 后构建，避免直接修改 submodule 导致后续同步失效。
 - [修复] 在临时 Bazel workspace 中将 iOS LiteRT LM 默认目标切换为 `//c:engine_fully_linked`，由 `apple_static_library` 生成包含传递 C/C++/Rust 依赖的静态 archive，修复 Kotlin/Native 链接 `absl::log_internal::LogMessage::CopyToEncodedBuffer` 等符号缺失。

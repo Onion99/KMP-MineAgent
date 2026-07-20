@@ -918,6 +918,9 @@ abstract class BuildIpaTask : DefaultTask() {
     /* -------------------------------------------------------------
      * Inputs / outputs
      * ----------------------------------------------------------- */
+    @get:Input
+    abstract val appName: Property<String>
+
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     abstract val archiveDir: DirectoryProperty
@@ -938,13 +941,18 @@ abstract class BuildIpaTask : DefaultTask() {
 
     @TaskAction
     fun buildIpa() {
+        val name = appName.get()
+
         // 1. Locate the .app inside the .xcarchive
-        val appDir = archiveDir.get().asFile.resolve("Products/Applications/${project.property("app.name")}.app")
+        val appDir = archiveDir.get().asFile.resolve("Products/Applications/$name.app")
         if (!appDir.exists())
-            throw GradleException("Could not find ${project.property("app.name")}.app in archive at: ${appDir.absolutePath}")
+            throw GradleException("Could not find $name.app in archive at: ${appDir.absolutePath}")
 
         // 2. Create temporary Payload directory and copy .app into it
-        val payloadDir = File(temporaryDir, "Payload").apply { mkdirs() }
+        val payloadDir = File(temporaryDir, "Payload").apply {
+            deleteRecursively()
+            mkdirs()
+        }
         val destApp = File(payloadDir, appDir.name)
         appDir.copyRecursively(destApp, overwrite = true)
 
@@ -964,7 +972,8 @@ abstract class BuildIpaTask : DefaultTask() {
         //
         // The working directory is the temporary folder so the archive
         // has a top‑level "Payload/" directory (required for .ipa files).
-        val zipFile = File(temporaryDir, "${project.property("app.name")}.zip")
+        val zipFile = File(temporaryDir, "$name.zip")
+        zipFile.delete()
         execOperations.exec {
             workingDir(temporaryDir)
             commandLine("zip", "-r", "-y", zipFile.absolutePath, "Payload")
@@ -974,7 +983,10 @@ abstract class BuildIpaTask : DefaultTask() {
         outputIpa.get().asFile.apply {
             parentFile.mkdirs()
             delete()
-            zipFile.renameTo(this)
+            if (!zipFile.renameTo(this)) {
+                zipFile.copyTo(this, overwrite = true)
+                zipFile.delete()
+            }
         }
 
         logger.lifecycle("[IPA] Created ad‑hoc‑signed IPA at: ${outputIpa.get().asFile.absolutePath}")
@@ -995,18 +1007,22 @@ fun ipaArguments(
         "CODE_SIGNING_REQUIRED=NO",
     )
 }
+val ipaAppName = providers.gradleProperty("app.name")
+val releaseArchiveDir = ipaAppName.flatMap { appName ->
+    layout.buildDirectory.dir("archives/release/$appName.xcarchive")
+}
+
 val buildReleaseArchive = tasks.register("buildReleaseArchive", Exec::class) {
     group = "build"
     description = "Builds the iOS framework for Release"
     workingDir(projectDir)
 
-    val output = layout.buildDirectory.dir("archives/release/${project.property("app.name")}.xcarchive")
-    outputs.dir(output)
+    outputs.dir(releaseArchiveDir)
     commandLine(
         *ipaArguments(),
         "archive",
         "-configuration", "Release",
-        "-archivePath", output.get().asFile.absolutePath,
+        "-archivePath", releaseArchiveDir.get().asFile.absolutePath,
     )
 }
 tasks.register("buildReleaseIpa", BuildIpaTask::class) {
@@ -1014,8 +1030,11 @@ tasks.register("buildReleaseIpa", BuildIpaTask::class) {
     group = "build"
 
     // Adjust these paths as needed
-    archiveDir = layout.buildDirectory.dir("archives/release/${project.property("app.name")}.xcarchive")
-    outputIpa = layout.buildDirectory.file("archives/release/${project.property("app.name")}-${libs.versions.app.version.get()}.ipa")
+    appName.set(ipaAppName)
+    archiveDir.set(releaseArchiveDir)
+    outputIpa.set(ipaAppName.flatMap { appName ->
+        layout.buildDirectory.file("archives/release/$appName-${libs.versions.app.version.get()}.ipa")
+    })
     dependsOn(buildReleaseArchive)
 }
 

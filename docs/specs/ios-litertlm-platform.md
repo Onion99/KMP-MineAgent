@@ -1,6 +1,6 @@
 # iOS LiteRT LM Native Bridge
 
-Date: 2026-07-19
+Date: 2026-07-20
 
 ## Scope
 
@@ -28,6 +28,7 @@ This note records the iOS native bridge for `LiteRtLmJni`.
 - iOS Bazel builds pass `--define=LITERT_LM_FST_CONSTRAINTS_DISABLED=1`. The Gemma model FST constraint provider is delivered as a prebuilt platform `.dylib`, which is not part of the fully linked static C API archive. Disabling this path removes the unresolved `LiteRtLmGemmaModelConstraintProvider_*` references from Kotlin/Native framework links.
 - iOS audio preprocessing links `@miniaudio//:miniaudio_decoder`, a decoder-only C target with `MA_NO_DEVICE_IO`, `MA_NO_ENCODING`, and `MA_NO_GENERATION`. It must not link `@miniaudio//:miniaudio_objc`, because that target pulls Apple device frameworks and can compile against macOS `AVFoundation/CoreImage` headers while targeting iOS Simulator.
 - GitHub Actions iOS builds install Bazelisk, restore the Bazel disk cache, and rewrite the repository-root `.bazelrc.user` before invoking Gradle. The iOS Bazel tasks must not inherit local developer paths such as `G:/_b` or Windows-only `BAZEL_VC` values.
+- `buildReleaseIpa` packages the `.app` from `buildReleaseArchive` using a cacheable custom Gradle task. The task receives `app.name` through an `@Input Property<String>` during configuration; `@TaskAction` must not call `project.property("app.name")`, because execution-time `Project` access is incompatible with configuration cache and can fail to resolve the dynamic property.
 - `LiteRtLmJni` now has an iOS `actual` implementation that calls the LiteRT LM C API for engine creation, conversation creation, synchronous message sending, streaming message sending, cancellation, and release.
 - iOS model selection uses FileKit and returns the selected `.litertlm` path.
 - `sendLmMessageAsync` uses a Kotlin/Native `StableRef` as callback state and disposes it on final/error stream callbacks.
