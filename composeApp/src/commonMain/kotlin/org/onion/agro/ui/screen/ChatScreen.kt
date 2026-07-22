@@ -728,11 +728,11 @@ private fun ScrollToBottomButton(
         IconButton(
             onClick = onClick,
             modifier = Modifier
+                .shadow(6.dp, CircleShape)
                 .background(
                     color = AppTheme.colors.primaryContainer,
                     shape = CircleShape
                 )
-                .shadow(6.dp, CircleShape)
                 .size(48.dp)
         ) {
             Icon(
