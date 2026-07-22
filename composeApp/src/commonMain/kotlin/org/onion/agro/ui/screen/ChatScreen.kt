@@ -69,6 +69,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -604,15 +605,36 @@ private fun ChatMessagesList(
     val coroutineScope = rememberCoroutineScope()
     val chatViewModel = koinInject<ChatViewModel>()
     val clipboardManager = LocalClipboardManager.current
+    var stickToBottom by remember { mutableStateOf(true) }
+    var autoScrollInProgress by remember { mutableStateOf(false) }
+    var previousMessageCount by remember { mutableStateOf(chatMessages.size) }
 
     val showScrollButton by remember {
         derivedStateOf {
-            val layoutInfo = lazyListState.layoutInfo
-            val totalItems = chatMessages.size
-            if (totalItems == 0) false else {
-                val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                lastVisibleItem < totalItems - 1
+            lazyListState.canScrollForward
+        }
+    }
+
+    suspend fun scrollToBottom(animate: Boolean) {
+        val lastListItemIndex = chatMessages.size
+        if (lastListItemIndex <= 0) return
+
+        autoScrollInProgress = true
+        try {
+            withFrameNanos { }
+            if (animate) {
+                lazyListState.animateScrollToItem(
+                    index = lastListItemIndex,
+                    scrollOffset = Int.MAX_VALUE
+                )
+            } else {
+                lazyListState.scrollToItem(
+                    index = lastListItemIndex,
+                    scrollOffset = Int.MAX_VALUE
+                )
             }
+        } finally {
+            autoScrollInProgress = false
         }
     }
 
@@ -686,7 +708,8 @@ private fun ChatMessagesList(
         ScrollToBottomButton(
             onClick = {
                 coroutineScope.launch {
-                    lazyListState.animateScrollToItem(chatMessages.size)
+                    stickToBottom = true
+                    scrollToBottom(animate = true)
                 }
             },
             visibility = showScrollButton,
@@ -696,20 +719,36 @@ private fun ChatMessagesList(
         )
     }
 
-    val lastMessageLength by remember(chatMessages.size) {
-        derivedStateOf { chatMessages.lastOrNull()?.message?.length ?: 0 }
+    LaunchedEffect(lazyListState.isScrollInProgress, showScrollButton, autoScrollInProgress) {
+        if (lazyListState.isScrollInProgress && !autoScrollInProgress) {
+            stickToBottom = !showScrollButton
+        } else if (!showScrollButton) {
+            stickToBottom = true
+        }
     }
 
-    LaunchedEffect(chatMessages.size, lastMessageLength) {
-        if (chatMessages.isNotEmpty()) {
-            val lastIndex = chatMessages.lastIndex
-            val scrollThreshold = 3
-            val layoutInfo = lazyListState.layoutInfo
-            val visibleItems = layoutInfo.visibleItemsInfo
-            if ((visibleItems.lastOrNull()?.index ?: 0) >= lastIndex - scrollThreshold) {
-                lazyListState.scrollToItem(chatMessages.size)
+    val lastMessageScrollKey by remember {
+        derivedStateOf {
+            chatMessages.lastOrNull()?.let { message ->
+                "${message.id}:${message.message.length}:${message.metadata?.get("is_generating")}"
             }
         }
+    }
+
+    LaunchedEffect(chatMessages.size, lastMessageScrollKey, stickToBottom) {
+        val messageCountChanged = previousMessageCount != chatMessages.size
+        if (messageCountChanged) {
+            stickToBottom = true
+        }
+
+        if (chatMessages.isNotEmpty()) {
+            val shouldAutoScroll = stickToBottom || messageCountChanged
+            if (shouldAutoScroll) {
+                scrollToBottom(animate = false)
+            }
+        }
+
+        previousMessageCount = chatMessages.size
     }
 }
 
@@ -728,18 +767,19 @@ private fun ScrollToBottomButton(
         IconButton(
             onClick = onClick,
             modifier = Modifier
-                .shadow(6.dp, CircleShape)
+                .size(AppTheme.size.buttonHeight)
+                .shadow(6.dp, AppTheme.shape.full)
+                .clip(AppTheme.shape.full)
                 .background(
                     color = AppTheme.colors.primaryContainer,
-                    shape = CircleShape
+                    shape = AppTheme.shape.full
                 )
-                .size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Filled.KeyboardDoubleArrowDown,
                 contentDescription = stringResource(Res.string.scroll_to_bottom),
                 tint = AppTheme.colors.onPrimaryContainer,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(AppTheme.size.iconLarge)
             )
         }
     }

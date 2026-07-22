@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-22] - Chat streaming bottom scroll fix
+- [Fixed] Updated `ChatMessagesList` in `composeApp/src/commonMain/kotlin/org/onion/agro/ui/screen/ChatScreen.kt` so streaming LLM responses scroll to the bottom of the growing assistant message after layout remeasurement instead of stopping at the top of the last item.
+- [Changed] Preserved manual upward scrolling during generation, restored stick-to-bottom behavior when new messages arrive or the user taps the scroll button, and aligned `ScrollToBottomButton` modifier ordering with the documented circular rendering rule.
+
 ## [2026-07-20] - iOS IPA Gradle property injection fix
 - [Fixed] Updated `composeApp/build.gradle.kts` so `BuildIpaTask` receives `app.name` through an `@Input Property<String>` and no longer reads `project.property("app.name")` during task execution.
 - [Changed] Reused a single Gradle Provider-derived release archive path for `buildReleaseArchive` and `buildReleaseIpa`, keeping the `.xcarchive` and `.ipa` naming logic aligned.
