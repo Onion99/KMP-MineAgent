@@ -36,6 +36,7 @@ import org.onion.agro.BuildConfig
 import org.onion.agro.database.ChatHistoryRepository
 import org.onion.agro.database.ChatSessionEntity
 import org.onion.agro.database.ChatToolLogEntity
+import org.onion.agro.native.llm.KEY_THINK_MODE
 
 class ChatViewModel(
     private val chatHistoryRepository: ChatHistoryRepository
@@ -663,7 +664,7 @@ class ChatViewModel(
             runner.run(
                 initialMessage = org.onion.agro.native.llm.Message.user(promptContent),
                 extraContextProvider = {
-                    if (enableThinking.value) mapOf("enable_thinking" to "true") else emptyMap()
+                    if (enableThinking.value) mapOf(KEY_THINK_MODE to "true") else emptyMap()
                 }
             ).catch { e ->
                 terminalTransition = "ERROR"

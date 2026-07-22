@@ -73,6 +73,8 @@ sealed interface AgentLoopEvent {
     ) : AgentLoopEvent
 }
 
+const val KEY_THINK_MODE = "enable_thinking"
+
 class AgentLoopRunner(
     private val session: LmChatSession,
     private val toolExecutor: AgentToolExecutor,
@@ -101,7 +103,7 @@ class AgentLoopRunner(
                 }
 
                 val thoughtChunk = responseMessage.channels["thought"].orEmpty()
-                if (thoughtChunk.isNotEmpty()) {
+                if (thoughtChunk.isNotEmpty() && extraContextProvider()[KEY_THINK_MODE] == "true") {
                     emit(AgentLoopEvent.ThoughtDelta(thoughtChunk, modelState))
                 }
 

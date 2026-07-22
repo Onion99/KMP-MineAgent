@@ -48,7 +48,7 @@ class AgentTools : KoinComponent, AgentToolExecutor {
 
     private val tools: Map<String, AgentTool> by lazy {
         listOf(
-            LocalJsTool(),
+            //LocalJsTool(),
             AnalyzeUrlTool(),
             SearchWebTool()
         ).associateBy { it.definition.name }
