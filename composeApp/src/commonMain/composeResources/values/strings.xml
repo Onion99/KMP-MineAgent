@@ -190,6 +190,8 @@
     <string name="library_creative_desc">Expansive, unconstrained prose and artistic ideation.</string>
     <string name="library_data_crystal">Data Crystal</string>
     <string name="library_data_desc">Fractal analysis and hard pattern recognition.</string>
+    <string name="library_svg_image">SVG Image</string>
+    <string name="library_svg_desc">Generate structured JSON with safe, self-contained SVG artwork.</string>
     <string name="library_forge_vessel">Forge New Vessel</string>
     <string name="chat_running_tool">\n`[Running tool: %1$s...]`\n</string>
     <string name="chat_tool_completed">\n`[Tool \'%1$s\' completed]`\n</string>

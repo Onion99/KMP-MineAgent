@@ -17,9 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AllInclusive
-import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -169,7 +169,11 @@ fun LibraryScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
                     ) {
-                        DataCrystalCard(
+                        SvgImageCard(
+                            onClick = {
+                                chatViewModel.startSvgImageConversation()
+                                onOpenChat()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(200.dp)
@@ -215,7 +219,11 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
                     ) {
-                        DataCrystalCard(
+                        SvgImageCard(
+                            onClick = {
+                                chatViewModel.startSvgImageConversation()
+                                onOpenChat()
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(180.dp)
@@ -510,17 +518,135 @@ fun CreativeNebulaCard(
 }
 
 @Composable
-fun DataCrystalCard(
-    modifier: Modifier = Modifier
+fun SvgImageCard(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
-    ThemedBentoCard(
+    val primaryColor = AppTheme.colors.primary
+    val secondaryColor = AppTheme.colors.secondary
+    val surfaceColor = AppTheme.colors.surface
+
+    BentoCard(
         modifier = modifier,
-        title = stringResource(Res.string.library_data_crystal),
-        desc = stringResource(Res.string.library_data_desc),
-        icon = Icons.Filled.Analytics,
-        backgroundColorBlob = AppTheme.colors.primary,
-        blobCenter = { w, h -> Offset(w / 2f, h / 2f) }
-    )
+        backgroundColorBlob = secondaryColor,
+        blobCenter = { w, h -> Offset(w * 0.72f, h * 0.32f) },
+        blobRadiusDp = 120f,
+        blobHoverRadiusDp = 180f,
+        blobAlpha = 0.18f,
+        blobHoverAlpha = 0.3f,
+        onClick = onClick
+    ) { isHovered ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(AppTheme.spacing.md),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = secondaryColor.copy(alpha = if (isHovered) 0.24f else 0.15f),
+                            shape = AppTheme.shape.full
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Image,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = secondaryColor
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = AppTheme.colors.outline.copy(alpha = if (isHovered) 0.55f else 0.3f)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(AppTheme.shape.md)
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                primaryColor.copy(alpha = 0.12f),
+                                secondaryColor.copy(alpha = 0.18f)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 0.5.dp,
+                        color = secondaryColor.copy(alpha = if (isHovered) 0.26f else 0.14f),
+                        shape = AppTheme.shape.md
+                    )
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val strokeWidth = 1.4.dp.toPx()
+                    drawCircle(
+                        color = surfaceColor.copy(alpha = 0.72f),
+                        radius = size.minDimension * 0.3f,
+                        center = Offset(size.width * 0.26f, size.height * 0.52f)
+                    )
+                    drawCircle(
+                        color = primaryColor.copy(alpha = 0.62f),
+                        radius = size.minDimension * 0.22f,
+                        center = Offset(size.width * 0.26f, size.height * 0.52f),
+                        style = Stroke(width = strokeWidth)
+                    )
+                    drawLine(
+                        color = secondaryColor.copy(alpha = 0.72f),
+                        start = Offset(size.width * 0.46f, size.height * 0.62f),
+                        end = Offset(size.width * 0.62f, size.height * 0.28f),
+                        strokeWidth = strokeWidth
+                    )
+                    drawLine(
+                        color = primaryColor.copy(alpha = 0.68f),
+                        start = Offset(size.width * 0.62f, size.height * 0.28f),
+                        end = Offset(size.width * 0.78f, size.height * 0.6f),
+                        strokeWidth = strokeWidth
+                    )
+                }
+                Text(
+                    text = "<svg>",
+                    style = AppTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppTheme.colors.onSurfaceVariant.copy(alpha = 0.68f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.xs)
+                )
+            }
+
+            Column {
+                Text(
+                    text = stringResource(Res.string.library_svg_image),
+                    style = AppTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppTheme.colors.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = stringResource(Res.string.library_svg_desc),
+                    style = AppTheme.typography.bodySmall,
+                    color = AppTheme.colors.onSurfaceVariant,
+                    lineHeight = AppTheme.typography.bodySmall.lineHeight * 1.2f
+                )
+            }
+        }
+    }
 }
 
 @Composable

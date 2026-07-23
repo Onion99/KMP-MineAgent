@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-22] - SVG 图像生成资源库卡片
+- [新增] 在 `ChatViewModel` 中新增 SVG 图像生成专用 `systemInstruction` 和 `startSvgImageConversation()`，点击入口会用专用 prompt 调用 `createConversation` 并开启 constrained decoding。
+- [修改] 将 `LibraryScreen` 中原 Data Crystal 卡片替换为 `SvgImageCard`，新增 SVG 预览风格与点击跳转 Chat 的交互。
+- [文档] 新增 `docs/specs/svg-image-library-card.md` 记录 SVG 专用会话行为、输出 JSON 结构和安全边界。
+
 ## [2026-07-22] - Chat streaming bottom scroll fix
 - [Fixed] Updated `ChatMessagesList` in `composeApp/src/commonMain/kotlin/org/onion/agro/ui/screen/ChatScreen.kt` so streaming LLM responses scroll to the bottom of the growing assistant message after layout remeasurement instead of stopping at the top of the last item.
 - [Changed] Preserved manual upward scrolling during generation, restored stick-to-bottom behavior when new messages arrive or the user taps the scroll button, and aligned `ScrollToBottomButton` modifier ordering with the documented circular rendering rule.

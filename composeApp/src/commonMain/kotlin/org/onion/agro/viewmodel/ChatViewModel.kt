@@ -151,6 +151,7 @@ class ChatViewModel(
     var enableSpeculativeDecoding = mutableStateOf(false)
     var systemPrompt = mutableStateOf("You are  ${BuildConfig.APP_NAME}, an analytical and precise local intelligence. Prioritize factual accuracy and concise formatting. Maintain a calm, neutral tone.")
     var systemContextShift = mutableStateOf(true)
+    private var activeSystemInstructionOverride: String? = null
 
 
 
@@ -303,8 +304,9 @@ class ChatViewModel(
                 lmEngine?.initialize()
 
                 lmConversation = lmEngine?.createConversation(
-                    systemInstruction = systemPrompt.value,
+                    systemInstruction = currentSystemInstruction(),
                     toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+                    enableConversationConstrainedDecoding = activeSystemInstructionOverride != null,
                     samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
                         temperature = temperature.value.toDouble(),
                         topP = topP.value.toDouble(),
@@ -387,8 +389,9 @@ class ChatViewModel(
                 val engine = lmEngine
                 if (engine != null) {
                     lmConversation = engine.createConversation(
-                        systemInstruction = systemPrompt.value,
+                        systemInstruction = currentSystemInstruction(),
                         toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+                        enableConversationConstrainedDecoding = activeSystemInstructionOverride != null,
                         samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
                             temperature = temperature.value.toDouble(),
                             topP = topP.value.toDouble(),
@@ -470,6 +473,7 @@ class ChatViewModel(
     fun openSession(sessionId: String) {
         viewModelScope.launch(Dispatchers.Default) {
             if (isGenerating.value) stopGeneration()
+            activeSystemInstructionOverride = null
             activeSessionId.value = sessionId
             _currentChatMessages.clear()
             _currentChatMessages.addAll(chatHistoryRepository.loadMessages(sessionId))
@@ -530,8 +534,34 @@ class ChatViewModel(
                 stopGeneration()
             }
             try {
+                activeSystemInstructionOverride = null
                 recreateLmConversation()
                 activeSessionId.value = chatHistoryRepository.createSession()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                lmConversation = null
+            } finally {
+                _currentChatMessages.clear()
+                isGenerating.value = false
+                isInferenceOn = false
+            }
+        }
+    }
+
+    fun startSvgImageConversation() {
+        viewModelScope.launch(Dispatchers.Default) {
+            if (isGenerating.value) {
+                stopGeneration()
+            }
+            try {
+                activeSystemInstructionOverride = SVG_IMAGE_SYSTEM_INSTRUCTION
+                recreateLmConversation(
+                    systemInstruction = SVG_IMAGE_SYSTEM_INSTRUCTION,
+                    enableConstrainedDecoding = true
+                )
+                activeSessionId.value = chatHistoryRepository.createSession(
+                    getString(Res.string.library_svg_image)
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
                 lmConversation = null
@@ -568,6 +598,7 @@ class ChatViewModel(
     private fun restoreMostRecentSession() {
         viewModelScope.launch(Dispatchers.Default) {
             val session = chatHistoryRepository.getMostRecentSession() ?: return@launch
+            activeSystemInstructionOverride = null
             activeSessionId.value = session.id
             _currentChatMessages.clear()
             _currentChatMessages.addAll(chatHistoryRepository.loadMessages(session.id))
@@ -581,11 +612,19 @@ class ChatViewModel(
         }
     }
 
-    private suspend fun recreateLmConversation() {
+    private fun currentSystemInstruction(): String {
+        return activeSystemInstructionOverride ?: systemPrompt.value
+    }
+
+    private suspend fun recreateLmConversation(
+        systemInstruction: String = currentSystemInstruction(),
+        enableConstrainedDecoding: Boolean = activeSystemInstructionOverride != null
+    ) {
         lmConversation?.close()
         lmConversation = lmEngine?.createConversation(
-            systemInstruction = systemPrompt.value,
+            systemInstruction = systemInstruction,
             toolsDescriptionJsonString = agentTools.getToolsDescriptionJson(),
+            enableConversationConstrainedDecoding = enableConstrainedDecoding,
             samplerConfig = com.google.ai.edge.litertlm.SamplerConfig(
                 temperature = temperature.value.toDouble(),
                 topP = topP.value.toDouble(),
@@ -826,5 +865,41 @@ class ChatViewModel(
         }
         observeChatSessions()
         restoreMostRecentSession()
+    }
+
+    private companion object {
+        val SVG_IMAGE_SYSTEM_INSTRUCTION = """
+            You are ${BuildConfig.APP_NAME}'s dedicated SVG image generator.
+
+            Convert the user's visual request into a single self-contained SVG image. Respond only
+            with a valid JSON object and do not wrap it in Markdown or add prose outside the JSON.
+
+            Use this exact JSON structure:
+            {
+              "type": "svg_image",
+              "version": 1,
+              "title": "short image title",
+              "description": "one sentence summary",
+              "canvas": {
+                "width": 1024,
+                "height": 1024,
+                "viewBox": "0 0 1024 1024"
+              },
+              "style": {
+                "palette": ["#RRGGBB"],
+                "background": "transparent|solid|gradient",
+                "keywords": ["flat", "line-art"]
+              },
+              "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\" height=\"1024\" viewBox=\"0 0 1024 1024\">...</svg>",
+              "usageNotes": ["short note"]
+            }
+
+            Rules:
+            - The svg field must contain complete SVG markup with xmlns, width, height, and viewBox.
+            - Prefer vector primitives, paths, gradients, masks, and text only when the user requests text.
+            - Keep SVG safe: no scripts, external links, remote images, event handlers, or foreignObject.
+            - Preserve the user's requested subject, mood, colors, dimensions, and aspect ratio when provided.
+            - If details are missing, choose sensible defaults and state them in usageNotes.
+        """.trimIndent()
     }
 }
