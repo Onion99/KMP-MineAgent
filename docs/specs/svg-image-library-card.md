@@ -1,6 +1,6 @@
 # SVG 图像生成资源库卡片
 
-> 日期: 2026-07-22
+> 日期: 2026-07-23
 > 范围: `composeApp` Library 入口与 ChatViewModel 本地 LiteRT LLM 会话创建
 
 ## 1. 目标
@@ -45,10 +45,12 @@ SVG 图像模式通过 `LmEngine.createConversation()` 创建会话时传入:
     "background": "transparent|solid|gradient",
     "keywords": ["flat", "line-art"]
   },
-  "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\" height=\"1024\" viewBox=\"0 0 1024 1024\">...</svg>",
+  "svg": "<svg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024' viewBox='0 0 1024 1024'>...</svg>",
   "usageNotes": ["short note"]
 }
 ```
+
+`svg` 字段内部必须使用单引号属性，避免 JSON 字符串中出现 `\"`。这样用户从 JSON 中复制 `svg` 字段值时，得到的就是可直接保存为 `.svg` 或交给 SVG 渲染器的 markup。
 
 ## 5. 安全边界
 
@@ -60,7 +62,17 @@ SVG 输出必须自包含，禁止:
 
 模型应优先使用 SVG 原生矢量元素、`path`、渐变、mask 和必要的文本元素。
 
-## 6. 当前限制
+## 6. SVG 可复制与可渲染约束
+
+为避免导出的 JSON 中 `svg` 字段复制后无法渲染，专用 `systemInstruction` 约束如下:
+
+- `svg` 字段必须是单行 SVG markup，不插入 JSON newline escape。
+- SVG/XML 属性必须使用单引号，例如 `width='1024'`，避免在字段值中出现 `\"`。
+- 根节点必须是一个完整 `<svg ...>...</svg>`，包含 `xmlns`、`width`、`height`、`viewBox`。
+- 所有 `<g>`、`<defs>`、`<filter>`、`<mask>`、`<clipPath>` 等标签必须严格配对，禁止多余 `</g>` 或孤立闭合标签。
+- 优先使用十六进制颜色与 `opacity` / `fill-opacity` / `stroke-opacity`，避免 `rgba(...)` 在部分 SVG 渲染器中的兼容问题。
+
+## 7. 当前限制
 
 - 当前未新增数据库字段保存会话模式；重新打开历史 SVG 会话时会按普通会话重建原生 LLM 上下文。
 - 当前只约束模型输出 JSON，并未新增前端 JSON 解析或 SVG 渲染预览。

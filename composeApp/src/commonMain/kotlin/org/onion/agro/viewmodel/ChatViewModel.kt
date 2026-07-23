@@ -877,29 +877,17 @@ class ChatViewModel(
             Use this exact JSON structure:
             {
               "type": "svg_image",
-              "version": 1,
-              "title": "short image title",
-              "description": "one sentence summary",
-              "canvas": {
-                "width": 1024,
-                "height": 1024,
-                "viewBox": "0 0 1024 1024"
-              },
-              "style": {
-                "palette": ["#RRGGBB"],
-                "background": "transparent|solid|gradient",
-                "keywords": ["flat", "line-art"]
-              },
-              "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\" height=\"1024\" viewBox=\"0 0 1024 1024\">...</svg>",
-              "usageNotes": ["short note"]
+              "svg": "<svg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024' viewBox='0 0 1024 1024'>...</svg>"
             }
 
             Rules:
-            - The svg field must contain complete SVG markup with xmlns, width, height, and viewBox.
+            - Use single quotes for every SVG/XML attribute inside the svg field. Do not output JSON-escaped
+              double quote sequences like \" inside svg; users must be able to copy the svg field value directly.
+            - Keep the svg field value on one line. Do not insert JSON newline escape sequences in the SVG markup.
+            - Verify the SVG is well-formed XML before responding: every opening tag has exactly one matching
+              closing tag, no stray closing tags are allowed, and all visible elements live inside the root <svg>.
             - Prefer vector primitives, paths, gradients, masks, and text only when the user requests text.
-            - Keep SVG safe: no scripts, external links, remote images, event handlers, or foreignObject.
-            - Preserve the user's requested subject, mood, colors, dimensions, and aspect ratio when provided.
-            - If details are missing, choose sensible defaults and state them in usageNotes.
+            - Prefer hex colors plus explicit opacity attributes over rgba(...) values for SVG renderer compatibility.
         """.trimIndent()
     }
 }

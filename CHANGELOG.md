@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026-07-23] - SVG JSON 内容字段复制渲染修复
+- [修复] 收紧 `ChatViewModel` 中 SVG 图像生成专用 `systemInstruction`，要求 `svg` 字段使用单引号属性、单行 markup、严格 XML 标签配对，并避免 `rgba(...)` 兼容性问题，修复从 JSON 中复制 SVG 内容后无法正常渲染的风险。
+- [文档] 更新 `docs/specs/svg-image-library-card.md`，记录 `svg` 字段可复制、可渲染的 JSON 输出约束。
+
 ## [2026-07-22] - SVG 图像生成资源库卡片
 - [新增] 在 `ChatViewModel` 中新增 SVG 图像生成专用 `systemInstruction` 和 `startSvgImageConversation()`，点击入口会用专用 prompt 调用 `createConversation` 并开启 constrained decoding。
 - [修改] 将 `LibraryScreen` 中原 Data Crystal 卡片替换为 `SvgImageCard`，新增 SVG 预览风格与点击跳转 Chat 的交互。
