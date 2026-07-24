@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,12 +69,13 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
-import coil3.compose.AsyncImage
 import com.onion.theme.state.ContentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import agro.composeapp.generated.resources.Res
 import agro.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.onion.agro.viewmodel.ChatViewModel
@@ -94,11 +96,6 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.TileMode
 import com.onion.theme.style.glassSurface
 import com.onion.theme.style.watercolorGradient
-
-private const val QWEN_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuD8o8aZNLTvIgUrtBqGiztyxIvfQtAyXFqFNZyTrxu3rmjLIPdchmk9LccLoU8yKNXLQMECYg3ubwK6iKVXkfvYYPTfQPMcJcLFZ8Z-GP8p-gVhtksGoluyPestlkiWtA7BBzqcX8MVG9szJhlRjMrTZF713vSMQWDpTf9go4RM0VnWZouSR86yCKSgbxnBjKvL5ML3KuJ5JzyJKFKVxlsUcIImuYMFSYdP3bs7qY2OhNCnuoGChAVb-5Gcv6nckz2zjWzd_l9_kwQb"
-private const val GEMMA_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDWkOy6D5ciDtTG5DLdR-1LtbFAMhhZXa5B7akzpiWT_ycjlBozeLls5BJMh8j2O2W1bpRbaX2jlhj4MySX5JoezZHOMCDqSJuqPWWeVTJbEqZ0S2rwIz5NXjfHTTgRRsWcujbd5B0eGnvdfyL7UwjdJsgp6P2kERHDvBMvoKn7pfymks7C0BuOhR5DpIQpHcmiDppbPakISzCy5fokd82mmAk7g5y4bPM5b67i-k_UbovYLM6Ja06banznnRAGa1d_T-yocsMXp0s4"
-private const val CUSTOM_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDsgbHVHlCf5v6YUjv-Je7bm7In40zlaeKk6GhPwGoCHak9kx3nej8J245laEqJhJe1W0RTTjVnthtcNHxhcbe2QgKTzD5W0YX394LL5PLR05m2YoUT0JH_Bre_Wo9CBsPT-MeXrK_s3Vf5uWr1Z9Xn3RaDBua1dg7rMIsY978IR8XLAGhTpVMNNmLQkx9Fyhoa9Gkho4gqQOzkpnsyydmifjhuTek5LrUJlwbbpyjMifBiKAtD8S3toq7azZHYCZQyXT5dpppY9nkB"
-
 
 private const val QWEN_URL = "https://huggingface.co/litert-community/Qwen3-4B/resolve/main/qwen3_4b_channelwise_int8_float32kv.litertlm?download=true"
 private const val GEMMA_URL = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true"
@@ -265,7 +262,7 @@ fun ModelScreen() {
                     desc = stringResource(Res.string.model_qwen3_desc),
                     contextWindow = "32k",
                     vram = "8GB",
-                    imageUrl = QWEN_IMAGE,
+                    imageResource = Res.drawable.model_qwen_card,
                     isActive = activeId == "qwen",
                     isLoading = loadingState == 1 && activeId == "qwen",
                     isDesktop = false,
@@ -280,7 +277,7 @@ fun ModelScreen() {
                     desc = stringResource(Res.string.model_gemma4_desc),
                     contextWindow = "8k",
                     vram = "8GB",
-                    imageUrl = GEMMA_IMAGE,
+                    imageResource = Res.drawable.model_gemma_card,
                     isActive = activeId == "gemma",
                     isLoading = loadingState == 1 && activeId == "gemma",
                     isDesktop = false,
@@ -290,7 +287,7 @@ fun ModelScreen() {
                     onClick = { onLoadClick(gemmaFilePath) }
                 )
                 CustomModelColumnCard(
-                    imageUrl = CUSTOM_IMAGE,
+                    imageResource = Res.drawable.model_custom_card,
                     isActive = activeId == "custom",
                     isLoading = loadingState == 1 && activeId == "custom",
                     isDesktop = false,
@@ -324,7 +321,7 @@ fun ModelScreen() {
                     desc = stringResource(Res.string.model_qwen3_desc),
                     contextWindow = "32k",
                     vram = "8GB",
-                    imageUrl = QWEN_IMAGE,
+                    imageResource = Res.drawable.model_qwen_card,
                     isActive = activeId == "qwen",
                     isLoading = loadingState == 1 && activeId == "qwen",
                     isDesktop = true,
@@ -341,7 +338,7 @@ fun ModelScreen() {
                     desc = stringResource(Res.string.model_gemma4_desc),
                     contextWindow = "8k",
                     vram = "8GB",
-                    imageUrl = GEMMA_IMAGE,
+                    imageResource = Res.drawable.model_gemma_card,
                     isActive = activeId == "gemma",
                     isLoading = loadingState == 1 && activeId == "gemma",
                     isDesktop = true,
@@ -353,7 +350,7 @@ fun ModelScreen() {
                 CustomModelColumnCard(
                     modifier = Modifier.weight(w3),
                     interactionSource = interact3,
-                    imageUrl = CUSTOM_IMAGE,
+                    imageResource = Res.drawable.model_custom_card,
                     isActive = activeId == "custom",
                     isLoading = loadingState == 1 && activeId == "custom",
                     isDesktop = true,
@@ -442,7 +439,7 @@ private fun ModelColumnCard(
     desc: String,
     contextWindow: String,
     vram: String,
-    imageUrl: String,
+    imageResource: DrawableResource,
     isActive: Boolean,
     isLoading: Boolean,
     isDesktop: Boolean,
@@ -572,8 +569,8 @@ private fun ModelColumnCard(
             .clickable(interactionSource = interactionSource, indication = null, onClick = cardOnClick)
     ) {
         // Watercolor Background
-        AsyncImage(
-            model = imageUrl,
+        Image(
+            painter = painterResource(imageResource),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             colorFilter = ColorFilter.colorMatrix(colorMatrix),
@@ -854,7 +851,7 @@ private fun ModelColumnCard(
 private fun CustomModelColumnCard(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    imageUrl: String,
+    imageResource: DrawableResource,
     isActive: Boolean,
     isLoading: Boolean,
     isDesktop: Boolean,
@@ -942,8 +939,8 @@ private fun CustomModelColumnCard(
         )
 
         // Background image with opacity
-        AsyncImage(
-            model = imageUrl,
+        Image(
+            painter = painterResource(imageResource),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
